@@ -40,6 +40,15 @@ CREATE TABLE IF NOT EXISTS merchants (
     updated_at  TEXT
 );
 
+-- Caché recompute: el vector de una clave puede guardarse antes de que la
+-- clave tenga entrada en merchants (se embedding al primer categorize).
+CREATE TABLE IF NOT EXISTS merchant_embeddings (
+    key        TEXT PRIMARY KEY,
+    model      TEXT NOT NULL,
+    vector     BLOB NOT NULL,
+    updated_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS budgets (
     id           INTEGER PRIMARY KEY,
     category     TEXT NOT NULL,

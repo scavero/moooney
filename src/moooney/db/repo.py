@@ -16,6 +16,13 @@ def connect(db_path: Path, *, check_same_thread: bool = True) -> sqlite3.Connect
     conn.execute("PRAGMA foreign_keys = ON")
     # El esquema es todo CREATE ... IF NOT EXISTS: aplicarlo siempre añade
     # tablas nuevas (p. ej. merchant_embeddings) a bases de datos ya creadas.
+    # La caché de embeddings cambió de definición (se quito la FK); es datos
+    # reconstructibles, asi que se recrea sin perder nada importante.
+    old = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'merchant_embeddings'"
+    ).fetchone()
+    if old is not None and "REFERENCES" in (old["sql"] or ""):
+        conn.execute("DROP TABLE merchant_embeddings")
     schema = files("moooney.db").joinpath("schema.sql").read_text(encoding="utf-8")
     conn.executescript(schema)
     conn.commit()
