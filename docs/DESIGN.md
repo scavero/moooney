@@ -173,10 +173,14 @@ moooney/
 
 - Cómo expone el proxy LiteLLM el endpoint `/v1/systemone` de Clef-Flash (pass-through o llamada directa a SGLang).
 - Formato exacto del Excel de Santander: se ajustará con `moooney inspect`, sin abrir el fichero desde aquí.
-- Nombres de los brókers y operadores de telepeaje del usuario, para sembrar `rules.yaml` y evitar que el modelo tenga que adivinarlos.
 - Capital invertido antes del inicio de los datos (opcional, para `seed.yaml`).
 
 ## Decisiones tomadas
 
 - 2026-10-10: modelo de categorización = Clef-Flash (Cloudflare, 9B, basado en Qwen3.5-9B, Apache-2.0). Modelo de redacción = qwen3.8-flash-next-fp8. Embeddings = bge-m3.
 - 2026-10-10: una sola cuenta exportada; tarjetas, telepeaje e inversión se modelan con `flow_type`, no con cuentas separadas, hasta que exista importación de tarjeta.
+- 2026-10-10: la inversión se hace dentro del propio Santander (fondos, planes, valores). Las suscripciones y aportaciones aparecen como cargos en la cuenta y se marcan `flow_type=investment`; los reembolsos, dividendos y cupones como `income` con subcategoría "rendimientos de inversión". Conceptos esperados: SUSCRIPCION, FONDO, APORTACION, PLAN DE PENSIONES, COMPRA/VENTA VALORES, DIVIDENDO, REEMBOLSO. Se verifican contra los datos reales al sembrar `rules.yaml`.
+- 2026-10-10: el telepeaje es el Vía-T del Santander. Cargos tipo VIA-T, VIA T, PEAJE, AUTOPISTA, AUDASA → Transporte / peajes.
+- 2026-10-10: el agente de OpenCode hace push a `origin/main` al cerrar cada fase.
+- 2026-10-10 (fase 1, verificada sobre el Excel real): la exportación del Santander tiene una sola hoja ("Movimientos de tu cuenta"), filas 1-4 con Cuenta/IBAN/Titular/Saldo, cabecera de tabla en la fila 8 ("Fecha operación, Fecha valor, Concepto, Importe, Saldo, Divisa") y TODAS las celdas como texto: fechas `dd/mm/yyyy` e importes estilo es-ES (`1.234,56 €`). La celda del IBAN lleva un dígito suelto detrás; el parser recorta a 24 caracteres y guarda `account = ****NNNN`. Soportado `.xlsx`; `.xls` se rechaza con mensaje claro (exportar a xlsx).
+- 2026-10-10 (fase 1): filas sin fecha o sin importe (separadores/totales) se omiten silenciosamente. El CSV limpio escribe importes con dos decimales y separador coma. La cabecera de una hoja no se confunde con la de la tabla porque la primera celda no vacía de esas filas es "Cuenta"/"Titular", no "Fecha".

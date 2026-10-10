@@ -23,7 +23,7 @@ Pipeline local de finanzas personales. El usuario exporta a mano extractos de su
 - Configuración en `config/*.yaml`. Rutas en `config/settings.yaml`.
 - Código, nombres de variables, commits y docstrings en español salvo identificadores técnicos habituales en inglés (`date`, `amount`, `flow_type`).
 - Formateo y lint con `ruff`. Tests con `pytest`. Todo verde antes de cada commit.
-- Commits pequeños y descriptivos, un tema por commit. No hacer push salvo que el usuario lo pida.
+- Commits pequeños y descriptivos, un tema por commit. Push a `origin/main` solo al cerrar cada fase, tras verificar con `git status` y `git log --stat -1` que no entra nada de `data/` ni `reports/`.
 - Windows 11 y PowerShell. Usa rutas con `pathlib`, nunca cadenas con barras fijas. Codificación UTF-8 explícita al leer y escribir ficheros.
 
 ## Modelos disponibles (proxy LiteLLM de ClusterTIC)
@@ -46,7 +46,7 @@ moooney/
   config/      settings.yaml  categories.yaml  rules.yaml  budgets.yaml  llm.yaml  seed.yaml
   data/        (ignorado) excel/  clean/  moooney.db
   reports/     (ignorado)
-  docs/        DESIGN.md  PROMPT_FASE1.md  clef_test.json  clef_test.ps1
+  docs/        DESIGN.md  PROMPT_FASE1.md  PROMPT_FASE2.md  clef_test.json  clef_test.ps1
   src/moooney/
     cli.py
     config.py
@@ -62,7 +62,7 @@ moooney/
 ## Fases
 
 1. **Ingesta** (en curso): `inspect`, parseo Santander → CSV limpio, deduplicación, carga en SQLite, `status`. Sin IA. Ver `docs/PROMPT_FASE1.md`.
-2. **Categorización**: normalización de conceptos, memoria de comercios, reglas, embeddings, Clef-Flash, `review`.
+2. **Categorización**: normalización de conceptos, memoria de comercios, reglas, embeddings, Clef-Flash, `review`. Ver `docs/PROMPT_FASE2.md`.
 3. **Analítica**: métricas mensuales, recurrentes, presupuestos, alertas.
 4. **Informe**: previsión, consejos con Qwen, informe mensual en Markdown.
 5. **Automatización**: `watch`, tarea programada, UI ligera.
