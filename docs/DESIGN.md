@@ -66,6 +66,18 @@ La cuenta exportada es una sola, pero por ella pasan cargos de tarjetas de créd
 - **Telepeaje**: cargo recurrente del operador (Bip&Drive, Vía-T). Categoría Transporte / peajes.
 - **Inversión**: las transferencias a brókers o fondos cuentan como ahorro. Como el usuario invierte desde 2023 y la exportación empieza a finales de 2024, el capital aportado será parcial. `config/seed.yaml` admite un `invested_before_data_start` para no engañar a la tasa de ahorro histórica. No se valoran las posiciones (no hay datos de mercado); solo capital aportado.
 
+### 4b. Enriquecimiento externo (fase 2.5, opcional)
+
+Cuando la cascada termina con confianza baja o en "Otros", la pipeline puede consultar un servicio externo para averiguar qué es el comercio y volver a preguntar a Clef con esa información. Es el **único punto donde algo sale de la máquina del usuario y de ClusterTIC**, por eso:
+
+- Desactivado por defecto (`config/enrichment.yaml: enabled`). `--dry-run` lista las consultas exactas antes de enviar nada.
+- Solo sale la clave de comercio limpia más una pista regional. Nunca importes, fechas, frecuencias ni saldos. Pasa por el mismo `anonymize` que los `state` de Clef.
+- Proveedores en orden: Nominatim (OpenStreetMap, sin clave, devuelve tipo de lugar), SearXNG propio si existe, DuckDuckGo, y Google Places solo con clave. Se para en el primero útil.
+- Caché permanente por clave (`merchant_enrichment`) y registro de cada consulta (`web_calls`), análogo a `llm_calls`.
+- La segunda ronda con Clef solo sobreescribe si mejora la confianza (`source=clef_web`) y nunca pisa `source=user`.
+
+Detalle en `docs/PROMPT_FASE2_5.md`.
+
 ### 5. Métricas (SQL sobre SQLite, sin IA)
 - Mensual: ingresos, gastos, ahorro neto, tasa de ahorro.
 - Por categoría: importe, % del gasto, variación vs mes anterior y vs media 6 meses.
@@ -164,7 +176,7 @@ moooney/
 ## Fases
 
 1. **Ingesta**: inspect, parse, dedupe, load. Verificable sin IA.
-2. **Categorización**: normalize, rules, memoria, LLM para desconocidos, review.
+2. **Categorización** (en curso): normalize, rules, memoria, LLM para desconocidos, review.
 3. **Analítica**: métricas, recurrentes, presupuestos, alertas.
 4. **Informe**: previsión, consejos LLM, informe mensual.
 5. **Automatización**: watch, tarea programada, UI ligera.
@@ -184,3 +196,11 @@ moooney/
 - 2026-10-10: el agente de OpenCode hace push a `origin/main` al cerrar cada fase.
 - 2026-10-10 (fase 1, verificada sobre el Excel real): la exportación del Santander tiene una sola hoja ("Movimientos de tu cuenta"), filas 1-4 con Cuenta/IBAN/Titular/Saldo, cabecera de tabla en la fila 8 ("Fecha operación, Fecha valor, Concepto, Importe, Saldo, Divisa") y TODAS las celdas como texto: fechas `dd/mm/yyyy` e importes estilo es-ES (`1.234,56 €`). La celda del IBAN lleva un dígito suelto detrás; el parser recorta a 24 caracteres y guarda `account = ****NNNN`. Soportado `.xlsx`; `.xls` se rechaza con mensaje claro (exportar a xlsx).
 - 2026-10-10 (fase 1): filas sin fecha o sin importe (separadores/totales) se omiten silenciosamente. El CSV limpio escribe importes con dos decimales y separador coma. La cabecera de una hoja no se confunde con la de la tabla porque la primera celda no vacía de esas filas es "Cuenta"/"Titular", no "Fecha".
+- 2026-10-10 (fase 2): normalización de conceptos → clave de comercio determinista (quitar referencias numéricas, colapsar bizums/transferencias a particulares quitando nombres, marcador RECIBO corta mandatos). 1.252 conceptos crujidos → 562 claves.
+- 2026-10-10 (fase 2): bizum enviado = `expense` (consumo), bizum recibido = `income`, transferencia a/de particular = `transfer_internal`. Nómina detectada por palabra NOMINA. Las devoluciones con prefijo DEVOLUCION son `Ingresos/income`; un reembolso que llega bajo la clave del comercio mantiene la categoría de gasto con importe positivo.
+- 2026-10-10 (fase 2): `PAYPAL ADD TO BAL` es `transfer_internal` (recargar la propia cartera); los cargos genéricos `PAYPAL EUROPE` no revelan comercio y se resuelven por regla a `Otros/expense` (bloque irreducible sin fase 2.5). El colapso por marcador RECIBO agrupa sus referencias alfanuméricas en una única clave.
+- 2026-10-10 (fase 2): anti-sesgo del state de Clef. El prefijo "Movimiento bancario." convertía Comisiones bancarias en sumidero para cualquier desconocido (conf ~0.8 con claves inventadas); la palabra "bancario" sola lo reproduce (probado con panel de 7 claves). El state definitivo es neutro: "Concepto de un apunte: {clave}. Importe medio ...". Los conocimientos de marca se trasladaron a las descripciones de las categorías (supermercados regionales, telepeaje WETACA, SUSCRIPCION+fondo = Ahorro e inversión ≠ Comisiones, AEAT = Ingresos, DEVOLUCION = Ingresos, Decathlon = Compras, bizum = gasto/ingreso nunca traspaso).
+- 2026-10-10 (fase 2): criterio estricto de `card_settlement` = liquidación mensual de la tarjeta del propio banco (concepto LIQUIDACION DE TARJETAS); nada más debe llevar ese flow.
+- 2026-10-10 (fase 2): prioridad de source en `merchants`: user > rule > embedding > clef > llm; la memoria con source=user nunca se reconsulta. Umbral de embeddings 0.92 (en la práctica hereda poco; Clef carga la cola larga — aceptado).
+- 2026-10-10 (fase 2): métrica de "Otros" medida sobre el gasto bruto (suma de importes negativos). El criterio <10 % no se cumple en base bruta (≈16 %) por el bloque PayPal (≈6.500 €) y cargos oscuros; se documenta como tensión conocida y objetivo de la fase 2.5. Excluyendo transferencias/traspasos/inversión, la proporción baja notablemente.
+- 2026-10-10 (fase 2): `eval-clef` mide al decider contra `data/eval/merchants_labeled.csv` (50 claves reales etiquetadas a mano, git-ignored; BOM tolerado con utf-8-sig). No escribe en `merchants`. Umbrales: categoría >85 %, flow_type >95 %. Resultado final: categoría 90 %, flow_type 100 %. La calibración muestra que la confianza solo es fiable por encima de 0.7 (95-100 % de acierto); por debajo, ~83 %.
