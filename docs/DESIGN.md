@@ -76,6 +76,11 @@ Cuando la cascada termina con confianza baja o en "Otros", la pipeline puede con
 - Caché permanente por clave (`merchant_enrichment`) y registro de cada consulta (`web_calls`), análogo a `llm_calls`.
 - La segunda ronda con Clef solo sobreescribe si mejora la confianza (`source=clef_web`) y nunca pisa `source=user`.
 
+Implementación (`src/moooney/enrich/`): `settings.py` (config), `query.py` (construcción y
+saneado de la consulta), `providers.py` (Nominatim, SearXNG, DuckDuckGo vía `ddgs`, Google
+Places Text Search, limitador de ritmo), `runner.py` (selección de candidatas, caché, registro,
+segunda ronda). Comando `moooney enrich` y flag `categorize --enrich`.
+
 Detalle en `docs/PROMPT_FASE2_5.md`.
 
 ### 5. Métricas (SQL sobre SQLite, sin IA)
@@ -203,4 +208,8 @@ moooney/
 - 2026-10-10 (fase 2): criterio estricto de `card_settlement` = liquidación mensual de la tarjeta del propio banco (concepto LIQUIDACION DE TARJETAS); nada más debe llevar ese flow.
 - 2026-10-10 (fase 2): prioridad de source en `merchants`: user > rule > embedding > clef > llm; la memoria con source=user nunca se reconsulta. Umbral de embeddings 0.92 (en la práctica hereda poco; Clef carga la cola larga — aceptado).
 - 2026-10-10 (fase 2): métrica de "Otros" medida sobre el gasto bruto (suma de importes negativos). El criterio <10 % no se cumple en base bruta (≈16 %) por el bloque PayPal (≈6.500 €) y cargos oscuros; se documenta como tensión conocida y objetivo de la fase 2.5. Excluyendo transferencias/traspasos/inversión, la proporción baja notablemente.
+- 2026-10-10 (revisión fase 2): WETACA es comida a domicilio, no telepeaje. Regla nueva de comida a domicilio (WETACA, GLOVO, UBER EATS, JUST EAT, DELIVEROO → Alimentación/restaurantes) antes de la de transporte; descripción de Transporte corregida.
+- 2026-10-10 (revisión fase 2): una regla corregida no se reaplicaba a claves ya categorizadas (solo entran en la cascada claves sin entrada en `merchants`). Nuevo `categorize --refresh-rules`: reaplica `rules.yaml` a todo lo que no sea `source=user`. Sobre la base real cambió 3 claves de 562.
+- 2026-10-10 (fase 2.5): fuente `clef_web` con prioridad entre `embedding` y `clef`. Disparador por defecto: confianza < 0,6 o categoría Otros, excluyendo `transfer_internal`, `income`, `card_settlement` y claves estructurales (bizum, transferencias, recibos, PayPal Europe). Tope de 50 consultas por ejecución, 1,5 s entre peticiones (Nominatim exige ≤ 1/s), resumen externo saneado (sin teléfonos ni referencias) y acotado a 600 caracteres antes de volver a Clef.
+- 2026-10-10 (fase 2.5): `enrich --dry-run` sobre la base real: 305 candidatas, 225 con consulta válida, 80 descartadas por los patrones vetados. El usuario decide si activarlo tras revisar la lista en `reports/enrich_dry_run.txt`. Dato a vigilar: 305 de 562 claves están bajo el umbral 0,6, coherente con la calibración (Clef solo es fiable > 0,7); si la lista es demasiado larga, subir `max_confidence` no es la solución, bajarlo sí reduce consultas.
 - 2026-10-10 (fase 2): `eval-clef` mide al decider contra `data/eval/merchants_labeled.csv` (50 claves reales etiquetadas a mano, git-ignored; BOM tolerado con utf-8-sig). No escribe en `merchants`. Umbrales: categoría >85 %, flow_type >95 %. Resultado final: categoría 90 %, flow_type 100 %. La calibración muestra que la confianza solo es fiable por encima de 0.7 (95-100 % de acierto); por debajo, ~83 %.

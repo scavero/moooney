@@ -46,12 +46,47 @@ uv run moooney eval-clef         # --labels otra_carpena.csv
 ```
 
 Las etiquetas de comercio viven en la tabla `merchants` (source: user > rule >
-embedding > clef > llm) y todo lo que hace el modelo queda registrado en `llm_calls`.
+embedding > clef_web > clef > llm) y todo lo que hace el modelo queda registrado en `llm_calls`.
+
+Si corriges o amplías `config/rules.yaml`, reaplica las reglas a las claves ya categorizadas
+(nunca toca tus correcciones manuales):
+
+```powershell
+uv run moooney categorize --refresh-rules --no-llm
+```
+
+## Uso (fase 2.5: enriquecimiento externo, opcional)
+
+Para los comercios que la cascada deja dudosos (confianza baja o categoría Otros), la
+pipeline puede preguntar a un servicio externo qué es ese comercio y volver a consultar a
+Clef con la respuesta. **Es el único punto donde algo sale de tu máquina y de ClusterTIC**:
+solo la clave de comercio limpia más una pista regional, nunca importes, fechas ni saldos.
+Por eso viene desactivado.
+
+```powershell
+# 1. Ver EXACTAMENTE qué consultas se enviarían y a qué proveedor, sin enviar nada
+uv run moooney enrich --dry-run                      # a pantalla
+uv run moooney enrich --dry-run --out reports/enrich_dry_run.txt
+
+# 2. Si estás de acuerdo, pon enabled: true en config/enrichment.yaml y ejecuta
+uv run moooney enrich                                # --limit N | --key CLAVE | --force
+
+# o encadénalo a la categorización
+uv run moooney categorize --enrich
+```
+
+Proveedores en orden (se para en el primero útil): Nominatim de OpenStreetMap (sin clave,
+devuelve el tipo de lugar), un SearXNG propio si configuras `searxng_url`, DuckDuckGo, y
+Google Places solo si existe `GOOGLE_PLACES_API_KEY`. Cada consulta real queda registrada
+en la tabla `web_calls`; cada clave se consulta una sola vez (caché en `merchant_enrichment`).
+La segunda ronda con Clef solo sobreescribe si mejora la confianza y nunca pisa una
+corrección tuya. `MOOONEY_OFFLINE=1` bloquea también estos proveedores.
 
 ## Privacidad
 
 `data/`, `reports/` y los `.env` están ignorados por git. Ningún comando imprime conceptos,
 importes individuales, saldos ni el IBAN completo. Los tests usan únicamente datos sintéticos.
+Egreso auditable: `llm_calls` (modelos, dentro de ClusterTIC) y `web_calls` (fase 2.5, fuera).
 
 ## Desarrollo
 

@@ -43,7 +43,7 @@ Base URL `https://litellm.clusterticgalicia.com/v1`, API compatible con OpenAI, 
 moooney/
   AGENTS.md
   pyproject.toml
-  config/      settings.yaml  categories.yaml  rules.yaml  budgets.yaml  llm.yaml  seed.yaml
+  config/      settings.yaml  categories.yaml  rules.yaml  llm.yaml  enrichment.yaml  budgets.yaml  seed.yaml
   data/        (ignorado) excel/  clean/  moooney.db
   reports/     (ignorado)
   docs/        DESIGN.md  PROMPT_FASE1.md  PROMPT_FASE2.md  PROMPT_FASE2_5.md  clef_test.json  clef_test.ps1
@@ -52,7 +52,8 @@ moooney/
     config.py
     db/          schema.sql  repo.py
     ingest/      detect.py  parse_santander.py  load.py
-    categorize/  normalize.py  rules.py  embed.py  decide.py  review.py
+    categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py
+    enrich/      settings.py  query.py  providers.py  runner.py
     analytics/   metrics.py  recurring.py  budgets.py  alerts.py  forecast.py
     llm/         client.py  anonymize.py  prompts/
     report/      monthly.py
