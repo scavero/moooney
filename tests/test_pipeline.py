@@ -134,7 +134,7 @@ class FakeDecider:
         if any(k in state for k in self.boom):
             raise LLMError("el modelo se ha caido")
         for key, answers in self.answers_by_key.items():
-            if f"Concepto normalizado: {key}." in state:
+            if f"Concepto de un apunte: {key}." in state:
                 return answers
         return {}
 

@@ -63,7 +63,7 @@ def build_state(job: KeyJob) -> str:
     tipo = "gasto" if job.avg_amount < 0 else "abono"
     gap = f", intervalo medio entre apariciones {round(job.gap_days)} dias" if job.gap_days else ""
     return (
-        f"Movimiento bancario. Concepto normalizado: {job.key}. "
+        f"Concepto de un apunte: {job.key}. "
         f"Importe medio: {media:+.0f} EUR ({tipo}) en {job.n} apariciones{gap}."
     )
 
@@ -72,7 +72,10 @@ def build_questions(taxonomy: Taxonomy) -> dict:
     return {
         "category": {
             "type": "choice",
-            "instructions": "Categoria del movimiento",
+            "instructions": (
+                "Categoria del movimiento. Si no reconoces el nombre comercial"
+                " y no puedes deducir el gasto, elige Otros"
+            ),
             "criteria": {name: spec.description for name, spec in taxonomy.categories.items()},
         },
         "flow_type": {

@@ -5,7 +5,7 @@
 categories:
   Ingresos:
     flow_type: income
-    description: "Dinero que entra: nomina, prestaciones, devoluciones de Hacienda o reembolsos de compras"
+    description: "Dinero que entra: nomina, prestaciones, devoluciones de Hacienda o reembolsos de compras. Un abono de la administracion (AEAT, Hacienda) es una devolucion, no una transferencia. Un apunte que empieza por DEVOLUCION es dinero que entra: Ingresos, aunque mencione un comercio"
     subcategories: [nomina, prestaciones, otros ingresos]
   Vivienda:
     flow_type: expense
@@ -13,27 +13,27 @@ categories:
     subcategories: [hipoteca y prestamo, alquiler, suministros, telefonia e internet, comunidad]
   Alimentacion:
     flow_type: expense
-    description: "Comida: compra de supermercado o comida y bebida fuera de casa (bares, restaurantes, cafeterias)"
+    description: "Comida: compra de supermercado (cadenas grandes o regionales como Froiz o Gadis, aunque esten truncadas) y comida y bebida fuera de casa (bares, restaurantes, cadenas de comida rapida, cafeterias, sidrerias, comida a domicilio), sea gran cadena o negocio local"
     subcategories: [supermercado, restaurantes]
   Transporte:
     flow_type: expense
-    description: "Moverse: combustible, peajes y telepeaje, parking, tren, autobus, avion, taxi"
+    description: "Moverse: combustible y recarga de vehiculos, peajes y telepeaje con dispositivo (WETACA, Via-T), parking, lavado de vehiculos, tren, autobus, avion, taxi"
     subcategories: [combustible, peajes, parking, transporte publico]
   Salud:
     flow_type: expense
-    description: "Gastos medicos no cubiertos por el seguro: farmacia, consultas, dentist, optica"
+    description: "Gastos medicos no cubiertos por el seguro: farmacia, consultas, dentist, optica, veterinarias y productos para mascotas"
     subcategories: [farmacia, medicina]
   Ocio:
     flow_type: expense
-    description: "Disfrute: viajes y hoteles, deporte, conciertos, cultura, regalos"
+    description: "Disfrute: viajes y hoteles, deporte (instalaciones, clases y eventos, no material deportivo), conciertos, cultura, regalos"
     subcategories: [viajes, deporte, cultura]
   Suscripciones:
     flow_type: expense
-    description: "Cuotas periodicas de servicios digitales: streaming, musica, software, nube, IA"
+    description: "Cuotas periodicas de servicios digitales que reconoces (streaming, musica, software, nube, IA): un nombre que no reconoces no es una suscripcion, es Otros. La palabra SUSCRIPCION con un fondo o plan del banco es Ahorro e inversion"
     subcategories: [streaming, software y cloud, otras]
   Compras:
     flow_type: expense
-    description: "Compra de productos no perecederos: ropa, tecnologia, hogar, bricolaje, compras online"
+    description: "Compra de productos no perecederos: ropa, tecnologia, hogar, bricolaje, compras online y marketplaces (Amazon y variantes AMZN), conceptos que incluyen RETAIL, articulos deportivos (Decathlon es tienda de productos, no Ocio)"
     subcategories: [online, ropa y calzado, hogar y bricolaje, tecnologia]
   Educacion:
     flow_type: expense
@@ -49,11 +49,11 @@ categories:
     subcategories: [hacienda, tasas locales, trafico]
   Transferencias:
     flow_type: transfer_internal
-    description: "Dinero que solo se mueve: traspasos entre cuentas y huchas propias, bizum y transferencias a otras personas"
+    description: "Dinero que solo se mueve: traspasos entre cuentas y huchas propias, bizum y transferencias a otras personas; cargar saldo en tu propia cartera de PayPal (PAYPAL ADD TO BAL) es un traspaso propio. Si el destinatario de un bizum es una empresa desconocida, es un gasto: Otros"
     subcategories: [traspaso interno, bizum enviado, bizum recibido, a particular, desde particular]
   Ahorro e inversion:
     flow_type: investment
-    description: "Aportar dinero a ahorro o inversion: fondos, planes de pensiones, acciones; tambien sus rendimientos"
+    description: "Aportar dinero a ahorro o inversion: poner dinero en fondos, tambien los del propio banco (un concepto SUSCRIPCION GO GLOBAL E SE o ASG RENTA VARIABLE es una aportacion a un fondo, jamas una comision), planes de pensiones, acciones; tambien sus rendimientos"
     subcategories: [fondos, planes de pensiones, valores, rendimientos de inversion]
   Tarjeta de credito:
     flow_type: card_settlement
@@ -61,7 +61,7 @@ categories:
     subcategories: [liquidacion]
   Comisiones bancarias:
     flow_type: expense
-    description: "Lo que cobra el banco por si mismo: comisiones, mantenimiento, tarjetas de servicios, tarifas"
+    description: "Lo que cobra el banco por mantenerte la cuenta. SOLO si el concepto dice literalmente comision, mantenimiento, tarifa o cuota. Ningun otro concepto es Comisiones: las aportaciones a fondos son Ahorro e inversion y los nombres desconocidos son Otros"
     subcategories: [comisiones, mantenimiento]
   Efectivo:
     flow_type: expense
@@ -69,13 +69,13 @@ categories:
     subcategories: [retiradas, ingresos]
   Otros:
     flow_type: expense
-    description: "Cualquier movimiento que no encaje claramente en ninguna otra categoria"
+    description: "No se sabe quien es el origen ni que se pago: nombre comercial desconocido, nombre de persona o codigo ininteligible, incluidos los cargos de PAYPAL EUROPE cuyo comercio final no se ve. Ante la duda, mejor esto que adivinar"
     subcategories: [otros]
 
 # Opciones de flow_type con su descripcion para Clef
 flow_types:
-  expense: "Gasto: dinero que se gasta en consumir"
-  income: "Ingreso: dinero que entra como ganancia o devolucion"
-  transfer_internal: "Traspaso entre cuentas o huchas propias: no es ni gasto ni ingreso"
+  expense: "Gasto: dinero que se gasta en consumir, incluidos siempre los bizum enviados; un pago cuyo comercio no conoces sigue siendo un gasto"
+  income: "Ingreso: dinero que entra como ganancia o devolucion, incluidos los bizum recibidos"
+  transfer_internal: "Traspaso entre cuentas o huchas propias y transferencias bancarias a otras personas: no es ni gasto ni ingreso. Los bizum nunca son traspasos"
   investment: "Aportacion a inversion (fondo, plan, acciones): es ahorro, no gasto"
-  card_settlement: "Liquidacion de la tarjeta de credito: las compras ya se contaron por su cuenta"
+  card_settlement: "Liquidacion mensual de la tarjeta de credito del propio banco (concepto LIQUIDACION DE TARJETAS): las compras ya se contaron por su cuenta"
