@@ -1,0 +1,22 @@
+# Rutas de la pipeline (relativas a la raiz del proyecto salvo que se indique lo contrario)
+paths:
+  excel_dir: data/excel
+  clean_dir: data/clean
+  db_path: data/moooney.db
+
+# Configuracion del parser de extractos del Santander
+parser:
+  # null = usar la primera hoja del libro
+  sheet: null
+  # La tabla de movimientos empieza en la primera fila cuya primera celda
+  # no vacia contiene esta palabra (normalizada: minusculas, sin acentos)
+  header_keyword: fecha
+  # Columnas destino sin las cuales el fichero no es importable
+  required_columns: [date, concept, amount, balance]
+  # Alias (normalizados) aceptados para cada columna destino
+  columns:
+    date: ["fecha operacion", "fecha de operacion", "fecha"]
+    value_date: ["fecha valor", "fecha en valor", "valor"]
+    concept: ["concepto", "descripcion"]
+    amount: ["importe", "importe eur", "importe (eur)", "importe en eur"]
+    balance: ["saldo", "saldo eur", "saldo (eur)"]
