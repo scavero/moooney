@@ -34,7 +34,9 @@ _OPERATION_PREFIXES = [
 ]
 
 # Palabras que introducen datos del recibo (no del comercio): se corta ahí.
-_CUT_MARKERS = re.compile(r"\b(CONCEPTO|TARJETA|TARJ|COMISION|CIF|POLIZA|RAMO|REF)\b")
+_CUT_MARKERS = re.compile(
+    r"\b(CONCEPTO|TARJETA|TARJ|COMISION|CIF|POLIZA|RAMO|REF|RECIBO)\b"
+)
 
 # Marcadores fiscales que sobreviven al borrado de nombres en transferencias.
 _AEAT = re.compile(r"\b(AEAT|DEVOLUCIONES? TRIBUTARIAS|HACIENDA)\b")

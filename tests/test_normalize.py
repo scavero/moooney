@@ -15,6 +15,13 @@ def test_compra_por_internet_con_pan_y_comision():
     assert clean_concept(a) == clean_concept(b) == "ZAPATOS EL BUEN ANDAR"
 
 
+def test_recibo_domiciliado_corta_el_concepto():
+    # El marcador RECIBO introduce datos del adeudo (mandato, referencia), no el comercio.
+    a = "SUPERMERCADOS LA ESQUINA RECIBO DIRECTO 12/2026 MANDATO 5ZF000"
+    b = "SUPERMERCADOS LA ESQUINA RECIBO DOMICILIADO REF 00987"
+    assert clean_concept(a) == clean_concept(b) == "SUPERMERCADOS LA ESQUINA"
+
+
 def test_bizum_sin_nombre_de_persona():
     assert clean_concept("BIZUM A FAVOR DE Ana Pérez Sancho CONCEPTO: CENA") == "BIZUM ENVIADO"
     assert clean_concept("BIZUM DE María Do Val Río CONCEPTO: BIEN") == "BIZUM RECIBIDO"
