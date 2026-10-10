@@ -1,0 +1,193 @@
+# Reglas deterministas aplicadas sobre la clave de comercio (clean_concept).
+# Lista ordenada: la primera que casa (re.search, mayusculas sin acentos) gana.
+# category/subcategory/flow_type deben existir en config/categories.yaml.
+
+rules:
+  # --- estructura bancaria conocida ---
+  - {pattern: '^NOMINA', category: Ingresos, subcategory: nomina, flow_type: income}
+  - pattern: '^DEVOLUCION NOMINA'
+    category: Ingresos
+    subcategory: nomina
+    flow_type: income # queda como ingreso negativo en metricas
+  - pattern: '^LIQUIDACION DE TARJETAS DE CREDITO'
+    category: Tarjeta de credito
+    subcategory: liquidacion
+    flow_type: card_settlement
+  - pattern: '^TRASPASO'
+    category: Transferencias
+    subcategory: traspaso interno
+    flow_type: transfer_internal
+  - pattern: '^BIZUM ENVIADO'
+    category: Transferencias
+    subcategory: bizum enviado
+    flow_type: expense # un bizum a una persona suele ser consumo
+  - pattern: '^BIZUM RECIBIDO'
+    category: Transferencias
+    subcategory: bizum recibido
+    flow_type: income
+  - pattern: '^TRANSFERENCIA (A|DE) PARTICULAR AEAT'
+    category: Impuestos y tasas
+    subcategory: hacienda
+    flow_type: income # devolucion de Hacienda
+  - pattern: '^TRANSFERENCIA A PARTICULAR'
+    category: Transferencias
+    subcategory: a particular
+    flow_type: transfer_internal
+  - pattern: '^TRANSFERENCIA DE PARTICULAR'
+    category: Transferencias
+    subcategory: desde particular
+    flow_type: transfer_internal
+  - {pattern: '^RETIRADA DE EFECTIVO', category: Efectivo, subcategory: retiradas, flow_type: expense}
+  - {pattern: '^INGRESO EN CAJERO', category: Efectivo, subcategory: ingresos, flow_type: income}
+  - {pattern: '^LIQUIDACION REMESAS', category: Efectivo, subcategory: ingresos, flow_type: income}
+  - pattern: '^PAYPAL ADD TO BAL'
+    category: Transferencias
+    subcategory: a particular
+    flow_type: transfer_internal # saldo en la cartera, la compra ya se ve aparte
+
+  # --- inversion en el propio banco ---
+  - pattern: '^DIVIDENDO|^REEMBOLSO|^CUPON|DIVIDENDO|REEMBOLSO DE FONDO'
+    category: Ahorro e inversion
+    subcategory: rendimientos de inversion
+    flow_type: income
+  - pattern: 'PLAN DE PENSIONES|APORTACION|\bPP\b|SANTANDER ASG'
+    category: Ahorro e inversion
+    subcategory: planes de pensiones
+    flow_type: investment
+  - pattern: '^SUSCRIPCION(?!.*(NETFLIX|SPOTIFY|PRIME|HBO|DISNEY|YOUTUBE|OPENAI|ANTHROPIC|CLAUDE))'
+    category: Ahorro e inversion
+    subcategory: fondos
+    flow_type: investment
+  - pattern: 'COMPRA DE? VALORES|VENTA DE? VALORES|CARTERA DE? VALORES|FONDO DE INVERSION|^FONDO '
+    category: Ahorro e inversion
+    subcategory: valores
+    flow_type: investment
+
+  # --- peajes y telepeaje (Vía-T del Santander, WETACA en la AP-9) ---
+  - pattern: 'WETACA|VIA.?T\b|PEAJE|AUTOPISTA|AUDASA|BIP.?DRIVE|IDENTRACK|APLA? Telpeaje'
+    category: Transporte
+    subcategory: peajes
+    flow_type: expense
+  - pattern: 'PARKING|PARKIN|APEA\b|PARCOMA|APARCAMIENTO|VIGOMAT|DORSAL'
+    category: Transporte
+    subcategory: parking
+    flow_type: expense
+
+  # --- combustibles ---
+  - pattern: '^US |^US$|PLENERGY|GOMISTAR|REPSOL|CEPSA|GALP|\bBP\b|SHELL|CAMPSA|IPARLUX|BENGINA|GASOLIN|COMBUSTIBLE|POSTO DE? COMBUSTIVE'
+    category: Transporte
+    subcategory: combustible
+    flow_type: expense
+
+  # --- transporte publico ---
+  - pattern: 'RENFE|ALSA|MONBUS|URGISAL|ULUR|AVANZA|METRO\b|\bTREN\b|AEROLINEA|RYANAIR|VOLING|VUELING|IBERIA|AIR EUROPA|TAXI|CABIFY|UBER|\bAMAP\b|\bDIDI\b|ALSA|BUSES'
+    category: Transporte
+    subcategory: transporte publico
+    flow_type: expense
+
+  # --- alimentacion ---
+  - pattern: 'SUPERMERCADOS|FROIZ|GADIS|EROSKI|CARREFOUR MARKET|CARREFOUR|\bDIA\b|LIDL|ALDI|ALCAMPO|MERCADONA|COSTCO|GINMIL|SAPORIS|VIDROLAR|PANADERIA|PANADERIA|PASTELERIA|BOLLERIA|HELADERIA|FRUTERIA|VERDULERIA|CHARCUTERIA|POLLERIA'
+    category: Alimentacion
+    subcategory: supermercado
+    flow_type: expense
+  - pattern: 'BAR |^BAR$|BAR$|CAFETERIA|CAFETERIA|RESTAURANTE|CANTINA|PIZZERIA|PESCADITO? FRITO|BODEGA|TABERNA|CERVECERIA|VENDING|HORCHATERIA|SIDERIA|MARISQUERIA|ASADOR|MCDONALD|TELEPIZZA|KEBAB|BURGUER|BURGER|PIZZA|TAPERIA|COMEDOR|^CAF '
+    category: Alimentacion
+    subcategory: restaurantes
+    flow_type: expense
+
+  # --- salud ---
+  - pattern: 'FARMACIA|PARAFARMACIA|OPTICA|OPTICA|DENTAL|ODONTO|CLINICA|CENTRO MEDICO|HOSPITAL|ANALISIS CLINICOS|FISIO'
+    category: Salud
+    subcategory: farmacia
+    flow_type: expense
+
+  # --- seguros (marcas antes que el generico) ---
+  - {pattern: 'SANITAS', category: Seguros, subcategory: salud, flow_type: expense}
+  - pattern: 'SEGURO|AXA\b|REALE\b|MAPFRE|LINEA DIRECTA|GENERALI|ZURICH| MUTUA|MUTUACTIVOS|CASER|SANTA LUCIA|VERTI|HELVETIA'
+    category: Seguros
+    subcategory: otros
+    flow_type: expense
+
+  # --- suministros y telefonia ---
+  - pattern: 'IBERDROLA|NATURGY|ENDESA|\bEDP\b|VIESGO|FENIE|SOLAR(?:R)?\b|CALOR DISTRIBUCION|BUTANO|EASYGAS'
+    category: Vivienda
+    subcategory: suministros
+    flow_type: expense
+  - pattern: 'AUGAS|SONGA|GESTAIGUA|AGUANATURA|\bSODEGA\b|ALCANADRIA?|AGUA\b'
+    category: Vivienda
+    subcategory: suministros
+    flow_type: expense
+  - pattern: 'MOVISTAR|VODAFONE|ORANGE|MASMOVIL|YOIGO|RCABLE|R CABLE|TELXON|FIBRA|ADSL|\bDIGI\b|JIOMAT'
+    category: Vivienda
+    subcategory: telefonia e internet
+    flow_type: expense
+
+  # --- hipoteca, prestamo, alquiler ---
+  - {pattern: 'HIPOTECA|PRESTAMO|LEASING?', category: Vivienda, subcategory: hipoteca y prestamo, flow_type: expense}
+  - {pattern: 'ALQUILER|ARRENDA', category: Vivienda, subcategory: alquiler, flow_type: expense}
+
+  # --- suscripciones digitales (marcas: streaming primero) ---
+  - pattern: 'NETFLIX|SPOTIFY|PRIMEVIDEO|PRIME VIDEO|AMAZON PRIME|\bHBO\b|DISNEY|YOUTUBE|APPLE ?MUSIC|DAZN|MOVISTARD\+|F1 TV'
+    category: Suscripciones
+    subcategory: streaming
+    flow_type: expense
+  - pattern: 'GOOGLE|APPLE|ICLOUD|ITUNES|MICROSOFT|OPENAI|CHATGPT|ANTHROPIC|CLAUDE|ADOBE|DROPBOX|PROTON|NORDVPN|EXPRESSVPN|AD FREE|ONE DRIVE|LICENCIA|SOFTWARE|HOSTINGER|NAMECHEAP|IMOZ'
+    category: Suscripciones
+    subcategory: software y cloud
+    flow_type: expense
+
+  # --- impuestos y tasas ---
+  - pattern: '^IMPUESTO|AEAT|HACIENDA|TABALERA|TRIBUTARIO'
+    category: Impuestos y tasas
+    subcategory: hacienda
+    flow_type: expense
+  - pattern: '\bIBI\b|AYUNTAMIENTO|CONCELLO|BASURA|SUMA\b'
+    category: Impuestos y tasas
+    subcategory: tasas locales
+    flow_type: expense
+  - pattern: '\bDGT\b|MULTA|SANCION'
+    category: Impuestos y tasas
+    subcategory: trafico
+    flow_type: expense
+
+  # --- comisiones del banco ---
+  - pattern: '^TARIFA|^COMISION|COMISION DE|MANTENIMIENTO|PROGRAMA SAN|CUOTA DE'
+    category: Comisiones bancarias
+    subcategory: comisiones
+    flow_type: expense
+
+  # --- compras ---
+  - pattern: 'AMAZON\b|WWW AMAZON|AMZN|ALIEXPRESS|ALIEXPRESS|SHEIN|\bTEMU\b|EBAY|PCCOMPONENTS|PC COMPONENTS|FNAC|CORTE INGLES|ALIPAY OTHERRETAIL|LETYSHOP|MEDIAMARKT|LEROY MERLIN|AKI\b|B&Q|OBRAMAT'
+    category: Compras
+    subcategory: online
+    flow_type: expense
+
+  # --- ropa y hogar ---
+  - pattern: 'TK MAX|PRIMARK|ZARA|INDITEX|STRADIVARIUS|MANGO\b|DESCENTURA?|DECATHLON|LEFTIES?|PULL&BEAR|OYSHO|BERSHKA'
+    category: Compras
+    subcategory: ropa y calzado
+    flow_type: expense
+  - pattern: 'LEKICOR|FERRETERIA|BRICOLAGE|BRICOMART|GAMA? HOGAR|BAZAR|OBRAMAT'
+    category: Compras
+    subcategory: hogar y bricolaje
+    flow_type: expense
+
+  # --- ocio ---
+  - pattern: 'HOTEL|HOSTAL|ALBERGUE|PENSION\b|CASA RURAL|AIRBNB|BOOKING|PARADOR|RESERVA ?ONLINE|AGENCIA DE VIAJES|SALIDAS?\.COM|VOLO?EASY|LOGISFLY|VOLATEA'
+    category: Ocio
+    subcategory: viajes
+    flow_type: expense
+  - pattern: 'GYM|FITNESS|METROPOL|XIMNASIO|PILATES|PADEL|FUTBOL|CLUB DEPORTIVO|NATACION'
+    category: Ocio
+    subcategory: deporte
+    flow_type: expense
+  - pattern: '\bCINE\b|MULTICINES|CINESA|KIOSKO|QUIOSCO|LIBRERIA|LIBRO|TEATRO|AUDITORIO|CONCIERTO|MUSEO|ENTRADAS?\.COM|TICKETmaster|WIZINK CENTER|PALACIO DE DEPORTES'
+    category: Ocio
+    subcategory: cultura
+    flow_type: expense
+
+  # --- educacion ---
+  - pattern: 'UNIVERSIDAD|ESCOLA|ACADEMIA|MATRICULA|CURSO\b|FORMACION|IDIOMAS'
+    category: Educacion
+    subcategory: formacion
+    flow_type: expense

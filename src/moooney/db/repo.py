@@ -12,14 +12,13 @@ def connect(db_path: Path) -> sqlite3.Connection:
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    table = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='imports'"
-    ).fetchone()
-    if table is None:
-        schema = files("moooney.db").joinpath("schema.sql").read_text(encoding="utf-8")
-        conn.executescript(schema)
-        conn.commit()
+    # El esquema es todo CREATE ... IF NOT EXISTS: aplicarlo siempre añade
+    # tablas nuevas (p. ej. merchant_embeddings) a bases de datos ya creadas.
+    schema = files("moooney.db").joinpath("schema.sql").read_text(encoding="utf-8")
+    conn.executescript(schema)
+    conn.commit()
     return conn
 
 
@@ -76,6 +75,73 @@ def insert_transactions(
         inserted += cur.rowcount
     conn.commit()
     return inserted
+
+
+# ---------- merchants (memoria de claves de comercio) ----------
+
+# Precedencia al recategorizar: user > rule > embedding > clef > llm.
+SOURCE_PRIORITY = {"user": 5, "rule": 4, "embedding": 3, "clef": 2, "llm": 1}
+
+
+def get_merchant(conn: sqlite3.Connection, key: str) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM merchants WHERE key = ?", (key,)).fetchone()
+
+
+def upsert_merchant(
+    conn: sqlite3.Connection,
+    *,
+    key: str,
+    category: str,
+    subcategory: str,
+    flow_type: str,
+    source: str,
+    confidence: float,
+    updated_at: str,
+) -> bool:
+    """Guarda la clasificación de una clave respetando la precedencia de fuentes.
+
+    Devuelve False si una fuente de mayor rango (p. ej. user) ya la fijó.
+    """
+    existing = get_merchant(conn, key)
+    if existing is not None:
+        prev = SOURCE_PRIORITY.get(existing["source"], 0)
+        if prev > SOURCE_PRIORITY.get(source, 0):
+            return False
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO merchants (key, category, subcategory, flow_type, source, confidence, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                category = excluded.category,
+                subcategory = excluded.subcategory,
+                flow_type = excluded.flow_type,
+                source = excluded.source,
+                confidence = excluded.confidence,
+                updated_at = excluded.updated_at
+            """,
+            (key, category, subcategory, flow_type, source, confidence, updated_at),
+        )
+    return True
+
+
+def propagate_to_transactions(
+    conn: sqlite3.Connection,
+    *,
+    key: str,
+    category: str,
+    subcategory: str,
+    flow_type: str,
+    confidence: float,
+) -> int:
+    """Aplica la categoría de una clave a todas sus transacciones. Devuelve filas."""
+    with conn:
+        cur = conn.execute(
+            "UPDATE transactions SET category = ?, subcategory = ?, flow_type = ?, confidence = ?"
+            " WHERE concept_clean = ?",
+            (category, subcategory, flow_type, confidence, key),
+        )
+    return cur.rowcount
 
 
 # ---------- status ----------

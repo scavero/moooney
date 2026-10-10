@@ -104,7 +104,7 @@ def test_csv_limpio_y_registro(tmp_path: Path) -> None:
     imp = conn.execute("SELECT * FROM imports").fetchone()
     assert imp is not None
     row = conn.execute("SELECT date, value_date, amount, account FROM transactions LIMIT 1").fetchone()
-    assert row == ("2025-01-10", "2025-01-11", -54.20, "****0123")
+    assert tuple(row) == ("2025-01-10", "2025-01-11", -54.20, "****0123")
 
     st = repo.get_status(conn)
     assert st["transactions"] == len(FAKE_ROWS)

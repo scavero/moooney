@@ -42,7 +42,7 @@ categories:
   Seguros:
     flow_type: expense
     description: "Primas de seguros: salud, hogar, coche, vida"
-    subcategories: [salud, hogar, coche, vida]
+    subcategories: [salud, hogar, coche, vida, otros]
   Impuestos y tasas:
     flow_type: expense
     description: "Hacienda, ayuntamiento, IBI, tasas de trafico y tributos locales"
