@@ -1,0 +1,182 @@
+# moooney — Diseño de la pipeline
+
+Objetivo: mejorar la economía mensual del usuario analizando sus extractos bancarios, con todo el procesamiento en local o en infraestructura propia (LiteLLM de ClusterTIC). Ningún dato bancario sale a terceros.
+
+## Principios
+
+1. **Determinista antes que IA.** Parseo, deduplicación, métricas, presupuestos y detección de alertas son código normal y reproducible. El LLM solo entra donde hace falta interpretar texto libre (conceptos) o redactar (informes, consejos).
+2. **El LLM nunca ve datos crudos.** Recibe conceptos anonimizados o agregados mensuales. Nunca IBAN, saldos, nombres de personas ni referencias.
+3. **Cache y memoria.** Cada comercio se categoriza una vez. Las correcciones del usuario mandan sobre el modelo.
+4. **Idempotente.** Ejecutar la pipeline dos veces sobre el mismo Excel no duplica nada.
+5. **Proveedor de IA intercambiable.** LiteLLM hoy, Ollama local mañana, mismo código.
+
+## Flujo
+
+```
+data/excel/*.xlsx  ──►  [1 detect]  ──►  [2 parse → CSV limpio]  ──►  [3 dedupe + load SQLite]
+                                                                               │
+          ┌────────────────────────────────────────────────────────────────────┘
+          ▼
+   [4 categorize] ──► [5 metrics] ──► [6 budgets] ──► [7 alerts] ──► [8 forecast] ──► [9 report/advice]
+   reglas + memoria        SQL          usuario        reglas         estadística        LLM (agregados)
+   + LLM solo nuevos
+```
+
+### 1. Detección de nuevos ficheros
+- Comando `moooney ingest` (manual) o `moooney watch` (watchdog sobre `data/excel/`). En Windows se puede programar con el Programador de tareas.
+- Cada fichero se identifica por SHA-256. Tabla `imports(hash, filename, imported_at, rows_total, rows_new)`. Si el hash ya existe, se salta.
+
+### 2. Parseo a CSV limpio
+- Salida en `data/clean/<fecha>_<hash8>.csv` con columnas fijas:
+  `date, value_date, concept, amount, balance, account, source_file`
+- Normalización: fechas ISO, importes como decimal con punto, conceptos en mayúsculas sin espacios dobles, cabeceras del Santander saltadas (se localiza la fila que contiene "Fecha").
+- Comando `moooney inspect <fichero>` imprime **solo** nombres de columnas, número de filas y rango de fechas. Sirve para ajustar el parser sin exponer el contenido.
+
+### 3. Deduplicación y carga
+- Huella de transacción: `sha1(account | date | amount | concept | balance)`. El saldo desambigua movimientos idénticos el mismo día.
+- Tabla `transactions(id, fingerprint UNIQUE, date, value_date, concept, concept_clean, amount, balance, account, import_id, created_at)`.
+- Las exportaciones se solapan (2 años, luego mensuales): solo entran las huellas nuevas.
+
+### 4. Categorización (híbrida, en cascada)
+1. **Comercio normalizado**: `concept_clean` elimina números de tarjeta, referencias, fechas incrustadas y nombres propios de Bizum. Queda una clave tipo `MERCADONA`, `BIZUM ENVIADO`, `RECIBO IBERDROLA`.
+2. **Memoria de comercios**: tabla `merchants(key, category, subcategory, flow_type, source, confidence)`. Si la clave existe, se aplica sin consultar nada.
+3. **Reglas**: `config/rules.yaml` editable (regex → categoría). Cubre nómina, recibos, Bizum, transferencias, comisiones, liquidación de tarjeta, telepeaje, brókers.
+4. **Vecinos por embedding** (opcional, `bge-m3`): si una clave nueva está muy cerca de una ya clasificada por el usuario (p. ej. `MERCADONA 1234` vs `MERCADONA`), hereda la categoría sin pasar por el modelo de decisión.
+5. **Clef-Flash** para claves desconocidas. Es un modelo de decisión, no genera texto: recibe un `state` y un esquema de preguntas tipadas y devuelve probabilidades por opción. Por cada clave se envía un `state` con la clave normalizada, el signo e importe redondeado y el número de veces que aparece, y se preguntan:
+   - `category` (`choice`, taxonomía cerrada con descripción por opción).
+   - `flow_type` (`choice`: gasto, ingreso, transferencia interna, inversión, liquidación de tarjeta).
+   - `is_recurring` (`noul`): pista para el detector de recurrentes, que luego lo confirma con fechas.
+   La `confidence` que devuelve el modelo se guarda tal cual. No hay JSON que parsear ni alucinaciones posibles: la respuesta siempre es una opción válida del esquema. Latencia de decenas de milisegundos, así que las 300-500 claves de la carga inicial se resuelven en segundos.
+6. **Revisión**: `moooney review` lista las de confianza < 0,7. La corrección del usuario sobreescribe `merchants` con `source=user` y nunca se vuelve a preguntar.
+
+Taxonomía inicial (cerrada, ampliable): Ingresos (nómina, otros), Vivienda (alquiler/hipoteca, suministros, comunidad), Alimentación (supermercado, restaurantes), Transporte (combustible, transporte público, parking, peajes), Salud, Ocio, Suscripciones, Compras, Educación, Seguros, Impuestos y tasas, Transferencias (entre cuentas propias, Bizum enviado/recibido), Ahorro e inversión, Tarjeta de crédito (liquidación), Comisiones bancarias, Efectivo, Otros.
+
+#### Tipos de flujo (`flow_type`)
+La cuenta exportada es una sola, pero por ella pasan cargos de tarjetas de crédito, telepeaje y aportaciones a inversión. Cada transacción lleva un `flow_type` que decide cómo cuenta en las métricas:
+
+| flow_type | Ejemplo | Métricas |
+|---|---|---|
+| `expense` | Mercadona, recibo luz, peaje | Gasto del mes |
+| `income` | Nómina, devolución | Ingreso del mes |
+| `transfer_internal` | Traspaso a otra cuenta propia | Se excluye de ingresos y gastos |
+| `investment` | Transferencia a bróker, fondo, plan | **Ahorro**, no gasto. Acumula capital aportado |
+| `card_settlement` | Liquidación mensual de tarjeta de crédito | Gasto del mes como bloque "Tarjeta de crédito" hasta que se importe el detalle |
+
+- **Tarjetas de crédito**: la liquidación aparece como una sola línea. En fase 1 se trata como gasto opaco. En fase 2 se puede importar el Excel de la tarjeta por separado y conciliar: la suma de sus movimientos del periodo debe cuadrar con la liquidación, y entonces la liquidación se marca como `transfer_internal` para no contar dos veces.
+- **Telepeaje**: cargo recurrente del operador (Bip&Drive, Vía-T). Categoría Transporte / peajes.
+- **Inversión**: las transferencias a brókers o fondos cuentan como ahorro. Como el usuario invierte desde 2023 y la exportación empieza a finales de 2024, el capital aportado será parcial. `config/seed.yaml` admite un `invested_before_data_start` para no engañar a la tasa de ahorro histórica. No se valoran las posiciones (no hay datos de mercado); solo capital aportado.
+
+### 5. Métricas (SQL sobre SQLite, sin IA)
+- Mensual: ingresos, gastos, ahorro neto, tasa de ahorro.
+- Por categoría: importe, % del gasto, variación vs mes anterior y vs media 6 meses.
+- Fijo vs variable: un gasto es fijo si es recurrente (mismo comercio, importe ±10 %, periodo ~30/90/365 días).
+- Recurrentes detectados: tabla `recurring(merchant_key, amount_avg, period_days, last_seen, next_expected)`.
+- Tendencias: media móvil 3 meses por categoría.
+
+### 6. Presupuestos
+- Tabla `budgets(category, month, limit_amount, source)`.
+- `moooney budget init`: propone límites con la mediana de los últimos 6 meses por categoría, menos un recorte objetivo en las variables (p. ej. 10 %). El usuario los edita en `config/budgets.yaml` o por CLI.
+- Los presupuestos se copian mes a mes salvo que el usuario los cambie. El LLM puede sugerir ajustes en el informe mensual, pero no los aplica.
+
+### 7. Alertas inteligentes (reglas + explicación LLM)
+Detección por reglas, siempre explicables:
+- Presupuesto al 80 % y al 100 % de una categoría antes de fin de mes.
+- Gasto anómalo: importe > 3 desviaciones típicas del histórico de ese comercio.
+- Cargo duplicado: mismo comercio e importe en < 48 h.
+- Nueva suscripción: comercio nuevo que se repite con periodo estable.
+- Subida de precio en recurrente: importe > 5 % sobre la media.
+- Ingreso esperado ausente: nómina no recibida en la ventana habitual.
+- Saldo proyectado negativo antes de la próxima nómina.
+- Comisiones bancarias detectadas.
+
+Cada alerta se guarda en `alerts(id, type, severity, date, transaction_id, message, acknowledged)`. El LLM solo redacta y prioriza a partir de las alertas ya detectadas.
+
+### 8. Previsión
+- Cash flow de 1 a 3 meses: recurrentes conocidos + media de variables por categoría. Método estadístico simple, suficiente y explicable. Prophet o similar solo si más adelante hay valor claro.
+- Saldo proyectado día a día hasta la próxima nómina.
+
+### 9. Informe y consejos
+- `moooney report --month YYYY-MM` genera Markdown en `reports/` (ignorado por git).
+- El LLM recibe únicamente: tabla de agregados por categoría, variaciones, alertas activas, presupuestos y recurrentes. Devuelve 3-5 acciones concretas priorizadas por impacto en euros al mes.
+- Se registra en `llm_calls(model, purpose, tokens, payload_hash)` qué se ha enviado, para auditar el egreso de datos.
+
+## Modelos y reparto de tareas
+
+Todos servidos desde el proxy LiteLLM de ClusterTIC (`https://litellm.clusterticgalicia.com`). Los `hosted_vllm/*` son vLLM propio; `openai/clef-flash` y `openai/traductor-nllb` usan el adaptador OpenAI-compatible pero apuntan a servidores propios (coste 0). Ninguno enruta a nubes externas.
+
+| Tarea | Modelo | Por qué |
+|---|---|---|
+| Categorizar comercios, `flow_type`, pista de recurrencia | `clef-flash` vía proxy (reserva: `qwen3.8-flash-next-fp8` con JSON Schema) | Decisión estructurada con probabilidades, sin parseo libre. Ver "Acceso a Clef-Flash" |
+| Priorizar alertas (severidad 0-3) | mismo backend `decide` | La detección sigue siendo por reglas |
+| Similitud entre claves de comercio | `bge-m3` | Embeddings, coste 0, evita consultar al modelo para variantes de un comercio ya conocido |
+| Informe mensual, consejos, propuesta de presupuesto | `qwen3.8-flash-next-fp8` | El más capaz del proxy para redactar; recibe solo agregados |
+| Reserva barata para redacción | `gemma-4-e2b` | Si el flash-next no está disponible |
+
+**Acceso a Clef-Flash: resuelto (verificado 2026-10-10).** Delante de Clef hay un adaptador propio de ClusterTIC que expone `/v1/chat/completions`. Se envía un chat completion a `model: clef-flash` cuyo único mensaje de usuario tiene como `content` un JSON serializado con `state` y `questions` (formato SystemOne). La respuesta llega en `choices[0].message.content` como JSON con `answers` y `usage`. Ejemplo real en `docs/clef_test.json` y `docs/clef_test.ps1`. Si el mensaje no es ese JSON, el adaptador devuelve 400 con "clef-flash no conversa". Límite de entrada 4096 tokens; una clave de comercio con tres preguntas consume ~500.
+
+Respuesta observada para `MERCADONA -42.10 EUR x12`: `flow_type=expense` con 0,93, `category=supermercado` con solo 0,47 y `is_recurring` 0,40. Dos lecciones para la fase 2:
+- La redacción del `state` y de las descripciones de cada opción pesa mucho. Hay que iterar el prompt con un conjunto de 30-50 claves etiquetadas a mano (fixtures sintéticos) y medir acierto y calibración antes de fiarse de la confianza.
+- Las cadenas conocidas se resuelven antes por reglas y embeddings; Clef queda para lo genuinamente ambiguo, y su confianza decide si entra en `review`.
+
+La capa `llm/` expone `decide(state, questions)` con dos backends que devuelven la misma estructura `{question_id: {choice, confidence, probabilities}}`: `ClefChatDecider` (por defecto, vía proxy) y `ChatJsonDecider` (reserva con `qwen3.8-flash-next-fp8` y JSON Schema, por si Clef cae). La clave del proxy se lee de la variable de entorno `LITELLM_API_KEY`; nunca se escribe en el repo.
+
+## Privacidad y soberanía
+
+- Capa `llm/` con interfaz única (`decide`, `embed`, `generate`) y dos backends: LiteLLM y Ollama local (donde `decide` se emula con generación JSON restringida si no hay Clef).
+- Solo se usan modelos listados en `config/llm.yaml` con `self_hosted: true`. Si alguien añade un modelo externo al proxy, la app no lo usará por accidente.
+- Anonimización antes de cualquier llamada: sin IBAN, sin saldo, sin nombres de personas, sin referencias numéricas largas. Los conceptos van con la clave normalizada, no el texto original.
+- Modo `--offline` que bloquea toda llamada de red para auditar que el resto de la pipeline funciona sin IA.
+
+## Stack
+
+- Python 3.12 gestionado con `uv`.
+- pandas + openpyxl (parseo), SQLite (almacenamiento, un solo fichero en `data/moooney.db`), pydantic (validación de salidas LLM), typer (CLI), watchdog (opcional, detección), pyyaml (configuración).
+- Cliente LLM: SDK `openai` apuntando al proxy LiteLLM. Sin LangChain.
+- UI: ninguna en la fase 1. Fase 2: Streamlit sobre el mismo SQLite.
+
+## Estructura del repo
+
+```
+moooney/
+  config/
+    rules.yaml          # regex → categoría
+    categories.yaml     # taxonomía cerrada
+    budgets.yaml        # límites mensuales del usuario
+    llm.yaml            # backend, modelo, flags de privacidad
+  data/                 # ignorado por git
+    excel/              # entrada manual
+    clean/              # CSV normalizados
+    moooney.db
+  reports/              # ignorado por git
+  src/moooney/
+    cli.py
+    ingest/      detect.py  parse_santander.py  load.py
+    categorize/  normalize.py  rules.py  llm.py  review.py
+    analytics/   metrics.py  recurring.py  budgets.py  alerts.py  forecast.py
+    llm/         client.py  anonymize.py  prompts/
+    report/      monthly.py
+    db/          schema.sql  repo.py
+  tests/
+    fixtures/           # extractos sintéticos, nunca reales
+  docs/DESIGN.md
+```
+
+## Fases
+
+1. **Ingesta**: inspect, parse, dedupe, load. Verificable sin IA.
+2. **Categorización**: normalize, rules, memoria, LLM para desconocidos, review.
+3. **Analítica**: métricas, recurrentes, presupuestos, alertas.
+4. **Informe**: previsión, consejos LLM, informe mensual.
+5. **Automatización**: watch, tarea programada, UI ligera.
+
+## Preguntas abiertas
+
+- Cómo expone el proxy LiteLLM el endpoint `/v1/systemone` de Clef-Flash (pass-through o llamada directa a SGLang).
+- Formato exacto del Excel de Santander: se ajustará con `moooney inspect`, sin abrir el fichero desde aquí.
+- Nombres de los brókers y operadores de telepeaje del usuario, para sembrar `rules.yaml` y evitar que el modelo tenga que adivinarlos.
+- Capital invertido antes del inicio de los datos (opcional, para `seed.yaml`).
+
+## Decisiones tomadas
+
+- 2026-10-10: modelo de categorización = Clef-Flash (Cloudflare, 9B, basado en Qwen3.5-9B, Apache-2.0). Modelo de redacción = qwen3.8-flash-next-fp8. Embeddings = bge-m3.
+- 2026-10-10: una sola cuenta exportada; tarjetas, telepeaje e inversión se modelan con `flow_type`, no con cuentas separadas, hasta que exista importación de tarjeta.

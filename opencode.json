@@ -1,0 +1,24 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "clustertic/qwen3.8-flash-next-fp8",
+  "provider": {
+    "clustertic": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "ClusterTIC LiteLLM",
+      "options": {
+        "baseURL": "https://litellm.clusterticgalicia.com/v1",
+        "apiKey": "{env:LITELLM_API_KEY}"
+      },
+      "models": {
+        "qwen3.8-flash-next-fp8": {
+          "name": "Qwen 3.8 Flash Next (fp8)",
+          "limit": { "context": 128000, "output": 16384 }
+        },
+        "qwen3.8-27b-int4": {
+          "name": "Qwen 3.8 27B (int4)",
+          "limit": { "context": 32000, "output": 8192 }
+        }
+      }
+    }
+  }
+}

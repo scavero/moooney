@@ -1,0 +1,9 @@
+{
+  "model": "clef-flash",
+  "messages": [
+    {
+      "role": "user",
+      "content": "{\"state\": \"Movimiento bancario. Concepto normalizado: MERCADONA. Importe: -42.10 EUR. Aparece 12 veces en 2 anos.\", \"questions\": {\"category\": {\"type\": \"choice\", \"instructions\": \"Categoria del movimiento\", \"criteria\": {\"supermercado\": \"Compra de alimentacion en supermercado\", \"restaurante\": \"Comida o bebida fuera de casa\", \"transporte\": \"Combustible, peajes, parking, transporte publico\", \"vivienda\": \"Alquiler, hipoteca, luz, agua, gas, comunidad\", \"inversion\": \"Transferencia a broker, fondo o plan de pensiones\", \"otros\": \"Cualquier otra cosa\"}}, \"flow_type\": {\"type\": \"choice\", \"instructions\": \"Tipo de flujo\", \"criteria\": {\"expense\": \"Gasto\", \"income\": \"Ingreso\", \"transfer_internal\": \"Traspaso entre cuentas propias\", \"investment\": \"Aportacion a inversion\", \"card_settlement\": \"Liquidacion de tarjeta de credito\"}}, \"is_recurring\": {\"type\": \"noul\", \"instructions\": \"Parece un cargo recurrente o periodico?\"}}}"
+    }
+  ]
+}
