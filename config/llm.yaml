@@ -1,0 +1,18 @@
+# Configuración del acceso al proxy LiteLLM. La clave NUNCA vive aquí:
+# se lee de la variable de entorno indicada en api_key_env.
+
+base_url: https://litellm.clusterticgalicia.com/v1
+api_key_env: LITELLM_API_KEY
+
+# Decider principal para categorizar: clef | qwen
+decider: clef
+
+models:
+  clef: clef-flash
+  redaccion: qwen3.8-flash-next-fp8
+  embeddings: bge-m3
+
+timeout_s: 30
+max_retries: 3
+backoff_s: 1.0
+max_concurrency: 8

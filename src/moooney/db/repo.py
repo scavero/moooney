@@ -7,11 +7,11 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 
 
-def connect(db_path: Path) -> sqlite3.Connection:
+def connect(db_path: Path, *, check_same_thread: bool = True) -> sqlite3.Connection:
     """Abre (o crea) la base de datos y aplica el esquema si no existe."""
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     # El esquema es todo CREATE ... IF NOT EXISTS: aplicarlo siempre añade
@@ -142,6 +142,30 @@ def propagate_to_transactions(
             (category, subcategory, flow_type, confidence, key),
         )
     return cur.rowcount
+
+
+# ---------- llm_calls ----------
+
+
+def insert_llm_call(
+    conn: sqlite3.Connection,
+    *,
+    ts: str,
+    model: str,
+    purpose: str | None,
+    payload_hash: str | None,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+) -> int:
+    cur = conn.execute(
+        """
+        INSERT INTO llm_calls (ts, model, purpose, input_tokens, output_tokens, payload_hash)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (ts, model, purpose, input_tokens, output_tokens, payload_hash),
+    )
+    conn.commit()
+    return int(cur.lastrowid)
 
 
 # ---------- status ----------
