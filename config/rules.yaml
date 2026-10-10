@@ -40,6 +40,10 @@ rules:
   - {pattern: '^RETIRADA DE EFECTIVO', category: Efectivo, subcategory: retiradas, flow_type: expense}
   - {pattern: '^INGRESO EN CAJERO', category: Efectivo, subcategory: ingresos, flow_type: income}
   - {pattern: '^LIQUIDACION REMESAS', category: Efectivo, subcategory: ingresos, flow_type: income}
+  - pattern: '^PAYPAL EUROPE'
+    category: Otros
+    subcategory: otros
+    flow_type: expense # recibo de PayPal sin nombre de comercio: no hay forma determinista de saber el gasto
   - pattern: '^PAYPAL ADD TO BAL'
     category: Transferencias
     subcategory: a particular
