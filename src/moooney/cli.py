@@ -6,12 +6,13 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from moooney.categorize.keys import backfill_clean_keys, key_stats
 from moooney.config import Settings, load_settings
 from moooney.db import repo
 from moooney.ingest.load import ingest_directory
 from moooney.ingest.parse_santander import ParseError, inspect_file
 
-app = typer.Typer(help="Pipeline local de finanzas personales (fase 1: ingesta).")
+app = typer.Typer(help="Pipeline local de finanzas personales.")
 console = Console()
 
 CONFIG_OPTION = typer.Option(None, "--config", help="Ruta a settings.yaml.")
@@ -113,6 +114,33 @@ def status(config: Path = CONFIG_OPTION) -> None:
     table.add_row("Sin categoría", f"{st['uncategorized']:,}")
     table.add_row("Imports", str(st["imports"]))
     table.add_row("Último import", st["last_import_at"] or "—")
+    console.print(table)
+
+
+@app.command()
+def merchants(
+    limit: int = typer.Option(60, "--limit", help="Máximo de claves a mostrar."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Claves de comercio normalizadas: transacciones e importe total por clave."""
+    settings = _settings(config)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        updated = backfill_clean_keys(conn)
+        stats = key_stats(conn)
+    finally:
+        conn.close()
+
+    if updated:
+        console.print(f"[dim]concept_clean calculado para {updated} filas[/dim]")
+    table = Table(title=f"Claves de comercio ({len(stats)} distintas)")
+    table.add_column("Clave")
+    table.add_column("Tx", justify="right")
+    table.add_column("Importe total", justify="right")
+    table.add_column("Categoría")
+    for row in stats[:limit]:
+        cat = row["category"] or "[yellow]sin categorizar[/yellow]"
+        table.add_row(row["key"], str(row["n"]), f"{row['total']:+,.2f} €", cat)
     console.print(table)
 
 
