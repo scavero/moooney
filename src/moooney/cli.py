@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from moooney.categorize.evaluate import CALIBRATION_BINS, evaluate, load_labels
 from moooney.categorize.keys import backfill_clean_keys, key_stats
 from moooney.categorize.pipeline import (
     apply_decider,
@@ -401,6 +402,95 @@ def review(
             )
     finally:
         conn.close()
+
+
+@app.command(name="eval-clef")
+def eval_clef(
+    etiquetas: Path = typer.Option(
+        Path("data/eval/merchants_labeled.csv"),
+        "--labels",
+        help="CSV con columnas key,category,flow_type (fuera de git).",
+    ),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Mide al decider contra claves etiquetadas a mano. No escribe en merchants."""
+    settings = _settings(config)
+    try:
+        taxonomy = load_taxonomy()
+        llm = load_llm_settings(_llm_config_path(config))
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1) from None
+    if offline_enabled():
+        console.print("[red]MOOONEY_OFFLINE=1: eval-clef necesita llamar al modelo[/red]")
+        raise typer.Exit(code=1)
+
+    try:
+        labels = load_labels(etiquetas)
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"[bold]{len(labels)}[/bold] claves etiquetadas en {etiquetas}")
+
+    conn = repo.connect(settings.paths.db_path, check_same_thread=False)
+    recorder = CallRecorder(conn)
+    try:
+        cliente = LLMClient(llm, recorder=recorder)
+        decider = build_decider(llm, cliente)
+        questions = build_questions(taxonomy)
+        report = evaluate(
+            conn, labels, decider, taxonomy, questions, max_workers=llm.max_concurrency
+        )
+    finally:
+        recorder.flush()
+        conn.close()
+
+    table = Table(title="Calibración del decider")
+    table.add_column("Confianza")
+    table.add_column("Aciertos", justify="right")
+    table.add_column("Total", justify="right")
+    table.add_column("Precisión", justify="right")
+    for nombre, _, _ in CALIBRATION_BINS:
+        ok, n = report.cat_bins[nombre]
+        tabla = f"{ok / n:.0%}" if n else "—"
+        table.add_row(nombre, str(ok), str(n), tabla)
+    console.print(table)
+
+    if report.misses:
+        mt = Table(title="Fallos de categoría")
+        mt.add_column("Clave")
+        mt.add_column("Esperada")
+        mt.add_column("Dicha")
+        mt.add_column("Conf.", justify="right")
+        for clave, esperada, dicha, conf in report.misses:
+            mt.add_row(clave[:40], esperada, dicha, f"{conf:.2f}")
+        console.print(mt)
+
+    if report.flow_misses:
+        ft = Table(title="Fallos de flow_type")
+        ft.add_column("Clave")
+        ft.add_column("Esperado")
+        ft.add_column("Dicho")
+        for clave, esperado, dicho in report.flow_misses:
+            ft.add_row(clave[:40], esperado, dicho)
+        console.print(ft)
+
+    for clave in report.missing:
+        console.print(f"[yellow]clave no encontrada en la DB:[/yellow] {clave}")
+    if report.errors:
+        console.print(f"[yellow]{report.errors} llamadas fallidas (no cuentan)[/yellow]")
+
+    cat_ok = report.category_accuracy() > 0.85
+    flow_ok = report.flow_accuracy() > 0.95
+    console.print(
+        f"categoría: [bold]{report.category_accuracy():.1%}[/bold] (>85 % "
+        f"{'[green]OK[/green]' if cat_ok else '[red]FALLO[/red]'}) · "
+        f"flow_type: [bold]{report.flow_accuracy():.1%}[/bold] (>95 % "
+        f"{'[green]OK[/green]' if flow_ok else '[red]FALLO[/red]'}) · "
+        f"evaluadas: {report.evaluated}/{report.total}"
+    )
+    if not (cat_ok and flow_ok):
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
