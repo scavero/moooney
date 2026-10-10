@@ -43,11 +43,11 @@ def make_santander_xlsx(
     ws["D1"] = "Fecha"
     if iban:
         ws["C2"] = iban + " 3"  # digito suelto detras, como en la exportacion real
-        ws["D2"] = "10/10/2026 | 20:30:01"
+        ws["D2"] = "01/01/2030 | 00:00:00"
     ws["C3"] = "Titular"
     ws["D3"] = "Saldo"
     ws["C4"] = "APELLIDOS SIN NOMBRE REAL"
-    ws["D4"] = "1.326,57 €"
+    ws["D4"] = "9.999,99 €"
     ws["A6"] = "Movimientos"
     header_row = 8
     for j, label in enumerate(header_labels, start=1):
