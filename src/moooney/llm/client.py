@@ -53,11 +53,19 @@ def offline_enabled() -> bool:
 
 
 class CallRecorder:
-    """Registra llamadas en llm_calls serializando la escritura (hilo seguro)."""
+    """Registra llamadas en llm_calls.
+
+    Los hilos que hacen la peticion solo encolan el asiento; la escritura a la
+    base de datos ocurre en ``flush()``, que debe llamarse desde el hilo
+    principal. Una conexion sqlite no admite transacciones concurrentes entre
+    hilos, y asi evitamos mezclar al grabador con las escrituras de la
+    propagacion.
+    """
 
     def __init__(self, conn) -> None:  # sqlite3.Connection
         self._conn = conn
         self._lock = threading.Lock()
+        self._pending: list[dict] = []
 
     def record(
         self,
@@ -70,15 +78,26 @@ class CallRecorder:
     ) -> None:
         ts = datetime.now().isoformat(timespec="seconds")
         with self._lock:
-            repo.insert_llm_call(
-                self._conn,
-                ts=ts,
-                model=model,
-                purpose=purpose,
-                payload_hash=payload_hash,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
+            self._pending.append(
+                {
+                    "ts": ts,
+                    "model": model,
+                    "purpose": purpose,
+                    "payload_hash": payload_hash,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                }
             )
+
+    def flush(self) -> int:
+        """Vuelca lo encolado (hilo principal) y devuelve el numero de asientos."""
+        with self._lock:
+            pendings, self._pending = self._pending, []
+        for item in pendings:
+            repo.insert_llm_call(self._conn, **item)
+        if pendings:
+            self._conn.commit()
+        return len(pendings)
 
 
 class LLMClient:

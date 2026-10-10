@@ -72,6 +72,7 @@ def test_chat_devuelve_content_y_registra_llamada(tmp_path, monkeypatch):
     content = client.chat(model="clef-flash", messages=[{"role": "user", "content": "x"}],
                           purpose="categorize")
     assert content == CLEF_CONTENT
+    recorder.flush()
     row = conn.execute("SELECT model, purpose, input_tokens, output_tokens, payload_hash"
                        " FROM llm_calls").fetchone()
     assert (row["model"], row["purpose"]) == ("clef-flash", "categorize")
@@ -101,9 +102,11 @@ def test_reintenta_500_y_graba_una_sola_vez(tmp_path, monkeypatch):
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
     conn = repo.connect(tmp_path / "moo.db")
     seen: list = []
-    client = _client([500, 502, _ok()], seen, CallRecorder(conn))
+    recorder = CallRecorder(conn)
+    client = _client([500, 502, _ok()], seen, recorder)
     client.chat(model="m", messages=[{"role": "user", "content": "h"}], purpose="p")
     assert len(seen) == 3
+    recorder.flush()
     assert conn.execute("SELECT COUNT(*) FROM llm_calls").fetchone()[0] == 1
 
 
@@ -111,10 +114,12 @@ def test_401_no_reintenta_y_queda_registrado(tmp_path, monkeypatch):
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
     conn = repo.connect(tmp_path / "moo.db")
     seen: list = []
-    client = _client([401], seen, CallRecorder(conn))
+    recorder = CallRecorder(conn)
+    client = _client([401], seen, recorder)
     with pytest.raises(LLMError, match="HTTP 401"):
         client.chat(model="m", messages=[{"role": "user", "content": "h"}], purpose="p")
     assert len(seen) == 1
+    recorder.flush()
     assert conn.execute("SELECT COUNT(*) FROM llm_calls").fetchone()[0] == 1
 
 

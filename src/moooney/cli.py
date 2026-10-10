@@ -242,6 +242,8 @@ def categorize(
 
         _print_categorizacion(conn)
     finally:
+        if recorder is not None:
+            recorder.flush()  # los workers solo encolan; aqui se graban los llm_calls
         conn.close()
 
 
