@@ -1,4 +1,4 @@
-"""CLI de moooney: inspect, ingest, status. Solo agregados, nunca datos personales."""
+"""CLI de moooney: ingesta, categorización, enriquecimiento y revisión."""
 
 from datetime import datetime
 from pathlib import Path
@@ -15,11 +15,15 @@ from moooney.categorize.pipeline import (
     apply_rules,
     build_questions,
     pending_jobs,
+    refresh_rules,
 )
 from moooney.categorize.rules import load_rules
 from moooney.categorize.taxonomy import load_taxonomy
 from moooney.config import Settings, load_settings
 from moooney.db import repo
+from moooney.enrich.providers import build_providers, nominatim_url
+from moooney.enrich.runner import EnrichSummary, run_enrichment, select_candidates
+from moooney.enrich.settings import EnrichmentSettings, load_enrichment_settings
 from moooney.ingest.load import ingest_directory
 from moooney.ingest.parse_santander import ParseError, inspect_file
 from moooney.llm.client import (
@@ -173,6 +177,12 @@ def categorize(
     limit: int = typer.Option(0, "--limit", help="Máximo de claves nuevas a procesar (0 = todas)."),
     dry_run: bool = typer.Option(False, "--dry-run", help="No escribe en la DB ni llama a modelos."),
     no_llm: bool = typer.Option(False, "--no-llm", help="Solo reglas y embeddings; sin Clef/Qwen."),
+    refresh: bool = typer.Option(
+        False, "--refresh-rules", help="Reaplica rules.yaml a claves ya categorizadas (no user)."
+    ),
+    enrich: bool = typer.Option(
+        False, "--enrich", help="Tras la cascada, enriquece por web lo que quede dudoso (fase 2.5)."
+    ),
     config: Path = CONFIG_OPTION,
 ) -> None:
     """Categoriza las claves nuevas en cascada: reglas -> embeddings -> Clef."""
@@ -187,6 +197,11 @@ def categorize(
     conn = repo.connect(settings.paths.db_path, check_same_thread=False)
     try:
         backfill_clean_keys(conn)
+        if refresh:
+            n_upd, n_exam = refresh_rules(conn, rules, dry_run=dry_run)
+            console.print(
+                f"reglas reaplicadas: [green]{n_upd}[/green] claves cambiadas de {n_exam} examinadas"
+            )
         jobs = pending_jobs(conn)
         if limit:
             jobs = jobs[:limit]
@@ -241,10 +256,146 @@ def categorize(
             console.print("[dim]dry-run: no se ha escrito nada[/dim]")
             return
 
+        if enrich:
+            try:
+                enr = load_enrichment_settings(_enrichment_config_path(config))
+            except (FileNotFoundError, ValueError) as e:
+                console.print(f"[red]{e}[/red]")
+                raise typer.Exit(code=1) from None
+            if not enr.enabled:
+                console.print(
+                    "[yellow]enriquecimiento desactivado[/yellow] (enabled: false en "
+                    "config/enrichment.yaml); usa 'moooney enrich --dry-run' para ver que saldria"
+                )
+            elif cliente is None or no_llm:
+                console.print("[yellow]enriquecimiento omitido: no hay decider disponible[/yellow]")
+            else:
+                if recorder is not None:
+                    recorder.flush()
+                _run_enrich(conn, enr, llm, cliente, taxonomy, limit=None, force=False, key=None)
+
         _print_categorizacion(conn)
     finally:
         if recorder is not None:
             recorder.flush()  # los workers solo encolan; aqui se graban los llm_calls
+        conn.close()
+
+
+def _enrichment_config_path(config: Path | None) -> Path:
+    return (config.parent if config else Path("config")) / "enrichment.yaml"
+
+
+def _run_enrich(conn, enr: EnrichmentSettings, llm, cliente: LLMClient, taxonomy, *,
+                limit: int | None, force: bool, key: str | None) -> EnrichSummary:
+    candidates = select_candidates(conn, enr, force=force, only_key=key)
+    providers = build_providers(enr)
+    decider = build_decider(llm, cliente)
+    questions = build_questions(taxonomy)
+    summary = run_enrichment(
+        conn, enr, providers, decider, taxonomy, questions, candidates=candidates, limit=limit
+    )
+    _print_enrich_summary(summary)
+    return summary
+
+
+def _print_enrich_summary(summary: EnrichSummary) -> None:
+    table = Table(title="Enriquecimiento externo")
+    table.add_column("Métrica")
+    table.add_column("Valor", justify="right")
+    table.add_row("Claves candidatas", str(summary.candidates))
+    table.add_row("Descartadas (sin consulta válida)", str(summary.skipped_no_query))
+    table.add_row("Consultadas", str(summary.queried))
+    for prov, n in sorted(summary.by_provider.items()):
+        table.add_row(f"  peticiones a {prov}", str(n))
+    table.add_row("Con resultado", str(summary.hits))
+    table.add_row("Sin resultado", str(summary.misses))
+    table.add_row("Errores de proveedor/modelo", str(summary.errors))
+    table.add_row("Mejoraron la confianza", f"[green]{summary.improved}[/green]")
+    table.add_row("Cambiaron de categoría", str(summary.changed_category))
+    table.add_row("Siguen dudosas (para review)", str(len(summary.still_low)))
+    console.print(table)
+
+
+@app.command()
+def enrich(
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Lista las consultas que se enviarían, sin enviar nada."
+    ),
+    limit: int = typer.Option(0, "--limit", help="Máximo de consultas en esta ejecución (0 = config)."),
+    force: bool = typer.Option(False, "--force", help="Reconsulta claves ya en caché."),
+    key: str = typer.Option(None, "--key", help="Solo esta clave de comercio."),
+    out: Path = typer.Option(
+        None, "--out", help="Con --dry-run, escribe la lista a este fichero en vez de a pantalla."
+    ),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Fase 2.5: busca en Nominatim/buscadores qué es un comercio dudoso y repregunta a Clef."""
+    settings = _settings(config)
+    try:
+        taxonomy = load_taxonomy()
+        enr = load_enrichment_settings(_enrichment_config_path(config))
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1) from None
+
+    conn = repo.connect(settings.paths.db_path, check_same_thread=False)
+    recorder: CallRecorder | None = None
+    try:
+        candidates = select_candidates(conn, enr, force=force, only_key=key)
+        con_consulta = [c for c in candidates if c.query]
+        tope = min(enr.max_queries_per_run, limit or enr.max_queries_per_run)
+
+        if dry_run:
+            lines = [
+                f"# moooney enrich --dry-run · {len(candidates)} candidatas, "
+                f"{len(con_consulta)} con consulta, tope {tope} por ejecución",
+                f"# proveedores en orden: {', '.join(enr.providers)}",
+                "# formato: clave | categoría actual (conf) | consulta | URL de ejemplo (Nominatim)",
+            ]
+            for c in con_consulta[:tope]:
+                lines.append(
+                    f"{c.key} | {c.category} ({c.confidence:.2f}) | {c.query} | "
+                    f"{nominatim_url(c.query)}"
+                )
+            descartadas = [c.key for c in candidates if not c.query]
+            if descartadas:
+                lines.append(
+                    f"# descartadas sin consulta ({len(descartadas)}): {', '.join(descartadas)}"
+                )
+            if out is not None:
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                console.print(
+                    f"[bold]{len(con_consulta[:tope])}[/bold] consultas listadas en {out} "
+                    f"({len(candidates)} candidatas, {len(descartadas)} descartadas). Nada enviado."
+                )
+            else:
+                for line in lines:
+                    console.print(line, markup=False, highlight=False)
+                console.print("[dim]dry-run: nada enviado[/dim]")
+            return
+
+        if not enr.enabled:
+            console.print(
+                "[red]El enriquecimiento está desactivado.[/red] Revisa primero "
+                "'moooney enrich --dry-run' y, si estás de acuerdo con lo que saldría, pon "
+                "'enabled: true' en config/enrichment.yaml."
+            )
+            raise typer.Exit(code=1)
+        if offline_enabled():
+            console.print("[red]MOOONEY_OFFLINE=1: enrich necesita red[/red]")
+            raise typer.Exit(code=1)
+        try:
+            llm = load_llm_settings(_llm_config_path(config))
+        except FileNotFoundError as e:
+            console.print(f"[red]{e}[/red]")
+            raise typer.Exit(code=1) from None
+        recorder = CallRecorder(conn)
+        cliente = LLMClient(llm, recorder=recorder)
+        _run_enrich(conn, enr, llm, cliente, taxonomy, limit=limit or None, force=force, key=key)
+    finally:
+        if recorder is not None:
+            recorder.flush()
         conn.close()
 
 

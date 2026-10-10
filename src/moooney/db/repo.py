@@ -86,8 +86,8 @@ def insert_transactions(
 
 # ---------- merchants (memoria de claves de comercio) ----------
 
-# Precedencia al recategorizar: user > rule > embedding > clef > llm.
-SOURCE_PRIORITY = {"user": 5, "rule": 4, "embedding": 3, "clef": 2, "llm": 1}
+# Precedencia al recategorizar: user > rule > embedding > clef_web > clef > llm.
+SOURCE_PRIORITY = {"user": 6, "rule": 5, "embedding": 4, "clef_web": 3, "clef": 2, "llm": 1}
 
 
 def get_merchant(conn: sqlite3.Connection, key: str) -> sqlite3.Row | None:
@@ -149,6 +149,62 @@ def propagate_to_transactions(
             (category, subcategory, flow_type, confidence, key),
         )
     return cur.rowcount
+
+
+# ---------- enriquecimiento externo (fase 2.5) ----------
+
+
+def get_enrichment(conn: sqlite3.Connection, key: str) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM merchant_enrichment WHERE key = ?", (key,)).fetchone()
+
+
+def upsert_enrichment(
+    conn: sqlite3.Connection,
+    *,
+    key: str,
+    provider: str | None,
+    query: str,
+    summary: str | None,
+    place_types: str | None,
+    url: str | None,
+    helped: int | None,
+    fetched_at: str,
+) -> None:
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO merchant_enrichment
+                (key, provider, query, summary, place_types, url, helped, fetched_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                provider = excluded.provider, query = excluded.query,
+                summary = excluded.summary, place_types = excluded.place_types,
+                url = excluded.url, helped = excluded.helped, fetched_at = excluded.fetched_at
+            """,
+            (key, provider, query, summary, place_types, url, helped, fetched_at),
+        )
+
+
+def set_enrichment_helped(conn: sqlite3.Connection, key: str, helped: int) -> None:
+    with conn:
+        conn.execute("UPDATE merchant_enrichment SET helped = ? WHERE key = ?", (helped, key))
+
+
+def insert_web_call(
+    conn: sqlite3.Connection,
+    *,
+    ts: str,
+    provider: str,
+    query: str,
+    status: str,
+    payload_hash: str | None,
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO web_calls (ts, provider, query, status, payload_hash) VALUES (?, ?, ?, ?, ?)",
+        (ts, provider, query, status, payload_hash),
+    )
+    conn.commit()
+    return int(cur.lastrowid)
 
 
 # ---------- llm_calls ----------

@@ -1,0 +1,43 @@
+# Fase 2.5: enriquecimiento externo de comercios que la cascada no resuelve.
+#
+# ES EL UNICO PUNTO DE LA PIPELINE DONDE ALGO SALE DE TU MAQUINA Y DE CLUSTERTIC.
+# Solo sale la clave de comercio limpia (sin importes, fechas ni frecuencias) mas
+# una pista regional. Aun asi, el conjunto de consultas revela que sitios
+# frecuentas. Por eso:
+#   - viene desactivado (enabled: false); activalo a mano cuando quieras
+#   - `moooney enrich --dry-run` lista las consultas exactas antes de enviar nada
+#   - cada consulta real queda registrada en la tabla web_calls
+
+enabled: false
+
+trigger:
+  max_confidence: 0.6          # se enriquece si la confianza queda por debajo
+  also_if_category: [Otros]    # ... o si la categoria es una de estas
+  skip_flow_types: [transfer_internal, income, card_settlement]
+  skip_patterns:
+    - "^BIZUM"
+    - "^TRANSFERENCIA"
+    - "^TRASPASO"
+    - "^RECIBO"
+    - "^COMISION"
+    - "^RETIRADA"
+    - "^INGRESO EN CAJERO"
+    - "^PAYPAL EUROPE"         # PayPal no revela el comercio: buscarlo no ayuda
+    - "^SIN CLAVE$"
+    - "^DEVOLUCION"
+
+# Proveedores en orden. Se para en el primero que devuelve algo util.
+providers:
+  - nominatim      # OpenStreetMap: sin clave, devuelve tipo de lugar (cafe, supermarket...)
+  - searxng        # buscador propio si searxng_url esta configurado; si no, se salta
+  - duckduckgo     # buscador publico sin clave
+  # - google_places  # requiere clave de Google Cloud con facturacion; opcional
+
+searxng_url: null                              # p. ej. https://searx.clusterticgalicia.com
+google_places_api_key_env: GOOGLE_PLACES_API_KEY
+region_hint: "Galicia, España"
+
+rate_limit_seconds: 1.5      # Nominatim exige como maximo 1 peticion por segundo
+max_queries_per_run: 50
+max_summary_chars: 600
+timeout_s: 10

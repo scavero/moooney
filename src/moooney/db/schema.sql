@@ -79,3 +79,25 @@ CREATE TABLE IF NOT EXISTS llm_calls (
 
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
+
+-- Fase 2.5: enriquecimiento externo. Una clave se consulta una sola vez.
+CREATE TABLE IF NOT EXISTS merchant_enrichment (
+    key         TEXT PRIMARY KEY,
+    provider    TEXT,
+    query       TEXT NOT NULL,
+    summary     TEXT,
+    place_types TEXT,
+    url         TEXT,
+    helped      INTEGER,
+    fetched_at  TEXT NOT NULL
+);
+
+-- Registro de CADA consulta externa (haya resultado o no): el egreso web auditable.
+CREATE TABLE IF NOT EXISTS web_calls (
+    id           INTEGER PRIMARY KEY,
+    ts           TEXT NOT NULL,
+    provider     TEXT NOT NULL,
+    query        TEXT NOT NULL,
+    status       TEXT NOT NULL,
+    payload_hash TEXT
+);
