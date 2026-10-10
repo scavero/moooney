@@ -67,8 +67,11 @@ rules:
     subcategory: valores
     flow_type: investment
 
-  # --- peajes y telepeaje (Vía-T del Santander, WETACA en la AP-9) ---
-  - pattern: 'WETACA|VIA.?T\b|PEAJE|AUTOPISTA|AUDASA|BIP.?DRIVE|IDENTRACK|APLA? Telpeaje'
+  # --- comida a domicilio (antes de restaurantes genericos) ---
+  - {pattern: 'WETACA|GLOVO|UBER EATS|JUST EAT|DELIVEROO', category: Alimentacion, subcategory: restaurantes, flow_type: expense}
+
+  # --- peajes y telepeaje (Vía-T del Santander) ---
+  - pattern: 'VIA.?T\b|PEAJE|AUTOPISTA|AUDASA|BIP.?DRIVE|IDENTRACK|APLA? Telpeaje'
     category: Transporte
     subcategory: peajes
     flow_type: expense

@@ -13,11 +13,11 @@ categories:
     subcategories: [hipoteca y prestamo, alquiler, suministros, telefonia e internet, comunidad]
   Alimentacion:
     flow_type: expense
-    description: "Comida: compra de supermercado (cadenas grandes o regionales como Froiz o Gadis, aunque esten truncadas) y comida y bebida fuera de casa (bares, restaurantes, cadenas de comida rapida, cafeterias, sidrerias, comida a domicilio), sea gran cadena o negocio local"
+    description: "Comida: compra de supermercado (cadenas grandes o regionales como Froiz o Gadis, aunque esten truncadas) y comida y bebida fuera de casa (bares, restaurantes, cadenas de comida rapida, cafeterias, sidrerias, comida a domicilio como Wetaca o Glovo), sea gran cadena o negocio local"
     subcategories: [supermercado, restaurantes]
   Transporte:
     flow_type: expense
-    description: "Moverse: combustible y recarga de vehiculos, peajes y telepeaje con dispositivo (WETACA, Via-T), parking, lavado de vehiculos, tren, autobus, avion, taxi"
+    description: "Moverse: combustible y recarga de vehiculos, peajes y telepeaje con dispositivo (Via-T), parking, lavado de vehiculos, tren, autobus, avion, taxi"
     subcategories: [combustible, peajes, parking, transporte publico]
   Salud:
     flow_type: expense

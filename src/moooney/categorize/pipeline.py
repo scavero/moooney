@@ -45,6 +45,10 @@ def pending_jobs(conn: sqlite3.Connection) -> list[KeyJob]:
         ORDER BY n DESC
         """
     ).fetchall()
+    return _jobs_from_rows(rows)
+
+
+def _jobs_from_rows(rows) -> list[KeyJob]:
     jobs = []
     for r in rows:
         gap = None
@@ -54,6 +58,61 @@ def pending_jobs(conn: sqlite3.Connection) -> list[KeyJob]:
             gap = (d1 - d0).days / (r["n"] - 1)
         jobs.append(KeyJob(key=r["k"], n=r["n"], avg_amount=float(r["avg_amount"]), gap_days=gap))
     return jobs
+
+
+def pending_jobs_for_keys(conn: sqlite3.Connection, keys: list[str]) -> list[KeyJob]:
+    """Agregados de claves concretas, tengan o no entrada en merchants."""
+    if not keys:
+        return []
+    placeholders = ",".join("?" for _ in keys)
+    rows = conn.execute(
+        f"""
+        SELECT concept_clean AS k, COUNT(*) AS n, AVG(amount) AS avg_amount,
+               MIN(date) AS dmin, MAX(date) AS dmax
+        FROM transactions
+        WHERE concept_clean IN ({placeholders})
+        GROUP BY concept_clean
+        """,
+        keys,
+    ).fetchall()
+    return _jobs_from_rows(rows)
+
+
+def refresh_rules(
+    conn: sqlite3.Connection, rules: list[Rule], *, dry_run: bool = False
+) -> tuple[int, int]:
+    """Reaplica las reglas a las claves ya categorizadas por rule/embedding/clef.
+
+    Sirve cuando se corrige o amplía rules.yaml: una clave que ahora casa con una
+    regla distinta se actualiza. Nunca toca source=user. Devuelve
+    (claves_actualizadas, claves_examinadas).
+    """
+    rows = conn.execute(
+        "SELECT key, category, subcategory, flow_type FROM merchants WHERE source != 'user'"
+    ).fetchall()
+    actualizadas = 0
+    for r in rows:
+        match = match_rules(r["key"], rules)
+        if match is None:
+            continue
+        if (
+            match.category == r["category"]
+            and match.subcategory == r["subcategory"]
+            and match.flow_type == r["flow_type"]
+        ):
+            continue
+        if _save(
+            conn,
+            key=r["key"],
+            category=match.category,
+            subcategory=match.subcategory,
+            flow_type=match.flow_type,
+            source="rule",
+            confidence=1.0,
+            dry_run=dry_run,
+        ):
+            actualizadas += 1
+    return actualizadas, len(rows)
 
 
 def build_state(job: KeyJob) -> str:
