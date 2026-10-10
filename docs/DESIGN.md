@@ -176,7 +176,7 @@ moooney/
 ## Fases
 
 1. **Ingesta**: inspect, parse, dedupe, load. Verificable sin IA.
-2. **Categorización** (en curso): normalize, rules, memoria, LLM para desconocidos, review.
+2. **Categorización** (completada): normalize, rules, memoria, LLM para desconocidos, review.
 3. **Analítica**: métricas, recurrentes, presupuestos, alertas.
 4. **Informe**: previsión, consejos LLM, informe mensual.
 5. **Automatización**: watch, tarea programada, UI ligera.
