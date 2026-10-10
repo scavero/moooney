@@ -1,0 +1,75 @@
+# ---------- Datos sensibles (NUNCA subir) ----------
+# Extractos bancarios, movimientos y cualquier dato financiero personal
+data/*
+!data/.gitkeep
+!data/excel/
+data/excel/*
+!data/excel/.gitkeep
+*.xls
+*.xlsx
+*.xlsm
+*.csv
+*.tsv
+*.ods
+*.pdf
+*.sqlite
+*.sqlite3
+*.db
+*.parquet
+*.json.bak
+exports/
+backups/
+informes/
+reports/
+
+# Credenciales y configuración local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials*
+config.local.*
+tokens*.json
+
+# Modelos y caches de IA local
+models/
+*.gguf
+*.bin
+*.safetensors
+.ollama/
+.cache/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+build/
+dist/
+
+# ---------- Node ----------
+node_modules/
+.next/
+.nuxt/
+dist/
+*.log
+npm-debug.log*
+
+# ---------- Sistema / IDE ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+.claude/settings.local.json
