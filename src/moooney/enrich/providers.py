@@ -105,10 +105,10 @@ class NominatimProvider(_HttpProvider):
     BASE = "https://nominatim.openstreetmap.org/search"
 
     def lookup(self, query: str) -> Enrichment | None:
-        data = self._get_json(
-            self.BASE,
-            params={"q": query, "format": "jsonv2", "limit": MAX_RESULTS, "accept-language": "es"},
-        )
+        params: dict = {"q": query, "format": "jsonv2", "limit": MAX_RESULTS, "accept-language": "es"}
+        if self.settings.nominatim_country_codes:
+            params["countrycodes"] = self.settings.nominatim_country_codes
+        data = self._get_json(self.BASE, params=params)
         if not isinstance(data, list) or not data:
             return None
         types: list[str] = []
@@ -275,6 +275,9 @@ def build_providers(
     return providers
 
 
-def nominatim_url(query: str) -> str:
+def nominatim_url(query: str, country_codes: str | None = None) -> str:
     """URL exacta que se enviaría a Nominatim (para el dry-run)."""
-    return f"{NominatimProvider.BASE}?{urlencode({'q': query, 'format': 'jsonv2'})}"
+    params = {"q": query, "format": "jsonv2"}
+    if country_codes:
+        params["countrycodes"] = country_codes
+    return f"{NominatimProvider.BASE}?{urlencode(params)}"

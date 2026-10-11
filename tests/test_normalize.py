@@ -83,3 +83,9 @@ def test_acentos_y_mayusculas_no_rompen_la_clave():
     b = "PAGO MOVIL EN A PALENCA DO PAN, VIGO, ES, TARJ. :*0081 2"
     assert clean_concept(a) == "A PADENDA DO PAN"
     assert clean_concept(b) == "A PALENCA DO PAN"
+
+
+def test_prefijos_contactless_y_procesadores_de_pago():
+    assert clean_concept("TRANSACCION CONTACTLESS EN TASCA DO RIO VIGO") == "TASCA DO RIO VIGO"
+    assert clean_concept("SUMUP LA TASQUITA TA") == "LA TASQUITA TA"
+    assert clean_concept("ZETTLE BAR PEPE") == "BAR PEPE"

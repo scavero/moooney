@@ -109,3 +109,29 @@ def test_clef_no_pisa_a_regla(tmp_path):
     )
     assert not ok
     assert repo.get_merchant(conn, "TIENDA PRUEBA")["category"] == "Compras"
+
+
+def test_rebuild_clean_keys_migra_la_memoria(tmp_path):
+    from moooney.categorize.keys import rebuild_clean_keys
+    from moooney.db import repo
+
+    conn = repo.connect(tmp_path / "t.db")
+    with conn:
+        # clave antigua calculada con una normalizacion previa (prefijo sin quitar)
+        conn.execute(
+            "INSERT INTO transactions (fingerprint, date, concept, concept_clean, amount, account,"
+            " created_at) VALUES ('f1', '2025-01-01', 'TRANSACCION CONTACTLESS EN TASCA DO RIO',"
+            " 'TRANSACCION CONTACTLESS EN TASCA DO RIO', -5, 'p', 't')"
+        )
+        conn.execute(
+            "INSERT INTO merchants (key, category, subcategory, flow_type, source, confidence,"
+            " updated_at) VALUES ('TRANSACCION CONTACTLESS EN TASCA DO RIO', 'Alimentacion',"
+            " 'restaurantes', 'expense', 'user', 1.0, 't')"
+        )
+    cambiadas, migradas = rebuild_clean_keys(conn)
+    assert cambiadas == 1 and migradas == 1
+    row = conn.execute("SELECT concept_clean, category FROM transactions").fetchone()
+    assert row["concept_clean"] == "TASCA DO RIO" and row["category"] == "Alimentacion"
+    m = repo.get_merchant(conn, "TASCA DO RIO")
+    assert m["source"] == "user" and m["category"] == "Alimentacion"
+    assert rebuild_clean_keys(conn) == (0, 0)  # idempotente

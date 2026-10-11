@@ -55,6 +55,13 @@ Si corriges o amplías `config/rules.yaml`, reaplica las reglas a las claves ya 
 uv run moooney categorize --refresh-rules --no-llm
 ```
 
+Si cambias la normalización de conceptos (`normalize.py`), reconstruye las claves; la memoria
+de comercios se migra a las claves nuevas y tus correcciones se conservan:
+
+```powershell
+uv run moooney categorize --rebuild-keys
+```
+
 ## Uso (fase 2.5: enriquecimiento externo, opcional)
 
 Para los comercios que la cascada deja dudosos (confianza baja o categoría Otros), la

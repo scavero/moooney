@@ -23,6 +23,8 @@ trigger:
     - "^RETIRADA"
     - "^INGRESO EN CAJERO"
     - "^PAYPAL EUROPE"         # PayPal no revela el comercio: buscarlo no ayuda
+    - "^ALIPAY"                # pagos por Alipay/WeChat: el nombre es pinyin del comercio chino, inencontrable
+    - "^WEIXIN"
     - "^SIN CLAVE$"
     - "^DEVOLUCION"
 
@@ -35,7 +37,7 @@ providers:
 
 searxng_url: null                              # p. ej. https://searx.clusterticgalicia.com
 google_places_api_key_env: GOOGLE_PLACES_API_KEY
-region_hint: "Galicia, España"
+nominatim_country_codes: es   # Nominatim busca solo en España; null = sin acotar. A los buscadores no se les añade region
 
 rate_limit_seconds: 1.5      # Nominatim exige como maximo 1 peticion por segundo
 max_queries_per_run: 50

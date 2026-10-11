@@ -71,7 +71,6 @@ def _settings(**overrides) -> EnrichmentSettings:
             "skip_patterns": SKIP,
         },
         "providers": ["nominatim"],
-        "region_hint": "Galicia, España",
         "rate_limit_seconds": 0.0,
         "max_queries_per_run": 50,
         "max_summary_chars": 200,
@@ -134,21 +133,26 @@ class FakeDecider:
 # ---------- consulta ----------
 
 
-def test_build_query_limpia_y_anade_region():
-    q = build_query("COMPRA CAFETERIA GATO AZUL 0042 SL", region_hint="Galicia, España")
-    assert q == "CAFETERIA GATO AZUL Galicia, España"
+def test_build_query_limpia_sin_anadir_region():
+    assert build_query("COMPRA CAFETERIA GATO AZUL 0042 SL") == "CAFETERIA GATO AZUL"
+    assert build_query("BAR PEPE VIGO") == "BAR PEPE VIGO"
+    assert build_query("TRANSACCION CONTACTLESS EN TASCA DO RIO") == "TASCA DO RIO"
+    assert build_query("SUMUP TASCA PEPE TPV") == "TASCA PEPE"
 
 
-def test_build_query_conserva_ciudad_conocida_sin_region():
-    q = build_query("BAR PEPE VIGO", region_hint="Galicia, España")
-    assert q == "BAR PEPE VIGO"
+def test_build_query_quita_fragmento_final_de_ciudad_truncada():
+    assert build_query("ROPA GENERICA SEVI") == "ROPA GENERICA SEVI"  # 4 letras: se conserva
+    assert build_query("ROPA GENERICA VI") == "ROPA GENERICA"  # 2 letras al final: fuera
+    assert build_query("GA MOS") == "GA MOS"  # solo dos tokens: no se recorta
 
 
-def test_build_query_descarta_vetadas_y_cortas():
-    assert build_query("BIZUM ENVIADO", region_hint="G", skip_patterns=SKIP) is None
-    assert build_query("PAYPAL EUROPE", region_hint="G", skip_patterns=SKIP) is None
-    assert build_query("ZARA", region_hint="G") is None  # un solo token
-    assert build_query("COMPRA EN", region_hint="G") is None  # solo genericos
+def test_build_query_descarta_vetadas_cortas_y_personas():
+    assert build_query("BIZUM ENVIADO", skip_patterns=SKIP) is None
+    assert build_query("PAYPAL EUROPE", skip_patterns=SKIP) is None
+    assert build_query("ZARA") is None  # un solo token
+    assert build_query("COMPRA EN") is None  # solo genericos
+    assert build_query("CELIA PEREZ FISIO") is None  # nombre de pila delante: persona
+    assert build_query("CASA ANTONIO") == "CASA ANTONIO"  # el nombre no va delante
 
 
 def test_sanitize_summary_quita_telefonos_y_referencias():
@@ -184,7 +188,7 @@ def test_select_candidates_respeta_disparador_y_cache(tmp_path):
     cands = select_candidates(conn, _settings())
     by_key = {c.key: c for c in cands}
     assert set(by_key) == {"CAFETERIA GATO AZUL", "BIZUM ENVIADO"}
-    assert by_key["CAFETERIA GATO AZUL"].query == "CAFETERIA GATO AZUL Galicia, España"
+    assert by_key["CAFETERIA GATO AZUL"].query == "CAFETERIA GATO AZUL"
     assert by_key["BIZUM ENVIADO"].query is None
 
     repo.upsert_enrichment(
@@ -217,8 +221,8 @@ def test_run_enrichment_mejora_cambia_registra_y_cachea(tmp_path, taxonomy):
             ("TIENDA QUE PETA", -9.0, "Otros", 0.3, "clef", "expense"),
         ],
     )
-    q_cafe = "CAFETERIA GATO AZUL Galicia, España"
-    q_peta = "TIENDA QUE PETA Galicia, España"
+    q_cafe = "CAFETERIA GATO AZUL"
+    q_peta = "TIENDA QUE PETA"
     provider = FakeProvider(
         {q_cafe: Enrichment("fake", q_cafe, "Cafetería Gato Azul", ["amenity/cafe"])},
         errors={q_peta},
@@ -261,7 +265,7 @@ def test_run_enrichment_mejora_cambia_registra_y_cachea(tmp_path, taxonomy):
 
 def test_segunda_ronda_no_pisa_si_no_mejora(tmp_path, taxonomy):
     conn = _db(tmp_path, [("CAFETERIA GATO AZUL", -4.0, "Otros", 0.5, "clef", "expense")])
-    q = "CAFETERIA GATO AZUL Galicia, España"
+    q = "CAFETERIA GATO AZUL"
     provider = FakeProvider({q: Enrichment("fake", q, "algo", [])})
     decider = FakeDecider({"CAFETERIA GATO AZUL": _answers("Alimentacion", 0.45)})
     settings = _settings()
@@ -301,7 +305,7 @@ def test_clef_web_nunca_pisa_user(tmp_path):
 
 def test_modelo_caido_en_segunda_ronda_cuenta_como_error(tmp_path, taxonomy):
     conn = _db(tmp_path, [("CAFETERIA GATO AZUL", -4.0, "Otros", 0.5, "clef", "expense")])
-    q = "CAFETERIA GATO AZUL Galicia, España"
+    q = "CAFETERIA GATO AZUL"
     provider = FakeProvider({q: Enrichment("fake", q, "algo", [])})
     decider = FakeDecider({}, boom={"CAFETERIA GATO AZUL"})
     settings = _settings()
@@ -363,6 +367,7 @@ def test_nominatim_parsea_tipo_de_lugar():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.host == "nominatim.openstreetmap.org"
         assert request.url.params["q"] == "CAFETERIA GATO AZUL VIGO"
+        assert request.url.params["countrycodes"] == "es"
         assert "moooney" in request.headers["user-agent"]
         return httpx.Response(200, json=payload)
 
@@ -465,7 +470,7 @@ def test_cli_dry_run_lista_sin_enviar(tmp_path, monkeypatch):
     monkeypatch.setenv("MOOONEY_OFFLINE", "1")  # si algo intentara red, fallaría
     result = CliRunner().invoke(app, ["enrich", "--dry-run"])
     assert result.exit_code == 0, result.output
-    assert "CAFETERIA GATO AZUL Galicia" in result.output
+    assert "CAFETERIA GATO AZUL |" in result.output
     assert "nominatim.openstreetmap.org" in result.output
     assert conn.execute("SELECT COUNT(*) AS n FROM web_calls").fetchone()["n"] == 0
 
@@ -473,7 +478,7 @@ def test_cli_dry_run_lista_sin_enviar(tmp_path, monkeypatch):
     result = CliRunner().invoke(app, ["enrich", "--dry-run", "--out", str(out)])
     assert result.exit_code == 0, result.output
     assert "CAFETERIA GATO AZUL" not in result.output  # a pantalla solo el conteo
-    assert "CAFETERIA GATO AZUL Galicia" in out.read_text(encoding="utf-8")
+    assert "CAFETERIA GATO AZUL |" in out.read_text(encoding="utf-8")
 
 
 def test_cli_desactivado_no_envia_nada(tmp_path, monkeypatch):

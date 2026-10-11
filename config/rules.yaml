@@ -68,7 +68,7 @@ rules:
     flow_type: investment
 
   # --- comida a domicilio (antes de restaurantes genericos) ---
-  - {pattern: 'WETACA|GLOVO|UBER EATS|JUST EAT|DELIVEROO', category: Alimentacion, subcategory: restaurantes, flow_type: expense}
+  - {pattern: 'WETACA|GLOVO|UBER EATS|JUST ?EAT|DELIVEROO|GOIKO', category: Alimentacion, subcategory: restaurantes, flow_type: expense}
 
   # --- peajes y telepeaje (Vía-T del Santander) ---
   - pattern: 'VIA.?T\b|PEAJE|AUTOPISTA|AUDASA|BIP.?DRIVE|IDENTRACK|APLA? Telpeaje'
@@ -81,7 +81,7 @@ rules:
     flow_type: expense
 
   # --- combustibles ---
-  - pattern: '^US |^US$|PLENERGY|GOMISTAR|REPSOL|CEPSA|GALP|\bBP\b|SHELL|CAMPSA|IPARLUX|BENGINA|GASOLIN|COMBUSTIBLE|POSTO DE? COMBUSTIVE'
+  - pattern: '^US |^US$|PLENERGY|PLENOIL|PETROPRIX|BALLENOIL|PETROBIERZO|ARAL STATION|GOMISTAR|REPSOL|CEPSA|GALP|\bBP\b|SHELL|CAMPSA|IPARLUX|BENGINA|GASOLIN|COMBUSTIBLE|POSTO DE? COMBUSTIVE'
     category: Transporte
     subcategory: combustible
     flow_type: expense
@@ -138,7 +138,7 @@ rules:
     category: Suscripciones
     subcategory: streaming
     flow_type: expense
-  - pattern: 'GOOGLE|APPLE|ICLOUD|ITUNES|MICROSOFT|OPENAI|CHATGPT|ANTHROPIC|CLAUDE|ADOBE|DROPBOX|PROTON|NORDVPN|EXPRESSVPN|AD FREE|ONE DRIVE|LICENCIA|SOFTWARE|HOSTINGER|NAMECHEAP|IMOZ'
+  - pattern: 'GOOGLE|APPLE|ICLOUD|ITUNES|MICROSOFT|OPENAI|CHATGPT|ANTHROPIC|CLAUDE|ADOBE|DROPBOX|PROTON|NORDVPN|EXPRESSVPN|AD FREE|ONE DRIVE|LICENCIA|SOFTWARE|HOSTINGER|NAMECHEAP|IMOZ|TAXDOWN|ALLDEBRID'
     category: Suscripciones
     subcategory: software y cloud
     flow_type: expense
@@ -170,7 +170,7 @@ rules:
     flow_type: expense
 
   # --- ropa y hogar ---
-  - pattern: 'TK MAX|PRIMARK|ZARA|INDITEX|STRADIVARIUS|MANGO\b|DESCENTURA?|DECATHLON|LEFTIES?|PULL&BEAR|OYSHO|BERSHKA'
+  - pattern: 'TK MAX|PRIMARK|ZARA|INDITEX|STRADIVARIUS|MANGO\b|DESCENTURA?|DECATHLON|LEFTIES?|PULL ?(&|AND) ?BEAR|OYSHO|BERSHKA|ZALA ?NDO|SPRINTER|CORTEFIEL|C O R T E F I E|HOFF BRAND|PEDRO DEL HIERR|SPACEFOOT|FIFTY FACTORY'
     category: Compras
     subcategory: ropa y calzado
     flow_type: expense
@@ -188,7 +188,7 @@ rules:
     category: Ocio
     subcategory: deporte
     flow_type: expense
-  - pattern: '\bCINE\b|MULTICINES|CINESA|KIOSKO|QUIOSCO|LIBRERIA|LIBRO|TEATRO|AUDITORIO|CONCIERTO|MUSEO|ENTRADAS?\.COM|TICKETmaster|WIZINK CENTER|PALACIO DE DEPORTES'
+  - pattern: '\bCINES?\b|MULTICINES|CINESA|KIOSKO|QUIOSCO|LIBRERIA|LIBRO|TEATRO|AUDITORIO|CONCIERTO|MUSEO|ENTRADAS?\.COM|TICKETmaster|WIZINK CENTER|PALACIO DE DEPORTES'
     category: Ocio
     subcategory: cultura
     flow_type: expense

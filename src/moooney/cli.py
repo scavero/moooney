@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from moooney.categorize.evaluate import CALIBRATION_BINS, evaluate, load_labels
-from moooney.categorize.keys import backfill_clean_keys, key_stats
+from moooney.categorize.keys import backfill_clean_keys, key_stats, rebuild_clean_keys
 from moooney.categorize.pipeline import (
     apply_decider,
     apply_embeddings,
@@ -183,6 +183,10 @@ def categorize(
     enrich: bool = typer.Option(
         False, "--enrich", help="Tras la cascada, enriquece por web lo que quede dudoso (fase 2.5)."
     ),
+    rebuild: bool = typer.Option(
+        False, "--rebuild-keys",
+        help="Recalcula todas las claves de comercio (tras cambiar la normalización), migrando la memoria.",
+    ),
     config: Path = CONFIG_OPTION,
 ) -> None:
     """Categoriza las claves nuevas en cascada: reglas -> embeddings -> Clef."""
@@ -196,6 +200,12 @@ def categorize(
 
     conn = repo.connect(settings.paths.db_path, check_same_thread=False)
     try:
+        if rebuild and not dry_run:
+            n_rows, n_mig = rebuild_clean_keys(conn)
+            console.print(
+                f"claves reconstruidas: [green]{n_rows}[/green] transacciones cambiaron de clave, "
+                f"{n_mig} entradas de memoria migradas"
+            )
         backfill_clean_keys(conn)
         if refresh:
             n_upd, n_exam = refresh_rules(conn, rules, dry_run=dry_run)
@@ -355,7 +365,7 @@ def enrich(
             for c in con_consulta[:tope]:
                 lines.append(
                     f"{c.key} | {c.category} ({c.confidence:.2f}) | {c.query} | "
-                    f"{nominatim_url(c.query)}"
+                    f"{nominatim_url(c.query, enr.nominatim_country_codes)}"
                 )
             descartadas = [c.key for c in candidates if not c.query]
             if descartadas:

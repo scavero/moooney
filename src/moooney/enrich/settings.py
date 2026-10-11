@@ -32,7 +32,7 @@ class EnrichmentSettings(BaseModel):
     providers: list[str] = ["nominatim", "duckduckgo"]
     searxng_url: str | None = None
     google_places_api_key_env: str = "GOOGLE_PLACES_API_KEY"
-    region_hint: str = "Galicia, España"
+    nominatim_country_codes: str | None = "es"  # acota Nominatim por pais; None = mundo
     rate_limit_seconds: float = 1.5
     max_queries_per_run: int = 50
     max_summary_chars: int = 600

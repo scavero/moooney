@@ -89,9 +89,7 @@ def select_candidates(
     out: list[Candidate] = []
     for r in rows:
         try:
-            query = build_query(
-                r["key"], region_hint=settings.region_hint, skip_patterns=trig.skip_patterns
-            )
+            query = build_query(r["key"], skip_patterns=trig.skip_patterns)
         except AnonymizeError:
             query = None
         out.append(

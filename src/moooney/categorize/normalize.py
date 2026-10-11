@@ -12,6 +12,8 @@ import unicodedata
 # Prefijos de operación que no identifican al comercio. Se prueban en orden
 # (los más largos primero) y se eliminan repetidamente.
 _OPERATION_PREFIXES = [
+    "TRANSACCION CONTACTLESS EN",
+    "TRANSACCION CONTACTLESS",
     "PAGO MOVIL EN",
     "PAGO POR MOVIL EN",
     "PAGO MOVIL",
@@ -31,6 +33,10 @@ _OPERATION_PREFIXES = [
     "ADEUDO",
     "RECARGO DE",
     "RECARGO",
+    # Procesadores de pago que anteponen su marca al comercio
+    "SUMUP",
+    "ZETTLE",
+    "ZTL",
 ]
 
 # Palabras que introducen datos del recibo (no del comercio): se corta ahí.
