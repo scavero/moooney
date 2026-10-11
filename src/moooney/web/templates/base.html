@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}moooney{% endblock %} · moooney</title>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=7">
+  <link rel="stylesheet" href="/static/app.css?v=8">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
 </head>
@@ -33,10 +33,14 @@
     <div class="sidebar-foot">
       {% if as_of %}<div>datos hasta <strong>{{ as_of }}</strong></div>{% endif %}
       {% if offline %}<div class="tag warn">modo offline</div>{% endif %}
+      {% if demo_mode %}<div class="tag crit">demo</div>{% endif %}
       <div class="muted">local · 127.0.0.1</div>
     </div>
   </aside>
   <main class="content">
+    {% if demo_mode %}
+    <div class="notice demo"><strong>Datos de demostración.</strong> Son 14 meses inventados para enseñar la app. Para ver los tuyos, exporta tus movimientos a Excel, déjalos en <code>{{ excel_dir }}</code> y pulsa <a href="/pipeline">Importar</a>: la demo desaparece sola.</div>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 </div>

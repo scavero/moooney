@@ -119,3 +119,49 @@ def test_pipeline_enriquecimiento_preview_y_toggle(client):
         time.sleep(0.05)
     assert "modo offline" in r.text
     client.post("/pipeline/enrichment/toggle", data={"enabled": 0})
+
+
+def test_sin_datos_reales_se_sirve_la_demo_y_desaparece_al_importar(tmp_path, monkeypatch):
+    """Base real vacía → demo marcada como tal; en cuanto hay movimientos reales, se usan."""
+    import yaml
+
+    monkeypatch.setenv("MOOONEY_OFFLINE", "1")
+    monkeypatch.chdir(tmp_path)
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    for name in ("categories.yaml", "rules.yaml", "llm.yaml", "enrichment.yaml"):
+        (cfg / name).write_text((REPO_CONFIG / name).read_text(encoding="utf-8"), encoding="utf-8")
+    base = yaml.safe_load((REPO_CONFIG / "settings.yaml").read_text(encoding="utf-8"))
+    base["paths"] = {"excel_dir": "data/excel", "clean_dir": "data/clean", "db_path": "data/moooney.db"}
+    (cfg / "settings.yaml").write_text(yaml.safe_dump(base), encoding="utf-8")
+
+    app = create_app(cfg / "settings.yaml")
+    with TestClient(app) as c:
+        r = c.get("/")
+        assert r.status_code == 200
+        assert "Datos de demostración" in r.text and "MERCADONA" in r.text
+        assert (tmp_path / "data" / "demo" / "moooney.db").exists()
+        r = c.get("/pipeline")
+        assert "Estás en la demo" in r.text
+
+        # llega un Excel real: la ingesta va a la base real y la demo desaparece
+        from tests.conftest import make_santander_xlsx
+
+        (tmp_path / "data" / "excel").mkdir(parents=True, exist_ok=True)
+        make_santander_xlsx(tmp_path / "data" / "excel" / "real.xlsx")
+        r = c.post("/pipeline/jobs/ingest")
+        job_id = r.text.split('id="job-')[1].split('"')[0]
+        for _ in range(50):
+            r = c.get(f"/pipeline/jobs/{job_id}")
+            if "terminado" in r.text:
+                break
+            time.sleep(0.05)
+        assert "3 nuevas" in r.text
+        r = c.get("/")
+        assert "Datos de demostración" not in r.text
+        assert "2025-02" in r.text  # el mes del Excel real, no el de la demo (2026-10)
+
+    # --demo fuerza la demo aunque haya datos reales
+    app = create_app(cfg / "settings.yaml", force_demo=True)
+    with TestClient(app) as c:
+        assert "Datos de demostración" in c.get("/").text

@@ -16,6 +16,7 @@
 <div class="grid two section">
   <div class="card">
     <h2>1 · Ingesta</h2>
+    {% if demo %}<div class="notice">Estás en la demo. Lo que importes aquí va a <strong>tu</strong> base de datos, no a la demo; en cuanto haya movimientos reales la app los usará.</div>{% endif %}
     <p class="muted">Deja los Excel exportados del banco en <code>{{ excel_dir }}</code>. Cada fichero se identifica por su hash y cada movimiento por su huella: importar dos veces no duplica nada.</p>
     <table>
       <tr><th>Fichero</th><th class="num">KB</th><th>Estado</th><th class="num">Filas</th><th class="num">Nuevas</th><th>Rango</th></tr>

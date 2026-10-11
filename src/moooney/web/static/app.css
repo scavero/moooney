@@ -108,6 +108,7 @@ tr.saved td { background: var(--dominant-soft); }
 .notice { padding: var(--s2) var(--s3); border-left: 3px solid var(--dominant); background: var(--dominant-soft); margin-bottom: var(--s3); font-weight: 300; }
 .notice.warn { border-left-color: #e58a00; background: #fff6e5; } .notice.crit { border-left-color: var(--accent); background: var(--accent-soft); }
 .notice.ok { border-left-color: var(--dominant); background: var(--dominant-soft); }
+.notice.demo { border-left-color: var(--accent); background: var(--accent-soft); margin-bottom: var(--s4); }
 .empty { text-align: center; padding: var(--s8) var(--s3); color: var(--ink-2); }
 .empty h1 { font-size: 28px; }
 

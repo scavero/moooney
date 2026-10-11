@@ -988,9 +988,11 @@ def web(
     port: int = typer.Option(8765, "--port"),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="Abre el navegador al arrancar."),
     reload: bool = typer.Option(False, "--reload", help="Recarga automática (desarrollo)."),
+    demo: bool = typer.Option(False, "--demo", help="Fuerza los datos de demostración aunque haya datos reales."),
     config: Path = CONFIG_OPTION,
 ) -> None:
-    """Interfaz web local: resumen, movimientos, comercios, presupuestos, alertas y pipeline."""
+    """Interfaz web local. Sin datos reales muestra la demo (marcada como tal) hasta que importes."""
+    import os
     import threading
     import webbrowser
 
@@ -999,17 +1001,17 @@ def web(
     from moooney.web.app import create_app
 
     if config is not None:
-        import os
-
         os.environ["MOOONEY_CONFIG"] = str(config)
     url = f"http://{host}:{port}/"
     if open_browser and not reload:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     console.print(f"[bold]moooney[/bold] en {url}  (Ctrl+C para parar)")
+    if demo:
+        os.environ["MOOONEY_FORCE_DEMO"] = "1"
     if reload:
         uvicorn.run("moooney.web.app:app_from_env", host=host, port=port, reload=True, factory=True)
     else:
-        uvicorn.run(create_app(config), host=host, port=port)
+        uvicorn.run(create_app(config, force_demo=demo), host=host, port=port)
 
 
 @app.command()

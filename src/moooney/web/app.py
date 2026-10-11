@@ -40,6 +40,35 @@ class AppState:
     settings: Settings
     paths: Paths
     jobs: JobRegistry
+    force_demo: bool = False
+
+
+@dataclass
+class Active:
+    """Lo que la petición actual usa de verdad: los datos del usuario o la demo."""
+
+    settings: Settings
+    paths: Paths
+    demo: bool
+
+
+def _real_is_empty(settings: Settings) -> bool:
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        return conn.execute("SELECT COUNT(*) AS n FROM transactions").fetchone()["n"] == 0
+    finally:
+        conn.close()
+
+
+def demo_settings_path(settings: Settings, config_dir: Path) -> Path:
+    """Ruta del settings.yaml de la demo, construyéndola si aún no existe."""
+    from moooney.demo import build_demo
+
+    target = settings.paths.db_path.parent / "demo"
+    settings_path = target / "config" / "settings.yaml"
+    if not (target / "moooney.db").exists() or not settings_path.exists():
+        build_demo(target, source_config=config_dir)
+    return settings_path
 
 
 def eur(value: float | None, decimals: int = 0) -> str:
@@ -55,10 +84,10 @@ def pct(value: float | None, decimals: int = 0) -> str:
     return "—" if value is None else f"{value * 100:.{decimals}f} %"
 
 
-def create_app(config_path: Path | None = None) -> FastAPI:
+def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> FastAPI:
     settings = load_settings(config_path)
     config_dir = config_path.parent if config_path else Path("config")
-    state = AppState(settings=settings, paths=Paths(config_dir), jobs=JobRegistry())
+    state = AppState(settings=settings, paths=Paths(config_dir), jobs=JobRegistry(), force_demo=force_demo)
 
     app = FastAPI(title="moooney", docs_url=None, redoc_url=None)
     app.state.moooney = state
@@ -67,8 +96,19 @@ def create_app(config_path: Path | None = None) -> FastAPI:
     templates.env.filters["eur"] = eur
     templates.env.filters["pct"] = pct
 
+    _demo_cache: dict[str, Active] = {}
+
+    def active() -> Active:
+        """Datos del usuario si existen; si la base real está vacía, la demo (marcada como tal)."""
+        if not state.force_demo and not _real_is_empty(state.settings):
+            return Active(state.settings, state.paths, demo=False)
+        if "demo" not in _demo_cache:
+            sp = demo_settings_path(state.settings, state.paths.config_dir)
+            _demo_cache["demo"] = Active(load_settings(sp), Paths(sp.parent), demo=True)
+        return _demo_cache["demo"]
+
     def get_db() -> Iterator[sqlite3.Connection]:
-        conn = repo.connect(state.settings.paths.db_path, check_same_thread=False)
+        conn = repo.connect(active().settings.paths.db_path, check_same_thread=False)
         try:
             yield conn
         finally:
@@ -85,11 +125,13 @@ def create_app(config_path: Path | None = None) -> FastAPI:
             "as_of": periods.as_of_date(conn),
             "job_running": state.jobs.current(),
             "offline": offline_enabled(),
+            "demo_mode": active().demo,
+            "excel_dir": state.settings.paths.excel_dir,
         }
         return templates.TemplateResponse(request, template, {**base, **ctx})
 
     def taxonomy():
-        return service.taxonomy_for(state.paths)
+        return service.taxonomy_for(active().paths)
 
     def resolve_month(conn: sqlite3.Connection, month: str | None) -> str | None:
         as_of = periods.as_of_date(conn)
@@ -110,7 +152,7 @@ def create_app(config_path: Path | None = None) -> FastAPI:
         cat_series = queries.category_series(conn, series_months)
         top_cats = list(cat_series.items())[:8]
         resto = [sum(v[i] for _, v in list(cat_series.items())[8:]) for i in range(len(series_months))]
-        limits_cfg = budgets_mod.load_budgets_config(state.paths.budgets)
+        limits_cfg = budgets_mod.load_budgets_config(active().paths.budgets)
         budget_rows = []
         if limits_cfg:
             limits = budgets_mod.limits_for_month(conn, m, limits_cfg)
@@ -232,7 +274,7 @@ def create_app(config_path: Path | None = None) -> FastAPI:
 
     def budget_context(conn: sqlite3.Connection, month: str):
         as_of = periods.as_of_date(conn)
-        limits_cfg = budgets_mod.load_budgets_config(state.paths.budgets)
+        limits_cfg = budgets_mod.load_budgets_config(active().paths.budgets)
         limits = budgets_mod.limits_for_month(conn, month, limits_cfg)
         if as_of and month == periods.month_of(as_of) and limits_cfg:
             limits = limits_cfg
@@ -257,13 +299,13 @@ def create_app(config_path: Path | None = None) -> FastAPI:
 
     @app.post("/budgets/propose")
     def budgets_propose(conn: DB, months: Annotated[int, Form()] = 6, cut: Annotated[float, Form()] = 0.10):
-        service.propose_and_save_budgets(conn, state.paths, months=months, cut=cut)
+        service.propose_and_save_budgets(conn, active().paths, months=months, cut=cut)
         return RedirectResponse("/budgets", status_code=303)
 
     @app.post("/budgets/{category}", response_class=HTMLResponse)
     def budget_set(request: Request, conn: DB, category: str, amount: Annotated[float, Form()],
                    month: Annotated[str, Form()] = ""):
-        service.set_budget(conn, state.paths, category, amount)
+        service.set_budget(conn, active().paths, category, amount)
         m = resolve_month(conn, month or None)
         rows, _ = budget_context(conn, m)
         row = next((r for r in rows if r.category == category), None)
@@ -288,7 +330,7 @@ def create_app(config_path: Path | None = None) -> FastAPI:
 
     @app.post("/alerts/refresh")
     def alerts_refresh(conn: DB):
-        service.refresh_alerts(conn, state.paths)
+        service.refresh_alerts(conn, active().paths)
         return RedirectResponse("/alerts", status_code=303)
 
     @app.post("/alerts/ack-all")
@@ -315,8 +357,8 @@ def create_app(config_path: Path | None = None) -> FastAPI:
         service.refresh_recurring(conn)
         row = advice.latest_report(conn, m)
         html = md.markdown(row["content"], extensions=["tables"]) if row else ""
-        llm = service.llm_settings_or_none(state.paths)
-        limits = budgets_mod.load_budgets_config(state.paths.budgets)
+        llm = service.llm_settings_or_none(active().paths)
+        limits = budgets_mod.load_budgets_config(active().paths.budgets)
         payload = advice.build_payload(conn, m, budgets_limits=limits or None)
         return render(
             request, conn, "report.html", month=m, prev_month=periods.prev_month(m),
@@ -327,7 +369,8 @@ def create_app(config_path: Path | None = None) -> FastAPI:
 
     @app.post("/report/generate", response_class=HTMLResponse)
     def report_generate(request: Request, month: str | None = None):
-        s, p = state.settings, state.paths
+        a = active()
+        s, p = a.settings, a.paths
         try:
             job = state.jobs.start(
                 f"Informe {month or 'del mes'} con el modelo",
@@ -339,14 +382,16 @@ def create_app(config_path: Path | None = None) -> FastAPI:
 
     @app.post("/report/generate-offline")
     def report_generate_offline(month: str | None = None):
-        service.job_report(state.settings, state.paths, lambda _line: None, month=month, use_model=False)
+        a = active()
+        service.job_report(a.settings, a.paths, lambda _line: None, month=month, use_model=False)
         return RedirectResponse(f"/report?month={month}" if month else "/report", status_code=303)
 
     # ---------- pipeline ----------
 
     def pipeline_ctx(conn: sqlite3.Connection) -> dict:
-        enr = service.enrichment_settings_or_none(state.paths)
-        llm = service.llm_settings_or_none(state.paths)
+        a = active()
+        enr = service.enrichment_settings_or_none(a.paths)
+        llm = service.llm_settings_or_none(a.paths)
         return {
             "status": repo.get_status(conn),
             "files": queries.excel_files(conn, state.settings.paths.excel_dir),
@@ -357,6 +402,7 @@ def create_app(config_path: Path | None = None) -> FastAPI:
             "llm": llm,
             "jobs": state.jobs.recent(),
             "excel_dir": state.settings.paths.excel_dir,
+            "demo": a.demo,
         }
 
     @app.get("/pipeline", response_class=HTMLResponse)
@@ -376,9 +422,11 @@ def create_app(config_path: Path | None = None) -> FastAPI:
     def job_start(request: Request, name: str):
         if name not in JOB_NAMES:
             raise HTTPException(status_code=404)
-        s, p = state.settings, state.paths
+        a = active()
+        s, p = a.settings, a.paths
+        real = state.settings  # la ingesta siempre carga los Excel del usuario en SU base
         fns = {
-            "ingest": lambda log: service.job_ingest(s, log),
+            "ingest": lambda log: service.job_ingest(real, log),
             "categorize": lambda log: service.job_categorize(s, p, log),
             "categorize-refresh": lambda log: service.job_categorize(s, p, log, refresh=True),
             "categorize-rebuild": lambda log: service.job_categorize(s, p, log, rebuild=True, refresh=True),
@@ -400,14 +448,14 @@ def create_app(config_path: Path | None = None) -> FastAPI:
 
     @app.get("/pipeline/enrich/preview", response_class=HTMLResponse)
     def enrich_preview(request: Request, conn: DB):
-        items = service.enrich_preview(conn, state.paths)
+        items = service.enrich_preview(conn, active().paths)
         return templates.TemplateResponse(
             request, "partials/enrich_preview.html", {"request": request, "items": items}
         )
 
     @app.post("/pipeline/enrichment/toggle")
     def enrichment_toggle(enabled: Annotated[int, Form()] = 0):
-        service.set_enrichment_enabled(state.paths, bool(enabled))
+        service.set_enrichment_enabled(active().paths, bool(enabled))
         return RedirectResponse("/pipeline", status_code=303)
 
     return app
@@ -418,4 +466,4 @@ def app_from_env() -> FastAPI:
     import os
 
     cfg = os.environ.get("MOOONEY_CONFIG")
-    return create_app(Path(cfg) if cfg else None)
+    return create_app(Path(cfg) if cfg else None, force_demo=os.environ.get("MOOONEY_FORCE_DEMO") == "1")

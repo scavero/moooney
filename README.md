@@ -12,11 +12,13 @@ Está pensado para que cualquiera lo clone y vea lo mismo con sus datos.
 ```powershell
 git clone https://github.com/scavero/moooney.git
 cd moooney
-uv run moooney demo --serve
+uv run moooney web
 ```
 
-Abre http://127.0.0.1:8765. Son 14 meses inventados, deterministas: suficiente para ver el resumen, las
-tendencias, los comercios, los presupuestos, las alertas y el informe.
+Abre http://127.0.0.1:8765. Mientras no haya datos tuyos, la app muestra una **demo** con 14 meses
+inventados y deterministas, marcada como tal en cada página: suficiente para ver el resumen, las
+tendencias, los comercios, los presupuestos, las alertas y el informe. En cuanto importas tu primer
+Excel, la demo desaparece sola. (`uv run moooney web --demo` la fuerza aunque tengas datos.)
 
 Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.12 solo). O Docker, más abajo.
 
