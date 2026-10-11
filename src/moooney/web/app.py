@@ -27,6 +27,7 @@ from moooney.analytics.metrics import full_months_before_safe
 from moooney.analytics.recurring import load_recurring
 from moooney.config import Settings, load_settings
 from moooney.db import repo
+from moooney.export import export_filename, transactions_csv
 from moooney.llm.client import offline_enabled
 from moooney.report import advice
 from moooney.web import queries, service
@@ -289,6 +290,20 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
             request, conn, "transactions.html", page=pg, month=month or "", category=category or "",
             flow=flow or "", key=key or "", q=q or "", totals=queries.transactions_totals(conn, **filters),
             taxonomy=taxonomy(),
+        )
+
+    @app.get("/transactions/export.csv")
+    def transactions_export(conn: DB, month: str | None = None, category: str | None = None,
+                            flow: str | None = None, key: str | None = None, q: str | None = None):
+        """CSV de los movimientos del filtro actual (separador ;, UTF-8 con BOM para Excel)."""
+        texto, _n = transactions_csv(
+            conn, month=month or None, category=category or None, flow=flow or None,
+            key=key or None, q=q or None,
+        )
+        nombre = export_filename(month=month or None, category=category or None)
+        return Response(
+            content="\ufeff" + texto, media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
         )
 
     # ---------- comercios ----------

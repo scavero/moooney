@@ -1031,5 +1031,24 @@ def demo(
         web(host="127.0.0.1", port=port, open_browser=open_browser, reload=False, config=settings_path)
 
 
+@app.command()
+def export(
+    out: Path = typer.Option(Path("data/clean/movimientos.csv"), "--out", help="Fichero CSV de salida."),
+    month: str | None = typer.Option(None, "--month", help="Solo un mes (YYYY-MM)."),
+    category: str | None = typer.Option(None, "--category", help="Solo una categoría."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Exporta los movimientos categorizados a CSV (separador ;, UTF-8 con BOM, para Excel)."""
+    from moooney.export import write_csv
+
+    settings = _settings(config)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        n = write_csv(conn, out, month=month, category=category)
+    finally:
+        conn.close()
+    console.print(f"[green]{n} movimientos[/green] exportados a {out}")
+
+
 if __name__ == "__main__":
     app()

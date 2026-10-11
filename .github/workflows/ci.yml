@@ -1,0 +1,40 @@
+# Integración continua: en cada push y pull request se comprueba que el código pasa
+# ruff y los 140 tests (todos con datos sintéticos, sin red: MOOONEY_OFFLINE=1) y que
+# la imagen Docker se construye. Nada de data/ ni reports/ llega aquí: están en .gitignore.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MOOONEY_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t moooney:ci .
+      - name: la imagen arranca y sirve la demo
+        run: |
+          docker run -d --name moooney -p 127.0.0.1:8765:8765 -e MOOONEY_OFFLINE=1 moooney:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8765/ > /dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/ | grep -q "Datos de demostración"
+          docker rm -f moooney

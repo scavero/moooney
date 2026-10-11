@@ -111,6 +111,27 @@ def test_alertas_filtro_por_nivel_y_grupo(client):
         assert r.status_code == 200 and f"ack-type/{alert_type}" not in r.text
 
 
+def test_exportar_csv_respeta_el_filtro(client, tmp_path):
+    r = client.get("/transactions/export.csv?month=2026-09&category=Alimentacion")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
+    assert 'filename="moooney-movimientos-2026-09-alimentacion.csv"' in r.headers["content-disposition"]
+    lineas = r.text.lstrip("\ufeff").splitlines()
+    assert lineas[0].startswith("fecha;concepto;comercio;categoria")
+    n = client.get("/transactions?month=2026-09&category=Alimentacion").text.split(" movimientos")[0].rsplit(">", 1)[-1]
+    assert len(lineas) == int(n) + 1
+    assert all(";Alimentacion;" in ln for ln in lineas[1:]) and all(ln.startswith("2026-09-") for ln in lineas[1:])
+    # misma función desde la CLI, a fichero con BOM para Excel
+    from moooney.db import repo
+    from moooney.export import write_csv
+
+    conn = repo.connect(client.app.state.moooney.settings.paths.db_path)
+    try:
+        n_fich = write_csv(conn, tmp_path / "out" / "m.csv", month="2026-09", category="Alimentacion")
+    finally:
+        conn.close()
+    assert n_fich == int(n) and (tmp_path / "out" / "m.csv").read_bytes().startswith(b"\xef\xbb\xbf")
+
+
 def test_pipeline_trabajos_en_segundo_plano(client):
     r = client.post("/pipeline/jobs/ingest")
     assert r.status_code == 200 and "Importar Excel nuevos" in r.text

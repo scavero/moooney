@@ -50,28 +50,7 @@ def transactions_page(
     page: int = 1,
     per_page: int = PER_PAGE,
 ) -> Page:
-    where: list[str] = []
-    params: list = []
-    if month:
-        first, last = periods.month_bounds(month)
-        where.append("t.date BETWEEN ? AND ?")
-        params += [first, last]
-    if category:
-        if category == "(sin categoría)":
-            where.append("t.category IS NULL")
-        else:
-            where.append("t.category = ?")
-            params.append(category)
-    if flow:
-        where.append("t.flow_type = ?")
-        params.append(flow)
-    if key:
-        where.append("t.concept_clean = ?")
-        params.append(key)
-    if q:
-        where.append("(t.concept LIKE ? OR t.concept_clean LIKE ?)")
-        params += [f"%{q.upper()}%", f"%{q.upper()}%"]
-    sql_where = ("WHERE " + " AND ".join(where)) if where else ""
+    sql_where, params = _transactions_where(month, category, flow, key, q)
     total = conn.execute(
         f"SELECT COUNT(*) AS n FROM transactions t {sql_where}", params
     ).fetchone()["n"]
@@ -304,6 +283,22 @@ def _transactions_where(month, category, flow, key, q):
         where.append("(t.concept LIKE ? OR t.concept_clean LIKE ?)")
         params += [f"%{q.upper()}%", f"%{q.upper()}%"]
     return (("WHERE " + " AND ".join(where)) if where else ""), params
+
+
+def transactions_all(conn: sqlite3.Connection, *, month=None, category=None, flow=None, key=None,
+                     q=None) -> list[sqlite3.Row]:
+    """Todas las filas del filtro, en orden cronológico (para exportar)."""
+    sql_where, params = _transactions_where(month, category, flow, key, q)
+    return conn.execute(
+        f"""
+        SELECT t.date, t.concept, t.concept_clean, t.amount, t.balance, t.category, t.subcategory,
+               t.flow_type, t.confidence, m.source
+        FROM transactions t LEFT JOIN merchants m ON m.key = t.concept_clean
+        {sql_where}
+        ORDER BY t.date, t.id
+        """,
+        params,
+    ).fetchall()
 
 
 def transactions_totals(conn: sqlite3.Connection, *, month=None, category=None, flow=None, key=None, q=None) -> dict:

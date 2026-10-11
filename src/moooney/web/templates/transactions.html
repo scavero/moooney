@@ -20,6 +20,7 @@
     </form>
     {% set base = '/transactions?month=' ~ month ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) %}
     <div class="pager">
+      <a class="btn small" href="{{ base|replace('/transactions?', '/transactions/export.csv?') }}" hx-boost="false" title="los {{ totals.n }} movimientos del filtro, para Excel">Exportar CSV</a>
       {% if page.has_prev %}<a class="btn small" href="{{ base }}&page={{ page.page - 1 }}">‹</a>{% endif %}
       <span>página {{ page.page }} de {{ page.pages }}</span>
       {% if page.has_next %}<a class="btn small" href="{{ base }}&page={{ page.page + 1 }}">›</a>{% endif %}

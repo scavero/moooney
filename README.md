@@ -1,5 +1,8 @@
 # moooney
 
+[![ci](https://github.com/scavero/moooney/actions/workflows/ci.yml/badge.svg)](https://github.com/scavero/moooney/actions/workflows/ci.yml)
+[![licencia MIT](https://img.shields.io/badge/licencia-MIT-0e3b2e)](LICENSE)
+
 Finanzas personales con IA, en tu máquina. Exportas tus movimientos del banco a Excel, moooney los
 limpia, los categoriza con un modelo de decisión, detecta recurrentes, propone presupuestos, lanza
 alertas, te dice **a dónde se va el dinero cada mes** y qué harías para mejorar, y lo muestra todo en
@@ -39,7 +42,7 @@ uv run moooney web
    Cada paso tiene su botón, su registro en pantalla y su equivalente en la CLI.
 
 4. **Cada mes**: exporta el mes nuevo, déjalo en `data/excel/` y pulsa *Importar*. Nada se duplica. Si prefieres
-   olvidarte, `uv run moooney watch` vigila la carpeta y corre la pipeline sola.
+   olvidarte, `uv run moooney watch` vigila la carpeta y corre la pipeline sola (o una tarea programada, más abajo).
 
 ## Qué verás
 
@@ -51,7 +54,7 @@ uv run moooney web
 - **Tendencias**: previsión a fin de mes y de los próximos tres, colchón en meses, saldo proyectado a un
   año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
 - **Movimientos**: filtros por mes, categoría, flujo y texto, totales del filtro; la categoría se corrige en la
-  propia fila.
+  propia fila; **Exportar CSV** descarga el filtro completo listo para Excel.
 - **Comercios**: cola de revisión de dudosas (una clave cada vez, con sugerencias y teclado) y tabla de todas
   las claves con su fuente y confianza; corregir la categoría se aplica a todos sus movimientos para siempre.
 - **Recurrentes**, **Presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con
@@ -108,6 +111,20 @@ corra sola cuando dejes un Excel nuevo en `data/excel/`:
 docker compose --profile watch up -d
 ```
 
+## Automatizar en Windows
+
+En lugar de dejar `watch` corriendo, una tarea programada que ejecute `moooney watch --once` cada día a las 9
+importa lo que haya nuevo en `data/excel/`, categoriza, enriquece (si está activado) y recalcula alertas.
+Desde PowerShell, en la carpeta del repo:
+
+```powershell
+$uv = (Get-Command uv).Source
+schtasks /Create /TN "moooney" /SC DAILY /ST 09:00 /F /TR "`"$uv`" run --directory `"$PWD`" moooney watch --once"
+```
+
+`schtasks /Run /TN moooney` la lanza a mano y `schtasks /Delete /TN moooney /F` la quita. En Linux o macOS,
+la misma línea en `cron`: `0 9 * * * cd /ruta/moooney && uv run moooney watch --once`.
+
 ## CLI
 
 Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos:
@@ -125,6 +142,7 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `metrics`, `recurring`, `budget init\|set\|show`, `alerts` | Analítica |
 | `report` | Informe mensual con consejos (`--no-model` para la versión determinista) |
 | `watch` | Vigila `data/excel/` y corre la pipeline; `--once` para tareas programadas |
+| `export` | Movimientos categorizados a CSV; `--month`, `--category`, `--out` |
 | `web` | Interfaz web local |
 | `demo` | Base sintética para probar sin datos reales |
 
@@ -145,9 +163,16 @@ los prefijos de operación en `categorize/normalize.py`.
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 139 tests, todos con datos sintéticos
+uv run pytest        # 140 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```
 
+La integración continua (`.github/workflows/ci.yml`) corre ruff y los tests en cada push y comprueba que la imagen
+Docker se construye y sirve la demo. Cambios por versión en [CHANGELOG.md](CHANGELOG.md).
+
 Contexto para agentes de IA que trabajen en el repo: [AGENTS.md](AGENTS.md).
+
+## Licencia
+
+[MIT](LICENSE). Úsalo, modifícalo y compártelo; solo conserva el aviso de copyright.

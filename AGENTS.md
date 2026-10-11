@@ -43,7 +43,8 @@ Base URL `https://litellm.clusterticgalicia.com/v1`, API compatible con OpenAI, 
 
 ```
 moooney/
-  AGENTS.md
+  AGENTS.md  README.md  CHANGELOG.md  LICENSE (MIT)
+  .github/workflows/ci.yml   (ruff + pytest + build Docker en cada push)
   pyproject.toml
   config/      settings.yaml  categories.yaml  rules.yaml  llm.yaml  enrichment.yaml  budgets.yaml (ignorado)  budgets.example.yaml
   data/        (ignorado) excel/  clean/  moooney.db
@@ -60,6 +61,7 @@ moooney/
     llm/         client.py  anonymize.py  prompts/
     web/         app.py  queries.py  service.py  jobs.py  templates/  static/
     demo.py
+    export.py
     report/      advice.py
     ingest/      watch.py (además de detect, parse_santander, load)
   tests/
