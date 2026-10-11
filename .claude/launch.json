@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "moooney-web",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "moooney", "web", "--no-open", "--port", "8765"],
+      "port": 8765
+    },
+    {
+      "name": "moooney-demo",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "moooney", "demo", "--serve", "--no-open", "--port", "8766"],
+      "port": 8766
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{% if items %}
+<div class="notice">{{ items|selectattr('query')|list|length }} consultas saldrían a Internet ({{ items|length }} candidatas; las que no tienen consulta están vetadas: personas, bizums, PayPal…). Solo sale el texto de la columna <strong>consulta</strong>.</div>
+<div style="max-height:320px;overflow:auto">
+<table>
+  <tr><th>Clave</th><th>Categoría actual</th><th>Consulta que saldría</th></tr>
+  {% for i in items %}
+  <tr class="{{ '' if i.query else 'muted' }}">
+    <td>{{ i.key }}</td>
+    <td class="muted">{{ i.category }} ({{ '%.2f'|format(i.confidence) }})</td>
+    <td>{% if i.query %}<code>{{ i.query }}</code>{% else %}<span class="tag">vetada</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}
+<div class="notice ok">No hay nada que consultar: ninguna clave cumple el disparador o ya están todas en caché.</div>
+{% endif %}

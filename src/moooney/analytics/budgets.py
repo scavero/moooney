@@ -144,24 +144,41 @@ def limits_for_month(conn: sqlite3.Connection, month: str, fallback: dict[str, f
     return dict(fallback)
 
 
+def _fixed_spend_by_category(conn: sqlite3.Connection, month: str) -> dict[str, float]:
+    keys = active_keys(conn)
+    if not keys:
+        return {}
+    f_day, l_day = periods.month_bounds(month)
+    ph = ",".join("?" for _ in keys)
+    fph = ",".join("?" for _ in EXPENSE_FLOWS)
+    rows = conn.execute(
+        f"SELECT COALESCE(category, '(sin categoría)') AS c, -SUM(amount) AS g FROM transactions"
+        f" WHERE date BETWEEN ? AND ? AND flow_type IN ({fph}) AND concept_clean IN ({ph})"
+        f" GROUP BY category",
+        (f_day, l_day, *EXPENSE_FLOWS, *keys),
+    ).fetchall()
+    return {r["c"]: max(float(r["g"]), 0.0) for r in rows}
+
+
 def budget_status(conn: sqlite3.Connection, month: str, limits: dict[str, float], *,
                   as_of: str | None = None) -> list[BudgetRow]:
+    """Gastado vs límite. La proyección solo extrapola la parte variable: lo ya
+    pagado en recurrentes (alquiler, cuotas) no se vuelve a pagar este mes."""
     spent = _spend_by_category(conn, month)
     as_of = as_of or periods.as_of_date(conn)
     projected_factor: float | None = None
+    fixed: dict[str, float] = {}
     if as_of and periods.month_of(as_of) == month:
         day = int(as_of[8:10])
         projected_factor = periods.days_in_month(month) / day if day else None
+        fixed = _fixed_spend_by_category(conn, month)
     out: list[BudgetRow] = []
     for cat, lim in limits.items():
         s = max(spent.get(cat, 0.0), 0.0)
-        out.append(
-            BudgetRow(
-                category=cat,
-                limit=lim,
-                spent=s,
-                projected=(s * projected_factor) if projected_factor else None,
-            )
-        )
+        projected = None
+        if projected_factor:
+            f = min(fixed.get(cat, 0.0), s)
+            projected = f + (s - f) * projected_factor
+        out.append(BudgetRow(category=cat, limit=lim, spent=s, projected=projected))
     out.sort(key=lambda r: -r.pct)
     return out

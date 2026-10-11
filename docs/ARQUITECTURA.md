@@ -41,8 +41,8 @@ flowchart LR
         ALERTS["alerts.py<br/>8 detectores por reglas,<br/>dedup por clave"]
     end
 
-    subgraph f45["Fases 4-5 · pendientes"]
-        GUI["Fase 4 · web app local<br/>ver y controlar toda la pipeline"]:::todo
+    subgraph f45["Fases 4-5"]
+        GUI["Fase 4 · web/ (FastAPI + HTMX)<br/>resumen, movimientos, comercios,<br/>presupuestos, alertas, pipeline"]
         REPORT["Fase 5 · report/<br/>previsión, consejos e informe<br/>(Qwen sobre agregados)"]:::todo
         WATCH["Fase 5 · watch / tarea programada"]:::todo
     end
@@ -60,7 +60,7 @@ flowchart LR
     DB --> BUDGET --> DB
     RECUR --> ALERTS
     BUDGET --> ALERTS --> DB
-    DB -.-> GUI
+    DB --> GUI --> DB
     METRICS -.-> REPORT
     WATCH -.-> DETECT
 
@@ -157,7 +157,7 @@ las dos fronteras a la vez.
 flowchart TB
     subgraph cli["cli.py (typer)"]
         C1[inspect] --- C2[ingest] --- C3[status] --- C4[merchants] --- C5[categorize] --- C6[enrich] --- C7[review] --- C8[eval-clef]
-        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts]
+        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts] --- C13[web] --- C14[demo]
     end
 
     subgraph src["src/moooney/"]
@@ -165,6 +165,7 @@ flowchart TB
         CAT["categorize/<br/>normalize · keys · rules · taxonomy<br/>embed · pipeline · evaluate"]
         ENRM["enrich/<br/>settings · query · providers · runner"]
         ANA["analytics/<br/>periods · recurring · metrics<br/>budgets · alerts"]
+        WEB["web/<br/>app · queries · service · jobs<br/>templates · static"]
         LLM["llm/<br/>client · anonymize · decide"]
         DBM["db/<br/>schema.sql · repo"]
     end
@@ -191,7 +192,8 @@ flowchart TB
         Y6[budgets · ignorado]
     end
 
-    cli --> ING & CAT & ENRM & ANA
+    cli --> ING & CAT & ENRM & ANA & WEB
+    WEB --> ING & CAT & ENRM & ANA
     CAT --> LLM
     ENRM --> LLM
     ING & CAT & ENRM & ANA & LLM --> DBM --> tablas

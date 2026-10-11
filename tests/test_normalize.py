@@ -89,3 +89,10 @@ def test_prefijos_contactless_y_procesadores_de_pago():
     assert clean_concept("TRANSACCION CONTACTLESS EN TASCA DO RIO VIGO") == "TASCA DO RIO VIGO"
     assert clean_concept("SUMUP LA TASQUITA TA") == "LA TASQUITA TA"
     assert clean_concept("ZETTLE BAR PEPE") == "BAR PEPE"
+
+
+def test_marcador_al_principio_no_deja_la_clave_vacia():
+    assert clean_concept("COMISION MANTENIMIENTO CUENTA") == "COMISION MANTENIMIENTO CUENTA"
+    assert clean_concept("COMISION DE MANTENIMIENTO") == "COMISION DE MANTENIMIENTO"
+    # en medio sigue cortando: el comercio es lo de antes
+    assert clean_concept("TIENDA FALSA TARJETA 1234") == "TIENDA FALSA"

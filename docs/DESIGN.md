@@ -180,11 +180,12 @@ moooney/
 
 ## Fases
 
-1. **Ingesta**: inspect, parse, dedupe, load. Verificable sin IA.
-2. **Categorización** (completada): normalize, rules, memoria, LLM para desconocidos, review.
-3. **Analítica**: métricas, recurrentes, presupuestos, alertas.
-4. **Informe**: previsión, consejos LLM, informe mensual.
-5. **Automatización**: watch, tarea programada, UI ligera.
+1. **Ingesta**: inspect, parse, dedupe, load. Verificable sin IA. ✔
+2. **Categorización**: normalize, rules, memoria, LLM para desconocidos, review. ✔
+2.5. **Enriquecimiento externo**: opcional, activado tras revisión del usuario. ✔
+3. **Analítica**: métricas, recurrentes, presupuestos, alertas. ✔
+4. **Web app (GUI)**: ver y controlar toda la pipeline desde el navegador, en local. ✔
+5. **Empaquetado e informe**: docker compose, librerías JS en local, previsión, consejos LLM, informe mensual, watch.
 
 ## Preguntas abiertas
 
@@ -223,4 +224,8 @@ moooney/
 - 2026-10-11 (fase 3): presupuesto propuesto = mediana del gasto por categoría en los últimos 6 meses completos, -10 % si la categoría es variable (< 70 % recurrente), redondeado a 5 € al alza. `config/budgets.yaml` está ignorado por git (importes personales); la tabla `budgets` guarda el límite vigente por mes con `UNIQUE(category, month)`.
 - 2026-10-11 (fase 3): alertas con `dedup_key` única (migración: `ALTER TABLE alerts ADD COLUMN`), así re-ejecutar no duplica. El ingreso ausente se evalúa sobre todos los recurrentes de ingreso (no solo activos), porque faltar es justo lo que los vuelve inactivos; se deja de avisar pasados 3 periodos. Anomalía = importe > mediana + 3·σ robusta (1,4826·MAD) y > 20 € sobre la mediana, con ≥ 5 cargos de histórico. Primera ejecución real: 6 alertas.
 - 2026-10-11 (orden de fases): el usuario decide que la fase 4 es la **web app (GUI)** para ver y controlar toda la pipeline; informe, consejos y automatización pasan a la fase 5.
+- 2026-10-11 (fase 4): web con FastAPI + Jinja + HTMX (sin build de frontend), servida solo en 127.0.0.1, sin autenticación. Las acciones largas (ingesta, categorizar, enriquecer, alertas) corren como trabajos en un hilo con registro de líneas y la página los sondea cada 2 s; solo un trabajo a la vez porque la base es una. Las ediciones (categoría de comercio, límite de presupuesto, alerta vista) responden fragmentos HTML. La memoria de comercios se edita por clave, no por movimiento: una corrección aplica a todos sus movimientos y queda como `source=user`.
+- 2026-10-11 (fase 4): `moooney demo` genera `data/demo/` con configuración propia y 14 meses sintéticos deterministas (semilla fija) para ver la web sin datos reales; los tests de la web usan el mismo generador. El enriquecimiento de la demo se escribe siempre desactivado.
+- 2026-10-11 (fase 4, bugs encontrados con la demo): la normalización dejaba en "SIN CLAVE" cualquier concepto que empezara por un marcador de corte (COMISION…, RECIBO…), así que las comisiones no tenían clave propia; ahora un marcador al principio no corta. La proyección del presupuesto extrapolaba linealmente también lo fijo ya pagado (alquiler del día 2 proyectado ×3); ahora solo extrapola la parte variable.
+- 2026-10-11 (fase 4): HTMX y Chart.js se cargan desde CDN con versión fija (cdnjs no tiene Chart.js 4.4.7; se usa jsDelivr). Empaquetarlos en `static/` queda para la fase 5 junto con el docker compose.
 - 2026-10-10 (fase 2): `eval-clef` mide al decider contra `data/eval/merchants_labeled.csv` (50 claves reales etiquetadas a mano, git-ignored; BOM tolerado con utf-8-sig). No escribe en `merchants`. Umbrales: categoría >85 %, flow_type >95 %. Resultado final: categoría 90 %, flow_type 100 %. La calibración muestra que la confianza solo es fiable por encima de 0.7 (95-100 % de acierto); por debajo, ~83 %.

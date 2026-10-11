@@ -1,0 +1,16 @@
+<tr class="{{ 'saved' if saved else '' }}">
+  <td>{{ r.category }}</td>
+  <td><div class="bar {{ 'crit' if r.pct >= 100 else 'warn' if r.pct >= 80 else '' }}"><span style="width:{{ [r.pct, 100]|min }}%"></span></div>
+    <span class="concept">{{ '%.0f'|format(r.pct) }} %</span></td>
+  <td class="num">{{ r.spent|eur }}</td>
+  <td class="num">{{ r.limit|eur }}</td>
+  <td class="num {{ 'neg' if r.projected and r.projected > r.limit else 'muted' }}">{{ r.projected|eur if r.projected is not none else '—' }}</td>
+  <td>
+    <form class="inline-form" hx-post="/budgets/{{ r.category|urlencode }}" hx-target="closest tr" hx-swap="outerHTML">
+      <input type="hidden" name="month" value="{{ month }}">
+      <input type="number" name="amount" value="{{ '%.0f'|format(r.limit) }}" min="0" step="5" style="width:90px">
+      <button class="btn small" type="submit">Guardar</button>
+      {% if saved %}<span class="tag ok">ok</span>{% endif %}
+    </form>
+  </td>
+</tr>

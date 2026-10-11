@@ -929,5 +929,55 @@ def alerts(
     console.print("[dim]moooney alerts --ack ID  ·  --ack-all[/dim]")
 
 
+# ---------- fase 4: web ----------
+
+
+@app.command()
+def web(
+    host: str = typer.Option("127.0.0.1", "--host", help="Solo local por defecto. 0.0.0.0 para exponerlo en la red."),
+    port: int = typer.Option(8765, "--port"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Abre el navegador al arrancar."),
+    reload: bool = typer.Option(False, "--reload", help="Recarga automática (desarrollo)."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Interfaz web local: resumen, movimientos, comercios, presupuestos, alertas y pipeline."""
+    import threading
+    import webbrowser
+
+    import uvicorn
+
+    from moooney.web.app import create_app
+
+    if config is not None:
+        import os
+
+        os.environ["MOOONEY_CONFIG"] = str(config)
+    url = f"http://{host}:{port}/"
+    if open_browser and not reload:
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    console.print(f"[bold]moooney[/bold] en {url}  (Ctrl+C para parar)")
+    if reload:
+        uvicorn.run("moooney.web.app:app_from_env", host=host, port=port, reload=True, factory=True)
+    else:
+        uvicorn.run(create_app(config), host=host, port=port)
+
+
+@app.command()
+def demo(
+    target: Path = typer.Option(Path("data/demo"), "--target", help="Carpeta de la demo (ignorada por git)."),
+    serve: bool = typer.Option(False, "--serve", help="Arranca la web sobre la demo tras generarla."),
+    port: int = typer.Option(8765, "--port"),
+    open_browser: bool = typer.Option(True, "--open/--no-open"),
+) -> None:
+    """Genera una base sintética (sin datos reales) para probar la web y los comandos."""
+    from moooney.demo import build_demo
+
+    settings_path = build_demo(target)
+    console.print(f"[green]demo generada[/green] en {target} · config: {settings_path}")
+    console.print(f"pruébala con: [bold]uv run moooney web --config {settings_path}[/bold]")
+    if serve:
+        web(host="127.0.0.1", port=port, open_browser=open_browser, reload=False, config=settings_path)
+
+
 if __name__ == "__main__":
     app()

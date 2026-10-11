@@ -118,6 +118,32 @@ uv run moooney alerts                  # --ack ID | --ack-all
 Los límites viven en `config/budgets.yaml` (ignorado por git; ejemplo en
 `config/budgets.example.yaml`) y se materializan por mes en la tabla `budgets`.
 
+## Uso (fase 4: interfaz web)
+
+Toda la funcionalidad anterior desde el navegador, en local y sin cuentas:
+
+```powershell
+uv run moooney web          # abre http://127.0.0.1:8765 (--port, --no-open, --host)
+```
+
+- **Resumen**: ingresos, gastos fijos y variables, ahorro, inversión; gasto por categoría de los últimos
+  12 meses (clic en una barra lleva a los movimientos), reparto del mes, comercios donde más se gasta,
+  presupuesto y alertas. Pregunta central: ¿a dónde se va el dinero este mes?
+- **Movimientos**: filtros por mes, categoría, flujo y texto; cada fila enlaza al comercio para corregirlo.
+- **Comercios**: revisar dudosas y corregir categoría en línea (equivale a `review`); lo que dijo la web.
+- **Recurrentes**, **Presupuestos** (proponer, ajustar, seguimiento con proyección), **Alertas** (recalcular, marcar vistas).
+- **Pipeline**: importar Excel, categorizar, reaplicar reglas, reconstruir claves, enriquecer (con vista previa y
+  activación), recalcular alertas; auditoría de lo que ha salido a modelos e Internet; trabajos en segundo plano.
+
+¿Quieres verla sin tus datos, o enseñársela a alguien? Una demo sintética:
+
+```powershell
+uv run moooney demo --serve   # genera data/demo/ con 14 meses inventados y la sirve en el puerto 8765
+```
+
+La web usa HTMX y Chart.js desde CDN (solo las librerías; ningún dato sale). La fase 5 las empaquetará
+en local junto con el `docker compose`.
+
 ## Privacidad
 
 `data/`, `reports/` y los `.env` están ignorados por git. Ningún comando imprime conceptos,

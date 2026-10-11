@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Comercios{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Comercios</h1><div class="subtitle">{{ summary.total }} claves · {{ summary.dudosas }} dudosas · {{ summary.otros }} en Otros · {{ summary.user }} corregidas por ti</div></div>
+  <div class="actions">
+    {% for src, n in summary.by_source %}<span class="tag src-{{ src }}">{{ src }} {{ n }}</span>{% endfor %}
+  </div>
+</div>
+<div class="notice">Cada fila es una <strong>clave de comercio</strong> (el concepto del banco limpio). Cambiar su categoría la aplica a todos sus movimientos y queda guardada como corrección tuya: ninguna regla ni modelo la volverá a tocar.</div>
+<div class="card">
+  <div class="filters">
+    <form method="get" action="/merchants">
+      <select name="mode">
+        <option value="dudosas" {{ 'selected' if mode == 'dudosas' else '' }}>dudosas (confianza &lt; 0,7 u Otros)</option>
+        <option value="otros" {{ 'selected' if mode == 'otros' else '' }}>en Otros</option>
+        <option value="user" {{ 'selected' if mode == 'user' else '' }}>corregidas por mí</option>
+        <option value="all" {{ 'selected' if mode == 'all' else '' }}>todas</option>
+      </select>
+      <select name="category"><option value="">todas las categorías</option>
+        {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}</select>
+      <input type="search" name="q" value="{{ q }}" placeholder="buscar clave">
+      <button class="btn primary" type="submit">Filtrar</button>
+    </form>
+  </div>
+  <table>
+    <tr><th>Clave</th><th class="num">Mov.</th><th class="num">Total</th><th>Último</th><th>Fuente</th><th>Categoría</th></tr>
+    {% for m in page.rows %}
+      {% include "partials/merchant_row.html" %}
+    {% endfor %}
+  </table>
+  <div class="pager">
+    {% set base = '/merchants?mode=' ~ mode ~ '&category=' ~ (category|urlencode) ~ '&q=' ~ (q|urlencode) %}
+    {% if page.has_prev %}<a class="btn small" href="{{ base }}&page={{ page.page - 1 }}">‹ anterior</a>{% endif %}
+    <span>página {{ page.page }} de {{ page.pages }} · {{ page.total }} claves</span>
+    {% if page.has_next %}<a class="btn small" href="{{ base }}&page={{ page.page + 1 }}">siguiente ›</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

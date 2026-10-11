@@ -78,7 +78,9 @@ def _primera_clave_de(resto: str) -> str:
     """Primer segmento (antes de ciudad o de marcadores del recibo)."""
     head = resto.split(",")[0]
     match = _CUT_MARKERS.search(head)
-    if match:
+    if match and match.start() > 0:
+        # el marcador separa comercio y datos del recibo; si va al principio
+        # ("COMISION MANTENIMIENTO"), es el propio concepto y se conserva
         head = head[: match.start()]
     return head
 

@@ -1,0 +1,17 @@
+<div class="card" style="margin-bottom:16px" id="job-{{ job.id }}"
+     {% if job.running %}hx-get="/pipeline/jobs/{{ job.id }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  <h2>{{ job.name }}
+    <span class="tag {{ 'info' if job.running else 'ok' if job.status == 'done' else 'crit' }}">{{ 'en marcha…' if job.running else 'terminado' if job.status == 'done' else 'error' }}</span>
+    <span class="concept">{{ job.started_at[11:19] }}{% if job.finished_at %} → {{ job.finished_at[11:19] }}{% endif %}</span>
+  </h2>
+  {% if job.error %}<div class="notice crit">{{ job.error }}</div>{% endif %}
+  <div class="log">{% for line in job.lines %}{{ line }}
+{% else %}…{% endfor %}</div>
+  {% if not job.running %}
+  <div class="actions" style="margin-top:8px">
+    <a class="btn small" href="/pipeline">Actualizar página</a>
+    <a class="btn small" href="/merchants?mode=dudosas">Revisar dudosas</a>
+    <a class="btn small" href="/">Resumen</a>
+  </div>
+  {% endif %}
+</div>

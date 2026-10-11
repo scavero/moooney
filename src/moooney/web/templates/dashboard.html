@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Resumen {{ month }}{% endblock %}
+{% block content %}
+{% set s = report.summary %}
+<div class="topbar">
+  <div>
+    <h1>¿A dónde se va el dinero?</h1>
+    <div class="subtitle">{{ month }}{% if not s.full_month %} · <span class="tag warn">mes incompleto</span>{% endif %} · {{ s.n_tx }} movimientos</div>
+  </div>
+  <div class="month-nav">
+    <a class="btn" href="/?month={{ prev_month }}">‹</a>
+    <select onchange="window.location='/?month='+this.value">
+      {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }}>{{ m }}</option>{% endfor %}
+    </select>
+    <a class="btn" href="/?month={{ next_month }}">›</a>
+  </div>
+</div>
+
+<div class="grid kpis" style="margin-bottom:16px">
+  <div class="card kpi"><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div></div>
+  <div class="card kpi"><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div>
+    <div class="hint">fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}</div></div>
+  <div class="card kpi"><div class="label">Ahorro neto</div>
+    <div class="value {{ 'pos' if s.net >= 0 else 'neg' }}">{{ s.net|eur }}</div>
+    <div class="hint">tasa de ahorro {{ s.savings_rate|pct }}</div></div>
+  <div class="card kpi"><div class="label">Aportado a inversión</div><div class="value">{{ s.investment|eur }}</div>
+    <div class="hint">no cuenta como gasto</div></div>
+  <div class="card kpi"><div class="label">Alertas pendientes</div>
+    <div class="value">{{ alerts_counts.total }}</div>
+    <div class="hint"><a href="/alerts">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos</a></div></div>
+</div>
+
+<div class="grid three" style="margin-bottom:16px">
+  <div class="card">
+    <h2>Gasto por categoría, últimos 12 meses</h2>
+    <div class="chart-box"><canvas id="chart-cats"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>{{ month }} por categoría</h2>
+    <div class="chart-box"><canvas id="chart-donut"></canvas></div>
+  </div>
+</div>
+
+<div class="grid two" style="margin-bottom:16px">
+  <div class="card">
+    <h2>Ingresos, gastos y ahorro</h2>
+    <div class="chart-box small"><canvas id="chart-flows"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Dónde más se gasta este mes</h2>
+    <table>
+      <tr><th>Comercio</th><th>Categoría</th><th class="num">Veces</th><th class="num">Total</th></tr>
+      {% for t in top %}
+      <tr>
+        <td><a href="/transactions?month={{ month }}&key={{ t.key|urlencode }}">{{ t.key }}</a></td>
+        <td class="muted">{{ t.category or '—' }}</td>
+        <td class="num">{{ t.n }}</td>
+        <td class="num neg">{{ t.total|eur(2) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Categorías de {{ month }}</h2>
+    <table>
+      <tr><th>Categoría</th><th class="num">Importe</th><th class="num">%</th><th class="num">vs mes ant.</th><th class="num">vs media</th></tr>
+      {% for c in report.categories %}
+      <tr>
+        <td><a href="/transactions?month={{ month }}&category={{ c.category|urlencode }}">{{ c.category }}</a>
+          {% if c.fixed_amount > 0 %}<span class="concept">fijo {{ c.fixed_amount|eur }}</span>{% endif %}</td>
+        <td class="num">{{ c.amount|eur }}</td>
+        <td class="num muted">{{ '%.0f'|format(c.pct) }} %</td>
+        <td class="num {{ 'neg' if (c.delta_prev or 0) > 0 else 'pos' }}">{% if c.delta_prev is not none %}{{ '%+.0f'|format(c.delta_prev) }} €{% else %}—{% endif %}</td>
+        <td class="num {{ 'neg' if (c.delta_avg or 0) > 0 else 'pos' }}">{% if c.delta_avg is not none %}{{ '%+.0f'|format(c.delta_avg) }} €{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <div class="muted" style="font-size:12px;margin-top:6px">vs media: {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos anteriores. Rojo = más gasto que antes.</div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Presupuesto {{ month }} <a class="muted" style="font-size:13px;font-weight:normal" href="/budgets?month={{ month }}">ver todo</a></h2>
+      {% if budget_rows %}
+      <table>
+        {% for r in budget_rows %}
+        <tr>
+          <td>{{ r.category }}</td>
+          <td><div class="bar {{ 'crit' if r.pct >= 100 else 'warn' if r.pct >= 80 else '' }}"><span style="width:{{ [r.pct, 100]|min }}%"></span></div></td>
+          <td class="num">{{ r.spent|eur }} / {{ r.limit|eur }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <p class="muted">Sin presupuestos todavía. <a href="/budgets">Proponer uno</a> a partir de tu histórico.</p>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h2>Alertas recientes</h2>
+      {% if pending %}
+      <table>
+        {% for a in pending %}
+        <tr><td><span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ a.severity }}</span></td><td>{{ a.message }}</td></tr>
+        {% endfor %}
+      </table>
+      {% else %}<p class="muted">Nada pendiente.</p>{% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+window.renderCharts = function () {
+  const months = {{ chart_months|tojson }};
+  const series = {{ chart_series|tojson }};
+  const flows = {{ chart_flows|tojson }};
+  const palette = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#db2777','#65a30d','#9ca3af'];
+  const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
+  const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };
+  mk('chart-cats', { type: 'bar',
+    data: { labels: months, datasets: series.map((s, i) => ({ label: s.label, data: s.data, backgroundColor: palette[i % palette.length], stack: 'g' })) },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } },
+      scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: v => eur(v) } } },
+      onClick: (e, els, chart) => { if (els.length) { const m = months[els[0].index]; const c = series[els[0].datasetIndex].label; if (c !== 'Resto') window.location = '/transactions?month=' + m + '&category=' + encodeURIComponent(c); } } } });
+  const cur = series.map(s => ({ label: s.label, v: s.data[months.length - 1] })).filter(x => x.v > 0);
+  mk('chart-donut', { type: 'doughnut',
+    data: { labels: cur.map(x => x.label), datasets: [{ data: cur.map(x => x.v), backgroundColor: cur.map((_, i) => palette[i % palette.length]) }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.label + ': ' + eur(c.raw) } } } } });
+  mk('chart-flows', { type: 'line',
+    data: { labels: months, datasets: [
+      { label: 'Ingresos', data: flows.ingresos, borderColor: '#16a34a', backgroundColor: '#16a34a22', tension: .3, fill: false },
+      { label: 'Gastos', data: flows.gastos, borderColor: '#dc2626', backgroundColor: '#dc262622', tension: .3, fill: false },
+      { label: 'Ahorro', data: flows.ahorro, borderColor: '#2563eb', backgroundColor: '#2563eb22', tension: .3, fill: true } ] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { y: { ticks: { callback: v => eur(v) } } } } });
+};
+</script>
+{% endblock %}

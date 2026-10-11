@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Movimientos{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Movimientos</h1><div class="subtitle">{{ page.total }} movimientos{% if month %} en {{ month }}{% endif %}{% if category %} · {{ category }}{% endif %}{% if key %} · {{ key }}{% endif %}</div></div>
+</div>
+<div class="card">
+  <div class="filters">
+    <form method="get" action="/transactions">
+      <select name="month"><option value="">todos los meses</option>{% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }}>{{ m }}</option>{% endfor %}</select>
+      <select name="category"><option value="">todas las categorías</option>
+        {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}
+        <option value="(sin categoría)" {{ 'selected' if category == '(sin categoría)' else '' }}>(sin categoría)</option></select>
+      <select name="flow"><option value="">todos los flujos</option>
+        {% for f in taxonomy.flow_types %}<option value="{{ f }}" {{ 'selected' if f == flow else '' }}>{{ f }}</option>{% endfor %}</select>
+      <input type="search" name="q" value="{{ q }}" placeholder="buscar en el concepto">
+      {% if key %}<input type="hidden" name="key" value="{{ key }}">{% endif %}
+      <button class="btn primary" type="submit">Filtrar</button>
+      {% if month or category or flow or q or key %}<a class="btn" href="/transactions">Limpiar</a>{% endif %}
+    </form>
+  </div>
+  <table>
+    <tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Flujo</th><th>Fuente</th><th class="num">Importe</th><th class="num">Saldo</th></tr>
+    {% for t in page.rows %}
+    <tr>
+      <td class="num">{{ t.date }}</td>
+      <td><a href="/merchants?mode=all&q={{ t.concept_clean|urlencode }}" title="ver y corregir el comercio">{{ t.concept_clean }}</a><div class="concept">{{ t.concept }}</div></td>
+      <td>{{ t.category or '<span class="tag warn">sin categoría</span>'|safe }}</td>
+      <td class="muted">{{ t.flow_type or '—' }}</td>
+      <td>{% if t.source %}<span class="tag src-{{ t.source }}">{{ t.source }}{% if t.confidence and t.source not in ('user','rule') %} {{ '%.2f'|format(t.confidence) }}{% endif %}</span>{% endif %}</td>
+      <td class="num {{ 'neg' if t.amount < 0 else 'pos' }}">{{ t.amount|eur(2) }}</td>
+      <td class="num muted">{{ t.balance|eur(2) if t.balance is not none else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div class="pager">
+    <span>suma de esta página: <strong class="{{ 'neg' if page_total < 0 else 'pos' }}">{{ page_total|eur(2) }}</strong></span>
+    <span>·</span>
+    {% set base = '/transactions?month=' ~ month ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) %}
+    {% if page.has_prev %}<a class="btn small" href="{{ base }}&page={{ page.page - 1 }}">‹ anterior</a>{% endif %}
+    <span>página {{ page.page }} de {{ page.pages }}</span>
+    {% if page.has_next %}<a class="btn small" href="{{ base }}&page={{ page.page + 1 }}">siguiente ›</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

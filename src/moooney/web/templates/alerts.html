@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Alertas{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Alertas</h1><div class="subtitle">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos · {{ alerts_counts.info }} informativas pendientes</div></div>
+  <div class="actions">
+    <form method="post" action="/alerts/refresh"><button class="btn primary" type="submit">Recalcular</button></form>
+    {% if all %}<a class="btn" href="/alerts">solo pendientes</a>{% else %}<a class="btn" href="/alerts?all=1">ver histórico</a>{% endif %}
+    {% if rows and not all %}<form method="post" action="/alerts/ack-all"><button class="btn" type="submit">Marcar todas como vistas</button></form>{% endif %}
+  </div>
+</div>
+<div class="notice">Las alertas salen de reglas, no de un modelo: presupuesto al 80 % y al 100 %, importe anómalo frente al histórico del comercio, cargo duplicado en 48 h, recurrente nuevo, subida de precio, ingreso que no llega, saldo proyectado negativo y comisiones. Recalcular no duplica las ya existentes.</div>
+<div class="card">
+  {% if rows %}
+  <table>
+    <tr><th>Nivel</th><th>Fecha</th><th>Tipo</th><th>Mensaje</th><th></th></tr>
+    {% for a in rows %}
+    <tr class="{{ 'muted' if a.acknowledged else '' }}">
+      <td><span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ a.severity }}</span></td>
+      <td class="num">{{ a.date }}</td>
+      <td class="muted">{{ a.type }}</td>
+      <td>{{ a.message }}
+        {% set subject = a.message.split(':')[0] %}
+        {% if a.type.startswith('budget') %}<a class="concept" href="/transactions?month={{ a.date[:7] }}&category={{ subject|urlencode }}">ver movimientos</a>
+        {% elif a.type in ('anomalous_amount', 'duplicate_charge', 'price_increase', 'new_recurring', 'missing_income') %}<a class="concept" href="/transactions?key={{ subject|urlencode }}">ver comercio</a>
+        {% elif a.type == 'bank_fee' %}<a class="concept" href="/transactions?month={{ a.date[:7] }}&category=Comisiones%20bancarias">ver comisiones</a>{% endif %}</td>
+      <td>{% if not a.acknowledged %}<button class="btn small" hx-post="/alerts/{{ a.id }}/ack" hx-target="closest tr" hx-swap="outerHTML">Vista</button>{% else %}<span class="concept">vista</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">Nada pendiente. Pulsa <strong>Recalcular</strong> tras importar movimientos nuevos.</div>{% endif %}
+</div>
+{% endblock %}

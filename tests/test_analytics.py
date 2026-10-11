@@ -184,12 +184,15 @@ def test_propose_budgets_recorta_variables_y_respeta_fijas(db, tmp_path):
 
 
 def test_budget_status_y_materializacion(db):
+    store_recurring(db, detect_recurring(db, AS_OF), "t")
     limits = {"Alimentacion": 100.0, "Ocio": 20.0, "Vivienda": 700.0}
     rows = budget_status(db, "2025-07", limits, as_of=AS_OF)
     by_cat = {r.category: r for r in rows}
     assert by_cat["Alimentacion"].spent == pytest.approx(105.0)
     assert by_cat["Alimentacion"].pct == pytest.approx(105.0)
-    assert by_cat["Alimentacion"].projected == pytest.approx(105.0 * 31 / 15)
+    assert by_cat["Alimentacion"].projected == pytest.approx(105.0 * 31 / 15)  # todo variable
+    # Vivienda es 100 % recurrente ya pagado: la proyección no lo multiplica
+    assert by_cat["Vivienda"].projected == pytest.approx(700.0)
     assert by_cat["Ocio"].pct == pytest.approx(90.0)
     assert rows[0].category == "Alimentacion"  # ordenado por % descendente
 

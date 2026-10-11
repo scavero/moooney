@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}moooney{% endblock %} · moooney</title>
+  <link rel="stylesheet" href="/static/app.css?v=3">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body hx-boost="true">
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="/">moooney</a>
+    <nav>
+      <a href="/" class="{{ 'active' if path == '/' else '' }}">Resumen</a>
+      <a href="/transactions" class="{{ 'active' if path.startswith('/transactions') else '' }}">Movimientos</a>
+      <a href="/merchants" class="{{ 'active' if path.startswith('/merchants') else '' }}">Comercios</a>
+      <a href="/recurring" class="{{ 'active' if path.startswith('/recurring') else '' }}">Recurrentes</a>
+      <a href="/budgets" class="{{ 'active' if path.startswith('/budgets') else '' }}">Presupuestos</a>
+      <a href="/alerts" class="{{ 'active' if path.startswith('/alerts') else '' }}">
+        Alertas
+        {% if alerts_counts.total %}<span class="pill {{ 'crit' if alerts_counts.critical else 'warn' if alerts_counts.warning else '' }}">{{ alerts_counts.total }}</span>{% endif %}
+      </a>
+      <a href="/pipeline" class="{{ 'active' if path.startswith('/pipeline') else '' }}">
+        Pipeline
+        {% if job_running %}<span class="pill run" title="{{ job_running.name }}">●</span>{% endif %}
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      {% if as_of %}<div>datos hasta <strong>{{ as_of }}</strong></div>{% endif %}
+      {% if offline %}<div class="tag warn">modo offline</div>{% endif %}
+      <div class="muted">local · 127.0.0.1</div>
+    </div>
+  </aside>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script>
+  document.body.addEventListener('htmx:afterSettle', () => { if (window.renderCharts) window.renderCharts(); });
+  window.addEventListener('DOMContentLoaded', () => { if (window.renderCharts) window.renderCharts(); });
+</script>
+</body>
+</html>
