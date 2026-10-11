@@ -1,5 +1,5 @@
 # Integración continua: en cada push y pull request se comprueba que el código pasa
-# ruff y los 140 tests (todos con datos sintéticos, sin red: MOOONEY_OFFLINE=1) y que
+# ruff y los tests (todos con datos sintéticos; los que tocan red usan transportes simulados) y que
 # la imagen Docker se construye. Nada de data/ ni reports/ llega aquí: están en .gitignore.
 name: ci
 
@@ -12,8 +12,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      MOOONEY_OFFLINE: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
