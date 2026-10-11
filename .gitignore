@@ -77,3 +77,7 @@ desktop.ini
 *.swp
 .claude/settings.local.json
 .opencode/
+
+# Superdesign: contexto de UI generado localmente y skill instalada por su CLI
+.superdesign/
+.claude/skills/superdesign/
