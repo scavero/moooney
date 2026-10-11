@@ -44,7 +44,7 @@ def test_paginas_principales_responden(client):
     r = client.get("/?month=2026-09")
     assert r.status_code == 200 and "2026-09" in r.text and "Diagnóstico" in r.text
     r = client.get("/trends")
-    assert "Previsión gasto fin de mes" in r.text and "Dónde se ha ido el dinero" in r.text
+    assert "Gasto previsto fin de mes" in r.text and "Dónde se ha ido el dinero" in r.text
     r = client.get("/transactions?month=2026-09&category=Alimentacion&q=MERCADONA")
     assert r.status_code == 200 and "MERCADONA" in r.text
 
@@ -52,9 +52,10 @@ def test_paginas_principales_responden(client):
 def test_correccion_de_categoria_aplica_a_movimientos(client):
     r = client.post("/merchants/TIENDA RARA XYZ/category", data={"category": "Compras", "flow_type": ""})
     assert r.status_code == 200
-    assert "src-user" in r.text and "guardado" in r.text
+    assert "corregido por ti" in r.text and "✓ " in r.text and "mov." in r.text
     r = client.get("/transactions?key=TIENDA%20RARA%20XYZ")
-    assert "Compras" in r.text and "Otros" not in r.text.split("<table>")[1]
+    # cada fila lleva un select con todas las categorías; la seleccionada debe ser la corregida
+    assert 'value="Compras" selected' in r.text and 'value="Otros" selected' not in r.text
     r = client.post("/merchants/TIENDA RARA XYZ/category", data={"category": "NoExiste"})
     assert r.status_code == 400
 
@@ -62,11 +63,11 @@ def test_correccion_de_categoria_aplica_a_movimientos(client):
 def test_presupuestos_proponer_y_fijar(client):
     r = client.get("/budgets")
     assert "Proponer presupuesto" in r.text
-    r = client.post("/budgets/propose", data={"months": 6, "cut": 0.1}, follow_redirects=True)
-    assert r.status_code == 200 and "Seguimiento del mes" in r.text
+    r = client.post("/budgets/propose", data={"months": 6, "cut": 10}, follow_redirects=True)  # recorte en %
+    assert r.status_code == 200 and "Seguimiento" in r.text and "Mes transcurrido" in r.text
     assert "Alimentacion" in r.text
     r = client.post("/budgets/Ocio", data={"amount": 50, "month": "2026-10"})
-    assert r.status_code == 200 and "Ocio" in r.text and "50 €" in r.text
+    assert r.status_code == 200 and "Ocio" in r.text and 'value="50"' in r.text
     r = client.post("/budgets/Ocio", data={"amount": 0, "month": "2026-10"})
     assert r.status_code == 200 and r.text.strip() == ""
 
@@ -80,6 +81,34 @@ def test_alertas_recalcular_y_marcar_vistas(client):
     assert r.status_code == 200
     r = client.post("/alerts/ack-all", follow_redirects=True)
     assert "Nada pendiente" in r.text
+
+
+def test_cola_de_dudosas_y_saltar(client):
+    r = client.get("/merchants")
+    assert r.status_code == 200 and "Revisar dudosas" in r.text
+    first = r.text.split('<div class="key">')[1].split("</div>")[0]
+    r = client.get(f"/merchants?skip={first}")
+    assert r.status_code == 200 and "2 de" in r.text
+    second = r.text.split('<div class="key">')[1].split("</div>")[0]
+    assert second != first
+    # etiquetas humanas, nunca identificadores internos
+    r = client.get("/transactions")
+    # (solo pueden aparecer como value= de un formulario, nunca como texto visible)
+    for ident in ("card_settlement", "transfer_internal", "clef_web", "anomalous_amount"):
+        assert f">{ident}<" not in r.text and f"{ident} ·" not in r.text
+    assert "ingresos" in r.text and "gastos" in r.text
+
+
+def test_alertas_filtro_por_nivel_y_grupo(client):
+    client.post("/alerts/refresh")
+    r = client.get("/alerts?severity=info")
+    assert r.status_code == 200
+    assert "crítica" not in r.text.split('class="alert-group"')[-1] if "alert-group" in r.text else True
+    r = client.get("/alerts")
+    if "ack-type/" in r.text:
+        alert_type = r.text.split("ack-type/")[1].split('"')[0]
+        r = client.post(f"/alerts/ack-type/{alert_type}", follow_redirects=True)
+        assert r.status_code == 200 and f"ack-type/{alert_type}" not in r.text
 
 
 def test_pipeline_trabajos_en_segundo_plano(client):
@@ -142,7 +171,7 @@ def test_sin_datos_reales_se_sirve_la_demo_y_desaparece_al_importar(tmp_path, mo
         assert "Datos de demostración" in r.text and "MERCADONA" in r.text
         assert (tmp_path / "data" / "demo" / "moooney.db").exists()
         r = c.get("/pipeline")
-        assert "Estás en la demo" in r.text
+        assert "En la demo" in r.text
 
         # llega un Excel real: la ingesta va a la base real y la demo desaparece
         from tests.conftest import make_santander_xlsx

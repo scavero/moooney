@@ -2,37 +2,79 @@
 {% block title %}Comercios{% endblock %}
 {% block content %}
 <div class="topbar">
-  <div><h1>Comercios</h1><div class="subtitle">{{ summary.total }} claves · {{ summary.dudosas }} dudosas · {{ summary.otros }} en Otros · {{ summary.user }} corregidas por ti</div></div>
-  <div class="actions">
-    {% for src, n in summary.by_source %}<span class="tag src-{{ src }}">{{ src }} {{ n }}</span>{% endfor %}
+  <div><h1>Comercios</h1><div class="subtitle">{{ summary.total }} claves · <strong>{{ summary.dudosas }} dudosas</strong> · {{ summary.otros }} en Otros · {{ summary.user }} corregidas por ti. Una corrección se aplica a todos los movimientos del comercio y no se vuelve a tocar.</div></div>
+</div>
+
+{% if queue_current %}
+{% set qc = queue_current %}
+<div class="queue" id="queue">
+  <div>
+    <h3 style="margin:0 0 8px">Revisar dudosas · {{ queue_pos }} de {{ queue_total }}</h3>
+    <div class="key">{{ qc.key }}</div>
+    <div class="meta">{{ qc.n }} movimientos · {{ qc.total|eur(2) }} · último <span title="{{ qc.last_date }}">{{ qc.last_date|fecha }}</span> · ahora en <strong>{{ qc.category }}</strong> con confianza {{ '%.2f'|format(qc.confidence or 0) }} ({{ SOURCE_LABEL.get(qc.source, qc.source) }})
+      {% if qc.web_summary %}<br>la web dice: <em>{{ qc.web_summary }}</em>{% endif %}</div>
+    <form id="queue-form" class="actions" style="margin-top:16px" method="post" action="/merchants/{{ qc.key|urlencode }}/category"
+          hx-post="/merchants/{{ qc.key|urlencode }}/category" hx-swap="none"
+          hx-on::after-request="if (event.detail.successful) window.location = '/merchants?mode={{ mode }}&skip={{ skip|urlencode }}'">
+      {# hidden primero: el botón pulsado (o el select) va después y es el valor que se queda #}
+      <input type="hidden" name="category" value="">
+      {% for c in queue_suggestions %}
+      <button class="btn sug {{ 'on' if c == qc.category else '' }}" type="submit" name="category" value="{{ c }}" accesskey="{{ loop.index }}"><span>{{ loop.index }}</span>{{ c }}</button>
+      {% endfor %}
+      <select onchange="this.form.querySelector('input[type=hidden][name=category]').value = this.value; this.form.requestSubmit()">
+        <option value="">otra categoría…</option>
+        {% for c in taxonomy.categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="side">
+    <button class="btn primary" type="submit" form="queue-form" name="category" value="{{ qc.category }}" title="Enter">Confirmar {{ qc.category }} ↵</button>
+    <a class="btn" href="/merchants?mode={{ mode }}&skip={{ (skip ~ '|' ~ qc.key)|urlencode }}" accesskey="s">Saltar</a>
+    <a class="concept" href="/transactions?key={{ qc.key|urlencode }}">ver sus movimientos</a>
   </div>
 </div>
-<div class="notice">Cada fila es una <strong>clave de comercio</strong> (el concepto del banco limpio). Cambiar su categoría la aplica a todos sus movimientos y queda guardada como corrección tuya: ninguna regla ni modelo la volverá a tocar.</div>
+<script>
+  // Teclado en la cola: 1-3 eligen una sugerencia, Enter confirma, S salta.
+  document.addEventListener('keydown', (e) => {
+    const tag = (e.target.tagName || '').toLowerCase(); if (['input', 'select', 'textarea'].includes(tag)) return;
+    const form = document.getElementById('queue-form'); if (!form) return;
+    if (['1', '2', '3'].includes(e.key)) { const b = form.querySelectorAll('button.sug')[+e.key - 1]; if (b) b.click(); }
+    else if (e.key === 'Enter') { document.querySelector('#queue .side .primary').click(); }
+    else if (e.key.toLowerCase() === 's') { document.querySelector('#queue .side a.btn').click(); }
+  });
+</script>
+{% elif queue_total == 0 %}
+<div class="notice ok"><strong>Sin dudosas.</strong> Todas las claves tienen confianza ≥ 0,7 o están corregidas por ti.</div>
+{% endif %}
+
 <div class="card">
   <div class="filters">
-    <form method="get" action="/merchants">
-      <select name="mode">
-        <option value="dudosas" {{ 'selected' if mode == 'dudosas' else '' }}>dudosas (confianza &lt; 0,7 u Otros)</option>
-        <option value="otros" {{ 'selected' if mode == 'otros' else '' }}>en Otros</option>
-        <option value="user" {{ 'selected' if mode == 'user' else '' }}>corregidas por mí</option>
-        <option value="all" {{ 'selected' if mode == 'all' else '' }}>todas</option>
-      </select>
+    <div class="segmented">
+      <a class="{{ 'on' if mode == 'dudosas' else '' }}" href="/merchants?mode=dudosas">dudosas <span>{{ summary.dudosas }}</span></a>
+      <a class="{{ 'on' if mode == 'otros' else '' }}" href="/merchants?mode=otros">en Otros <span>{{ summary.otros }}</span></a>
+      <a class="{{ 'on' if mode == 'user' else '' }}" href="/merchants?mode=user">corregidas <span>{{ summary.user }}</span></a>
+      <a class="{{ 'on' if mode == 'all' else '' }}" href="/merchants?mode=all">todas <span>{{ summary.total }}</span></a>
+    </div>
+    <form method="get" action="/merchants" hx-get="/merchants" hx-trigger="change, keyup[key=='Enter'] from:input" hx-target="body" hx-push-url="true">
+      <input type="hidden" name="mode" value="{{ mode }}">
       <select name="category"><option value="">todas las categorías</option>
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}</select>
       <input type="search" name="q" value="{{ q }}" placeholder="buscar clave">
-      <button class="btn primary" type="submit">Filtrar</button>
     </form>
+    <span class="muted" style="margin-left:auto;font-size:13px">{{ page.total }} claves · ordenadas por euros</span>
   </div>
+  <div class="scroll-x">
   <table>
-    <tr><th>Clave</th><th class="num">Mov.</th><th class="num">Total</th><th>Último</th><th>Fuente</th><th>Categoría</th></tr>
+    <tr><th>Clave</th><th class="num">Mov.</th><th class="num">Total</th><th>Último</th><th>Confianza</th><th>Categoría</th><th>Flujo</th></tr>
     {% for m in page.rows %}
       {% include "partials/merchant_row.html" %}
     {% endfor %}
   </table>
+  </div>
   <div class="pager">
     {% set base = '/merchants?mode=' ~ mode ~ '&category=' ~ (category|urlencode) ~ '&q=' ~ (q|urlencode) %}
     {% if page.has_prev %}<a class="btn small" href="{{ base }}&page={{ page.page - 1 }}">‹ anterior</a>{% endif %}
-    <span>página {{ page.page }} de {{ page.pages }} · {{ page.total }} claves</span>
+    <span>página {{ page.page }} de {{ page.pages }}</span>
     {% if page.has_next %}<a class="btn small" href="{{ base }}&page={{ page.page + 1 }}">siguiente ›</a>{% endif %}
   </div>
 </div>

@@ -1,58 +1,77 @@
 {% extends "base.html" %}
-{% block title %}Resumen {{ month }}{% endblock %}
+{% block title %}Resumen {{ month|mes }}{% endblock %}
 {% block content %}
 {% set s = report.summary %}
 <div class="topbar">
   <div>
     <h1>¿A dónde se va el dinero?</h1>
-    <div class="subtitle">{{ month }}{% if not s.full_month %} · <span class="tag warn">mes incompleto</span>{% endif %} · {{ s.n_tx }} movimientos</div>
+    <div class="subtitle" style="text-transform:capitalize">{{ month|mes }}<span style="text-transform:none">{% if not s.full_month %} · <span class="tag warn">día {{ day }} de {{ days_in_month }}</span>{% endif %} · {{ s.n_tx }} movimientos</span></div>
   </div>
   <div class="month-nav">
-    <a class="btn" href="/?month={{ prev_month }}">‹</a>
+    <a class="btn" href="/?month={{ prev_month }}" title="mes anterior">‹</a>
     <select onchange="window.location='/?month='+this.value">
-      {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }}>{{ m }}</option>{% endfor %}
+      {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}
     </select>
-    <a class="btn" href="/?month={{ next_month }}">›</a>
+    <a class="btn" href="/?month={{ next_month }}" title="mes siguiente">›</a>
   </div>
 </div>
 
-<div class="grid kpis section">
+<div class="now">
+  <a href="/merchants?mode=dudosas"><span class="n {{ 'warn' if merchants_counts.dudosas else 'ok' }}">{{ merchants_counts.dudosas }}</span><span class="l"><b>comercios por revisar</b><span>el modelo no está seguro de su categoría. <span class="cta">Revisar →</span></span></span></a>
+  <a href="/alerts"><span class="n {{ 'crit' if alerts_counts.critical else 'ok' }}">{{ alerts_counts.total }}</span><span class="l"><b>alertas pendientes</b><span>{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos. <span class="cta">Ver →</span></span></span></a>
+  {% if fme %}<a href="/trends"><span class="n {{ 'ok' if fme.net >= 0 else 'crit' }}">{{ fme.net|eur }}</span><span class="l"><b>ahorro previsto a fin de mes</b><span>gasto previsto {{ fme.expenses|eur }} al ritmo actual. <span class="cta">Previsión →</span></span></span></a>{% endif %}
+</div>
+
+<div class="grid kpis section" style="border:0;padding:0">
   <div class="card kpi"><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div></div>
   <div class="card kpi"><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div>
     <div class="hint">fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}</div></div>
   <div class="card kpi"><div class="label">Ahorro neto</div>
     <div class="value {{ 'pos' if s.net >= 0 else 'neg' }}">{{ s.net|eur }}</div>
-    <div class="hint">tasa de ahorro {{ s.savings_rate|pct }}</div></div>
-  <div class="card kpi"><div class="label">Aportado a inversión</div><div class="value">{{ s.investment|eur }}</div>
-    <div class="hint">no cuenta como gasto</div></div>
-  <div class="card kpi"><div class="label">Alertas pendientes</div>
-    <div class="value">{{ alerts_counts.total }}</div>
-    <div class="hint"><a href="/alerts">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos</a></div></div>
+    <div class="hint">tasa de ahorro {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
+  <div class="card kpi"><div class="label">Saldo</div><div class="value">{{ balance|eur }}</div>
+    <div class="hint">{% if runway is not none %}colchón de {{ '%.1f'|format(runway) }} meses de gasto{% else %}sin histórico suficiente{% endif %}</div></div>
 </div>
 
 <div class="card section">
-  <h2>Diagnóstico de {{ month }} <a class="muted" style="font-size:13px;font-weight:normal" href="/trends">tendencias y previsión</a></h2>
+  <div class="topbar" style="margin-bottom:12px;align-items:baseline">
+    <h2 style="margin:0">Diagnóstico</h2>
+    <div class="potential">ahorro potencial identificado <strong class="impact">{{ potential|eur }}</strong> al mes · <a href="/trends">tendencias y previsión</a></div>
+  </div>
   {% if insights %}
-  <table class="diag">
+  <div class="diag-list">
     {% for i in insights %}
-    <tr>
-      <td style="width:1%"><span class="tag {{ i.tone }}">{{ {'ok': 'bien', 'info': 'dato', 'warn': 'ojo', 'crit': 'mal'}[i.tone] }}</span></td>
-      <td><strong>{{ i.title }}</strong><div class="concept">{{ i.detail }}{% if i.link %} <a href="{{ i.link }}">ver</a>{% endif %}</div></td>
-      <td class="num" style="width:1%">{% if i.impact > 0 %}<span class="impact">{{ i.impact|eur }}</span><div class="concept">al mes</div>{% endif %}</td>
-    </tr>
+    <div class="row">
+      <span class="tag {{ i.tone }}">{{ {'ok': 'bien', 'info': 'dato', 'warn': 'ojo', 'crit': 'mal'}[i.tone] }}</span>
+      <div><strong>{{ i.title }}</strong><div class="concept">{{ i.detail }}
+        {% if i.link %}<a href="{{ i.link }}"><strong>{{ 'ver tendencias' if i.link.startswith('/trends') else 'ver recurrentes' if i.link.startswith('/recurring') else 'revisar comercios' if i.link.startswith('/merchants') else 'ver movimientos' }} →</strong></a>{% endif %}</div></div>
+      <div class="num">{% if i.impact > 0 %}<span class="impact">{{ i.impact|eur }}</span><div class="concept">al mes</div>{% endif %}</div>
+    </div>
     {% endfor %}
-  </table>
+  </div>
   {% else %}<p class="muted">Aún no hay meses completos suficientes para comparar.</p>{% endif %}
 </div>
 
 <div class="grid three section">
   <div class="card">
-    <h2>Gasto por categoría, últimos 12 meses</h2>
+    <h2 style="margin-bottom:4px">Gasto por categoría, 12 meses</h2>
+    <div class="concept" style="margin-bottom:12px">clic en una barra para ver sus movimientos</div>
     <div class="chart-box"><canvas id="chart-cats"></canvas></div>
   </div>
   <div class="card">
-    <h2>{{ month }} por categoría</h2>
-    <div class="chart-box"><canvas id="chart-donut"></canvas></div>
+    <h2 style="margin-bottom:4px">Categorías del mes</h2>
+    <div class="concept" style="margin-bottom:12px">vs media de {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos · coral = más que antes</div>
+    <table>
+      {% for c in report.categories %}
+      <tr>
+        <td style="width:40%"><a href="/transactions?month={{ month }}&category={{ c.category|urlencode }}">{{ c.category }}</a>
+          {% if c.fixed_amount > 0 %}<span class="concept" style="margin-left:6px">fijo {{ c.fixed_amount|eur }}</span>{% endif %}
+          <div class="bar thin"><span style="width:{{ c.pct }}%"></span></div></td>
+        <td class="num">{{ c.amount|eur }}<div class="concept">{{ '%.0f'|format(c.pct) }} % del gasto</div></td>
+        <td class="num {{ 'neg' if (c.delta_avg or 0) > 0 else 'pos' }}">{% if c.delta_avg is not none %}{{ '%+.0f'|format(c.delta_avg) }} €{% else %}—{% endif %}<div class="concept">vs media</div></td>
+      </tr>
+      {% endfor %}
+    </table>
   </div>
 </div>
 
@@ -64,12 +83,9 @@
   <div class="card">
     <h2>Dónde más se gasta este mes</h2>
     <table>
-      <tr><th>Comercio</th><th>Categoría</th><th class="num">Veces</th><th class="num">Total</th></tr>
       {% for t in top %}
       <tr>
-        <td><a href="/transactions?month={{ month }}&key={{ t.key|urlencode }}">{{ t.key }}</a></td>
-        <td class="muted">{{ t.category or '—' }}</td>
-        <td class="num">{{ t.n }}</td>
+        <td><a href="/transactions?month={{ month }}&key={{ t.key|urlencode }}">{{ t.key }}</a><div class="concept">{{ t.category or '—' }} · {{ t.n }} veces</div></td>
         <td class="num neg">{{ t.total|eur(2) }}</td>
       </tr>
       {% endfor %}
@@ -79,75 +95,60 @@
 
 <div class="grid two">
   <div class="card">
-    <h2>Categorías de {{ month }}</h2>
+    <h2 style="margin-bottom:4px">Presupuesto</h2>
+    <div class="concept" style="margin-bottom:12px">la marca indica dónde deberías estar hoy · <a href="/budgets?month={{ month }}">ver todo</a></div>
+    {% if budget_rows %}
     <table>
-      <tr><th>Categoría</th><th class="num">Importe</th><th class="num">%</th><th class="num">vs mes ant.</th><th class="num">vs media</th></tr>
-      {% for c in report.categories %}
+      {% for r in budget_rows %}
       <tr>
-        <td><a href="/transactions?month={{ month }}&category={{ c.category|urlencode }}">{{ c.category }}</a>
-          {% if c.fixed_amount > 0 %}<span class="concept">fijo {{ c.fixed_amount|eur }}</span>{% endif %}</td>
-        <td class="num">{{ c.amount|eur }}</td>
-        <td class="num muted">{{ '%.0f'|format(c.pct) }} %</td>
-        <td class="num {{ 'neg' if (c.delta_prev or 0) > 0 else 'pos' }}">{% if c.delta_prev is not none %}{{ '%+.0f'|format(c.delta_prev) }} €{% else %}—{% endif %}</td>
-        <td class="num {{ 'neg' if (c.delta_avg or 0) > 0 else 'pos' }}">{% if c.delta_avg is not none %}{{ '%+.0f'|format(c.delta_avg) }} €{% else %}—{% endif %}</td>
+        <td style="white-space:nowrap">{{ r.category }}</td>
+        <td style="width:45%"><div class="bar {{ 'crit' if r.pct >= 100 else 'warn' if r.pct >= 80 else '' }}"><span style="width:{{ [r.pct, 100]|min }}%"></span><i class="today" style="left:{{ today_pct }}%"></i></div></td>
+        <td class="num">{{ r.spent|eur }} <span class="muted">/ {{ r.limit|eur }}</span></td>
       </tr>
       {% endfor %}
     </table>
-    <div class="muted" style="font-size:12px;margin-top:6px">vs media: {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos anteriores. Rojo = más gasto que antes.</div>
+    {% else %}
+    <p class="muted">Sin presupuestos todavía. <a href="/budgets">Proponer uno</a> a partir de tu histórico.</p>
+    {% endif %}
   </div>
-  <div>
-    <div class="card section">
-      <h2>Presupuesto {{ month }} <a class="muted" style="font-size:13px;font-weight:normal" href="/budgets?month={{ month }}">ver todo</a></h2>
-      {% if budget_rows %}
-      <table>
-        {% for r in budget_rows %}
-        <tr>
-          <td>{{ r.category }}</td>
-          <td><div class="bar {{ 'crit' if r.pct >= 100 else 'warn' if r.pct >= 80 else '' }}"><span style="width:{{ [r.pct, 100]|min }}%"></span></div></td>
-          <td class="num">{{ r.spent|eur }} / {{ r.limit|eur }}</td>
-        </tr>
-        {% endfor %}
-      </table>
-      {% else %}
-      <p class="muted">Sin presupuestos todavía. <a href="/budgets">Proponer uno</a> a partir de tu histórico.</p>
-      {% endif %}
+  <div class="card">
+    <h2 style="margin-bottom:4px">Alertas pendientes</h2>
+    <div class="concept" style="margin-bottom:12px">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos · {{ alerts_counts.info }} datos · <a href="/alerts">ver todas</a></div>
+    {% if pending %}
+    <div class="alert-group">
+      {% for a in pending %}
+      <div class="row" style="grid-template-columns:62px minmax(0,1fr)">
+        <span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ SEVERITY_LABEL[a.severity] }}</span>
+        <div><span class="concept">{{ ALERT_TYPE_LABEL.get(a.type, a.type) }} · <span title="{{ a.date }}">{{ a.date|fecha }}</span></span><br>{{ a.message }}</div>
+      </div>
+      {% endfor %}
     </div>
-    <div class="card">
-      <h2>Alertas recientes</h2>
-      {% if pending %}
-      <table>
-        {% for a in pending %}
-        <tr><td><span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ a.severity }}</span></td><td>{{ a.message }}</td></tr>
-        {% endfor %}
-      </table>
-      {% else %}<p class="muted">Nada pendiente.</p>{% endif %}
-    </div>
+    {% else %}<p class="muted">Nada pendiente.</p>{% endif %}
   </div>
 </div>
 
 <script>
 window.renderCharts = function () {
   const months = {{ chart_months|tojson }};
+  const labels = months.map(m => ({{ MESES_JS|default('["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]')|safe }})[+m.slice(5, 7) - 1] + ' ' + m.slice(2, 4));
   const series = {{ chart_series|tojson }};
   const flows = {{ chart_flows|tojson }};
   const css = getComputedStyle(document.documentElement); const palette = [1,2,3,4,5,6,7,8,9].map(i => css.getPropertyValue('--chart-' + i).trim());
+  Chart.defaults.font = { ...Chart.defaults.font, family: 'Work Sans', weight: 300 }; Chart.defaults.color = '#4a5550';
   const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
+  const grid = { color: 'rgba(14,59,46,.08)' };
   const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };
   mk('chart-cats', { type: 'bar',
-    data: { labels: months, datasets: series.map((s, i) => ({ label: s.label, data: s.data, backgroundColor: palette[i % palette.length], stack: 'g' })) },
+    data: { labels, datasets: series.map((s, i) => ({ label: s.label, data: s.data, backgroundColor: palette[i % palette.length], stack: 'g' })) },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } },
-      scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: v => eur(v) } } },
-      onClick: (e, els, chart) => { if (els.length) { const m = months[els[0].index]; const c = series[els[0].datasetIndex].label; if (c !== 'Resto') window.location = '/transactions?month=' + m + '&category=' + encodeURIComponent(c); } } } });
-  const cur = series.map(s => ({ label: s.label, v: s.data[months.length - 1] })).filter(x => x.v > 0);
-  mk('chart-donut', { type: 'doughnut',
-    data: { labels: cur.map(x => x.label), datasets: [{ data: cur.map(x => x.v), backgroundColor: cur.map((_, i) => palette[i % palette.length]) }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.label + ': ' + eur(c.raw) } } } } });
+      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: v => eur(v) }, grid } },
+      onClick: (e, els) => { if (els.length) { const m = months[els[0].index]; const c = series[els[0].datasetIndex].label; if (c !== 'Resto') window.location = '/transactions?month=' + m + '&category=' + encodeURIComponent(c); } } } });
   mk('chart-flows', { type: 'line',
-    data: { labels: months, datasets: [
-      { label: 'Ingresos', data: flows.ingresos, borderColor: palette[2], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5 },
-      { label: 'Gastos', data: flows.gastos, borderColor: palette[5], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5 },
-      { label: 'Ahorro', data: flows.ahorro, borderColor: palette[0], backgroundColor: palette[4] + '66', tension: .3, fill: true, borderWidth: 2 } ] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { y: { ticks: { callback: v => eur(v) } } } } });
+    data: { labels, datasets: [
+      { label: 'Ingresos', data: flows.ingresos, borderColor: palette[2], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5, pointRadius: 2 },
+      { label: 'Gastos', data: flows.gastos, borderColor: palette[5], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5, pointRadius: 2 },
+      { label: 'Ahorro', data: flows.ahorro, borderColor: palette[0], backgroundColor: palette[4] + '66', tension: .3, fill: true, borderWidth: 2, pointRadius: 2 } ] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } } } });
 };
 </script>
 {% endblock %}

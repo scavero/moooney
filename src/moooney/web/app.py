@@ -9,6 +9,7 @@ vista) responden con fragmentos HTML que HTMX intercambia en la página.
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -33,6 +34,32 @@ from moooney.web.jobs import JobRegistry
 from moooney.web.service import Paths
 
 HERE = Path(__file__).resolve().parent
+
+# Etiquetas humanas para los identificadores internos. La interfaz está en castellano:
+# nunca se enseña `card_settlement`, `clef_web` ni `anomalous_amount` al usuario.
+FLOW_LABEL = {"expense": "gasto", "income": "ingreso", "transfer_internal": "traspaso",
+              "investment": "inversión", "card_settlement": "tarjeta"}
+SOURCE_LABEL = {"user": "corregido por ti", "rule": "regla", "clef": "modelo", "clef_web": "modelo + web",
+                "embedding": "parecido", "llm": "modelo"}
+SEVERITY_LABEL = {"critical": "crítica", "warning": "aviso", "info": "dato"}
+ALERT_TYPE_LABEL = {
+    "budget_80": "presupuesto al 80 %", "budget_100": "presupuesto superado", "anomalous_amount": "importe anómalo",
+    "duplicate_charge": "cargo duplicado", "new_recurring": "recurrente nuevo", "price_increase": "subida de precio",
+    "missing_income": "ingreso que no llega", "negative_balance": "saldo en negativo", "bank_fee": "comisión bancaria",
+}
+ALERT_EXPLAIN = {
+    "budget_80": "Una categoría ha consumido el 80 % de su límite mensual antes de acabar el mes.",
+    "budget_100": "Una categoría ha superado su límite mensual.",
+    "anomalous_amount": "Un cargo muy por encima del histórico de ese comercio (mediana + 3 desviaciones robustas y más de 20 €).",
+    "duplicate_charge": "Mismo comercio e importe en menos de 48 h: puede ser un cobro repetido.",
+    "price_increase": "Un recurrente cuyo último cargo supera en más de un 5 % su media.",
+    "new_recurring": "Un cargo que empezó a repetirse hace menos de 90 días.",
+    "missing_income": "Un ingreso recurrente que no llegó cuando tocaba.",
+    "negative_balance": "Con los recurrentes previstos, el saldo quedaría en negativo antes del próximo ingreso.",
+    "bank_fee": "Comisiones cobradas por el banco en los últimos 30 días.",
+}
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+         "noviembre", "diciembre"]
 
 
 @dataclass
@@ -84,6 +111,21 @@ def pct(value: float | None, decimals: int = 0) -> str:
     return "—" if value is None else f"{value * 100:.{decimals}f} %"
 
 
+def fecha(value: str | None) -> str:
+    """'2026-10-06' → '6 oct'. La fecha ISO completa va en el title del elemento."""
+    if not value or len(value) < 10:
+        return value or "—"
+    return f"{int(value[8:10])} {MESES[int(value[5:7]) - 1][:3]}"
+
+
+def mes(value: str | None, short: bool = False) -> str:
+    """'2026-10' → 'octubre 2026' (o 'oct 26')."""
+    if not value or len(value) < 7:
+        return value or "—"
+    name = MESES[int(value[5:7]) - 1]
+    return f"{name[:3]} {value[2:4]}" if short else f"{name} {value[:4]}"
+
+
 def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> FastAPI:
     settings = load_settings(config_path)
     config_dir = config_path.parent if config_path else Path("config")
@@ -95,6 +137,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.filters["eur"] = eur
     templates.env.filters["pct"] = pct
+    templates.env.filters["fecha"] = fecha
+    templates.env.filters["mes"] = mes
+    templates.env.globals.update(
+        FLOW_LABEL=FLOW_LABEL, SOURCE_LABEL=SOURCE_LABEL, SEVERITY_LABEL=SEVERITY_LABEL,
+        ALERT_TYPE_LABEL=ALERT_TYPE_LABEL, ALERT_EXPLAIN=ALERT_EXPLAIN,
+    )
 
     _demo_cache: dict[str, Active] = {}
 
@@ -122,6 +170,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
             "path": request.url.path,
             "months": queries.months_available(conn),
             "alerts_counts": queries.alerts_counts(conn),
+            "merchants_counts": queries.merchants_summary(conn),
             "as_of": periods.as_of_date(conn),
             "job_running": state.jobs.current(),
             "offline": offline_enabled(),
@@ -138,6 +187,13 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         if as_of is None:
             return None
         return month or periods.month_of(as_of)
+
+    def today_pct(conn: sqlite3.Connection, month: str) -> float:
+        """Porcentaje del mes transcurrido (100 si el mes ya está cerrado)."""
+        as_of = periods.as_of_date(conn)
+        if not as_of or periods.month_of(as_of) != month:
+            return 100.0
+        return int(as_of[8:10]) / periods.days_in_month(month) * 100.0
 
     # ---------- resumen ----------
 
@@ -157,10 +213,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         if limits_cfg:
             limits = budgets_mod.limits_for_month(conn, m, limits_cfg)
             budget_rows = budgets_mod.budget_status(conn, m, limits, as_of=report.as_of)
+        first = periods.first_date(conn)
+        fme = forecast_mod.forecast_month_end(conn, report.as_of, first=first) if m == periods.month_of(report.as_of) else None
         return render(
             request, conn, "dashboard.html",
             month=m, prev_month=periods.prev_month(m), next_month=periods.next_month(m),
-            report=report, top=queries.top_merchants(conn, m),
+            report=report, top=queries.top_merchants(conn, m, limit=8),
             chart_months=series_months,
             chart_series=[{"label": c, "data": v} for c, v in top_cats]
             + ([{"label": "Resto", "data": resto}] if any(resto) else []),
@@ -169,9 +227,13 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
                 "gastos": [s.expenses for s in report.series],
                 "ahorro": [s.net for s in report.series],
             },
-            budget_rows=budget_rows[:6],
+            budget_rows=budget_rows[:6], today_pct=today_pct(conn, m),
             pending=alerts_mod.pending_alerts(conn)[:5],
             insights=insights[:7],
+            potential=sum(i.impact for i in insights if i.impact > 0),
+            fme=fme, balance=forecast_mod.last_balance(conn),
+            runway=forecast_mod.runway_months(conn, report.as_of, first=first),
+            day=int(report.as_of[8:10]), days_in_month=periods.days_in_month(m),
         )
 
     # ---------- tendencias y previsión ----------
@@ -200,11 +262,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
             prev = sum(prev3) / len(prev3) if prev3 else 0.0
             trend = (avg3 - prev) / prev if prev > 0 else 0.0
             table.append((c, vals, avg3, trend))
+        max_cell = max((v for _, vals, _, _ in table for v in vals), default=1.0) or 1.0
         history = full_months_before_safe(conn, month, 6, as_of=as_of, first=first)
         avg_net = sum(h.net for h in history) / len(history) if history else 0.0
         return render(
             request, conn, "trends.html", as_of=as_of, category=category, categories=categories,
-            months12=months12, cat_values=values, cat_avg=avg, table=table,
+            months12=months12, cat_values=values, cat_avg=avg, table=table, max_cell=max_cell,
             share=insights_mod.spend_share_12m(conn, as_of),
             fme=forecast_mod.forecast_month_end(conn, as_of, first=first),
             nxt=forecast_mod.forecast_next_months(conn, as_of, n=3, first=first),
@@ -219,32 +282,47 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
     @app.get("/transactions", response_class=HTMLResponse)
     def transactions(request: Request, conn: DB, month: str | None = None, category: str | None = None,
                      flow: str | None = None, key: str | None = None, q: str | None = None, page: int = 1):
-        pg = queries.transactions_page(
-            conn, month=month or None, category=category or None, flow=flow or None,
-            key=key or None, q=q or None, page=page,
-        )
-        total = sum(float(r["amount"]) for r in pg.rows)
+        filters = {"month": month or None, "category": category or None, "flow": flow or None,
+                   "key": key or None, "q": q or None}
+        pg = queries.transactions_page(conn, page=page, **filters)
         return render(
             request, conn, "transactions.html", page=pg, month=month or "", category=category or "",
-            flow=flow or "", key=key or "", q=q or "", page_total=total, taxonomy=taxonomy(),
+            flow=flow or "", key=key or "", q=q or "", totals=queries.transactions_totals(conn, **filters),
+            taxonomy=taxonomy(),
         )
 
     # ---------- comercios ----------
 
     @app.get("/merchants", response_class=HTMLResponse)
     def merchants(request: Request, conn: DB, mode: str = "dudosas", q: str | None = None,
-                  category: str | None = None, page: int = 1):
+                  category: str | None = None, page: int = 1, skip: str = ""):
         pg = queries.merchants_page(conn, mode=mode, q=q or None, category=category or None, page=page)
+        skipped = [s for s in skip.split("|") if s]
+        queue = queries.merchants_page(conn, mode="dudosas", per_page=200).rows
+        pending = [r for r in queue if r["key"] not in skipped]
+        tx = taxonomy()
+        current = pending[0] if pending else None
+        suggestions: list[str] = []
+        if current:
+            # la categoría actual (si no es Otros) y después las más frecuentes en tu memoria de comercios
+            base = [current["category"]] if current["category"] != "Otros" else []
+            frecuentes = [r["category"] for r in queries.frequent_categories(conn, limit=6)]
+            suggestions = [c for c in [*base, *frecuentes] if c in tx.categories and c != "Otros"]
+            suggestions = list(dict.fromkeys(suggestions))[:3]
         return render(
             request, conn, "merchants.html", page=pg, mode=mode, q=q or "", category=category or "",
-            summary=queries.merchants_summary(conn), taxonomy=taxonomy(),
+            summary=queries.merchants_summary(conn), taxonomy=tx,
+            queue_current=current, queue_pos=len(queue) - len(pending) + 1, queue_total=len(queue),
+            queue_suggestions=suggestions, skip=skip,
         )
 
     @app.post("/merchants/{key:path}/category", response_class=HTMLResponse)
     def merchant_set_category(request: Request, conn: DB, key: str,
-                              category: Annotated[str, Form()], flow_type: Annotated[str, Form()] = ""):
+                              category: Annotated[list[str], Form()], flow_type: Annotated[str, Form()] = ""):
+        # La cola de dudosas manda un hidden vacío y el botón pulsado: vale el último valor no vacío.
+        chosen = next((c for c in reversed(category) if c), "")
         try:
-            n = service.set_merchant_category(conn, taxonomy(), key, category, flow_type or None)
+            n = service.set_merchant_category(conn, taxonomy(), key, chosen, flow_type or None)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
         row = queries.merchant_row(conn, key)
@@ -260,15 +338,28 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         service.refresh_recurring(conn)
         rows = load_recurring(conn, active_only=not all)
         as_of = periods.as_of_date(conn)
+        horizon = (date.fromisoformat(as_of) + timedelta(days=30)).isoformat() if as_of else None
         upcoming = sorted(
-            (r for r in rows if r["active"] and r["flow_type"] != "income"), key=lambda r: r["next_expected"]
-        )[:8]
+            (r for r in load_recurring(conn, active_only=True)
+             if as_of and as_of < r["next_expected"] <= horizon),
+            key=lambda r: r["next_expected"],
+        )
+        balance = forecast_mod.last_balance(conn) or 0.0
+        running, calendar = balance, []
+        for r in upcoming:
+            running += float(r["amount_avg"])
+            calendar.append((r, running))
+        charges_total = -sum(float(r["amount_avg"]) for r in upcoming if r["flow_type"] != "income")
         monthly_fixed = sum(
             -float(r["amount_avg"]) * (30.0 / r["period_days"])
             for r in rows if r["active"] and r["flow_type"] in ("expense", "card_settlement")
         )
-        return render(request, conn, "recurring.html", rows=rows, all=all, upcoming=upcoming,
-                      monthly_fixed=monthly_fixed, as_of=as_of)
+        price_up = {a["message"].split(":")[0] for a in alerts_mod.pending_alerts(conn) if a["type"] == "price_increase"}
+        next_income = min((r["next_expected"] for r in upcoming if r["flow_type"] == "income"), default=None)
+        return render(request, conn, "recurring.html", rows=rows, all=all, calendar=calendar, horizon=horizon,
+                      charges_total=charges_total, charges_n=sum(1 for r in upcoming if r["flow_type"] != "income"),
+                      balance=balance, after=balance - charges_total, monthly_fixed=monthly_fixed, as_of=as_of,
+                      price_up=price_up, next_income=next_income)
 
     # ---------- presupuestos ----------
 
@@ -290,16 +381,23 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         tx = taxonomy()
         sin_limite = [c for c, spec in tx.categories.items()
                       if spec.flow_type in ("expense", "card_settlement") and c not in limits_cfg]
+        as_of = periods.as_of_date(conn)
+        current = as_of is not None and periods.month_of(as_of) == m
         return render(
             request, conn, "budgets.html", month=m, prev_month=periods.prev_month(m),
             next_month=periods.next_month(m), rows=rows, has_config=bool(limits_cfg),
             sin_limite=sin_limite, total_limit=sum(r.limit for r in rows),
             total_spent=sum(r.spent for r in rows),
+            total_projected=sum((r.projected if r.projected is not None else r.spent) for r in rows),
+            over_count=sum(1 for r in rows if r.projected is not None and r.projected > r.limit),
+            today_pct=today_pct(conn, m), is_current=current,
+            day=int(as_of[8:10]) if as_of else None, days_in_month=periods.days_in_month(m),
         )
 
     @app.post("/budgets/propose")
-    def budgets_propose(conn: DB, months: Annotated[int, Form()] = 6, cut: Annotated[float, Form()] = 0.10):
-        service.propose_and_save_budgets(conn, active().paths, months=months, cut=cut)
+    def budgets_propose(conn: DB, months: Annotated[int, Form()] = 6, cut: Annotated[float, Form()] = 10.0):
+        # el formulario pide el recorte en % (10); la analítica lo quiere en tanto por uno (0.10)
+        service.propose_and_save_budgets(conn, active().paths, months=months, cut=cut / 100.0)
         return RedirectResponse("/budgets", status_code=303)
 
     @app.post("/budgets/{category}", response_class=HTMLResponse)
@@ -310,15 +408,17 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         rows, _ = budget_context(conn, m)
         row = next((r for r in rows if r.category == category), None)
         if row is None:
+            # límite 0: la fila desaparece
             return HTMLResponse("")
         return templates.TemplateResponse(
-            request, "partials/budget_row.html", {"request": request, "r": row, "month": m, "saved": True}
+            request, "partials/budget_row.html",
+            {"request": request, "r": row, "month": m, "saved": True, "today_pct": today_pct(conn, m)},
         )
 
     # ---------- alertas ----------
 
     @app.get("/alerts", response_class=HTMLResponse)
-    def alerts(request: Request, conn: DB, all: int = 0):
+    def alerts(request: Request, conn: DB, all: int = 0, severity: str = ""):
         if all:
             rows = conn.execute(
                 "SELECT * FROM alerts ORDER BY acknowledged, CASE severity WHEN 'critical' THEN 0"
@@ -326,7 +426,14 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
             ).fetchall()
         else:
             rows = alerts_mod.pending_alerts(conn)
-        return render(request, conn, "alerts.html", rows=rows, all=all)
+        counts = {s: sum(1 for a in rows if a["severity"] == s) for s in ("critical", "warning", "info")}
+        if severity:
+            rows = [a for a in rows if a["severity"] == severity]
+        groups: dict[str, list] = {}
+        for a in rows:
+            groups.setdefault(a["type"], []).append(a)
+        return render(request, conn, "alerts.html", rows=rows, groups=groups, all=all, severity=severity,
+                      counts=counts, total=sum(counts.values()))
 
     @app.post("/alerts/refresh")
     def alerts_refresh(conn: DB):
@@ -336,6 +443,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
     @app.post("/alerts/ack-all")
     def alerts_ack_all(conn: DB):
         alerts_mod.acknowledge(conn)
+        return RedirectResponse("/alerts", status_code=303)
+
+    @app.post("/alerts/ack-type/{alert_type}")
+    def alerts_ack_type(conn: DB, alert_type: str):
+        with conn:
+            conn.execute("UPDATE alerts SET acknowledged = 1 WHERE acknowledged = 0 AND type = ?", (alert_type,))
         return RedirectResponse("/alerts", status_code=303)
 
     @app.post("/alerts/{alert_id}/ack")
@@ -392,17 +505,33 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         a = active()
         enr = service.enrichment_settings_or_none(a.paths)
         llm = service.llm_settings_or_none(a.paths)
+        status = repo.get_status(conn)
+        files = queries.excel_files(conn, state.settings.paths.excel_dir)
+        merchants = queries.merchants_summary(conn)
+        alerts_counts = queries.alerts_counts(conn)
+        pending_files = sum(1 for f in files if not f.imported)
+        # Pasos del flujo con su estado: la página dice de un vistazo qué pide acción.
+        steps = [
+            {"n": 1, "label": "Importar", "ok": pending_files == 0,
+             "status": f"{pending_files} pendientes" if pending_files else "al día",
+             "hint": f"{len(files)} ficheros en la carpeta", "cta": "Importar nuevos", "action": "ingest"},
+            {"n": 2, "label": "Categorizar", "ok": not status["uncategorized"],
+             "status": f"{status['uncategorized']} sin categoría" if status["uncategorized"] else "al día",
+             "hint": f"{merchants['total']} claves en memoria", "cta": "Categorizar", "action": "categorize"},
+            {"n": 3, "label": "Revisar dudosas", "ok": not merchants["dudosas"],
+             "status": f"{merchants['dudosas']} pendientes" if merchants["dudosas"] else "al día",
+             "hint": "confianza < 0,7 u Otros", "cta": "Revisar", "href": "/merchants?mode=dudosas"},
+            {"n": 4, "label": "Alertas", "ok": not alerts_counts["critical"],
+             "status": f"{alerts_counts['total']} pendientes" if alerts_counts["total"] else "al día",
+             "hint": "recalculadas con los datos actuales", "cta": "Ver alertas", "href": "/alerts"},
+            {"n": 5, "label": "Informe", "ok": llm is not None and not offline_enabled(),
+             "status": "con modelo" if llm is not None and not offline_enabled() else "sin modelo",
+             "hint": "la versión determinista siempre está", "cta": "Ver informe", "href": "/report"},
+        ]
         return {
-            "status": repo.get_status(conn),
-            "files": queries.excel_files(conn, state.settings.paths.excel_dir),
-            "imports": queries.imports_history(conn),
-            "merchants": queries.merchants_summary(conn),
-            "egress": queries.egress_stats(conn),
-            "enrichment": enr,
-            "llm": llm,
-            "jobs": state.jobs.recent(),
-            "excel_dir": state.settings.paths.excel_dir,
-            "demo": a.demo,
+            "status": status, "files": files, "imports": queries.imports_history(conn), "merchants": merchants,
+            "egress": queries.egress_stats(conn), "enrichment": enr, "llm": llm, "jobs": state.jobs.recent(),
+            "excel_dir": state.settings.paths.excel_dir, "demo": a.demo, "steps": steps,
         }
 
     @app.get("/pipeline", response_class=HTMLResponse)

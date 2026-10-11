@@ -150,11 +150,130 @@ details summary { cursor: pointer; color: var(--dominant); }
   .layout { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s2); padding: var(--s2) var(--s3); }
   .sidebar nav { flex-direction: row; flex-wrap: wrap; gap: 0; }
+  .sidebar nav .group { display: none; }
   .sidebar nav a { margin-left: 0; border-left: 0; border-bottom: 2px solid transparent; padding: 4px 10px; }
   .sidebar nav a.active { border-bottom-color: var(--accent); }
   .sidebar-foot { margin-top: 0; margin-left: auto; flex-direction: row; gap: var(--s2); }
   .content { padding: var(--s3) var(--s2) var(--s6); }
+  .content > .page { padding: var(--s3) var(--s2) var(--s6); }
+  .demo-bar { padding: var(--s1) var(--s2); }
   h1 { font-size: 30px; }
   .card.kpi .value { font-size: 32px; }
   .card > table, .card > div > table { display: block; overflow-x: auto; }
 }
+
+
+/* ---------- aviso de demo en una franja ---------- */
+.demo-bar { background: var(--accent-soft); font-size: 13px; padding: var(--s1) var(--s6); display: flex; gap: var(--s2);
+  align-items: center; flex-wrap: wrap; border-bottom: 1px solid rgba(14, 59, 46, 0.08); }
+.demo-bar a { font-weight: 800; margin-left: auto; }
+.layout > main.content { padding: 0; max-width: none; min-width: 0; } /* min-width: las tablas anchas no estiran la página */
+.content > .page { padding: var(--s5) var(--s6) var(--s8); max-width: 1440px; }
+
+/* ---------- barra lateral: grupos y contadores ---------- */
+.sidebar nav .group { color: #9fb8ac; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 14px 0 4px; }
+.pill.soft { background: rgba(255, 255, 255, .14); color: #fff; }
+
+/* ---------- resumen: franja «ahora mismo» ---------- */
+.now { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 var(--s5); padding: 20px 0;
+  border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); margin-bottom: var(--s5); }
+.now a { display: flex; gap: 14px; align-items: center; color: var(--ink); padding: 6px 0; }
+.now a:hover { text-decoration: none; color: var(--dominant); }
+.now .n { font-family: var(--font-display); font-weight: 200; font-size: 36px; line-height: 1; min-width: 44px; white-space: nowrap; flex-shrink: 0; }
+.now .n.warn { color: #e58a00; } .now .n.crit { color: var(--accent); } .now .n.ok { color: var(--dominant); }
+.now .l { min-width: 0; } .now .l b { display: block; font-size: 13px; } .now .l span { display: block; color: var(--ink-2); font-size: 12px; }
+.now .cta { color: var(--dominant); font-weight: 800; }
+
+/* ---------- diagnóstico como lista ---------- */
+.diag-list .row { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: var(--s2); align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.diag-list .row:hover { background: rgba(14, 59, 46, 0.03); }
+.diag-list .tag { text-align: center; }
+.potential { color: var(--ink-2); font-size: 13px; }
+.potential .impact { margin-left: 4px; }
+
+/* ---------- confianza como barra ---------- */
+.conf { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.conf i { display: inline-block; width: 48px; height: 4px; background: var(--dominant-soft); overflow: hidden; }
+.conf i > b { display: block; height: 100%; background: var(--dominant); }
+.conf.mid i > b { background: #e58a00; } .conf.low i > b { background: var(--accent); }
+
+/* ---------- filtros: chips y selects que aplican solos ---------- */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: var(--s2); }
+.chip { font: inherit; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--dominant);
+  background: var(--dominant-soft); color: var(--dominant); cursor: pointer; line-height: 1.4; }
+.chip.ghost { background: transparent; border-color: rgba(14, 59, 46, .25); }
+.chip.on { background: var(--dominant); color: #fff; }
+.filters .pager { margin: 0 0 0 auto; }
+.link-btn { font: inherit; font-weight: 800; font-size: 13px; border: 0; background: transparent; color: var(--dominant);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: var(--s1) 12px; }
+
+/* ---------- selects discretos en tabla (categoría en la fila) ---------- */
+select.quiet { border-color: transparent; background: transparent; cursor: pointer; padding: 4px 8px; font-size: 13px; }
+select.quiet:hover { border-color: rgba(14, 59, 46, .25); background: var(--surface); }
+select.quiet.muted { color: var(--ink-3); font-size: 12px; }
+td.day { font-weight: 800; white-space: nowrap; vertical-align: top; }
+td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weight: 800; }
+
+/* ---------- segmented control (modo de comercios) ---------- */
+.segmented { display: inline-flex; border: 1px solid rgba(14, 59, 46, .25); border-radius: 4px; overflow: hidden; }
+.segmented a { font-size: 13px; font-weight: 800; padding: 7px 14px; border-right: 1px solid var(--hair); color: var(--dominant); }
+.segmented a:last-child { border-right: 0; }
+.segmented a:hover { text-decoration: none; background: var(--dominant-soft); }
+.segmented a.on { background: var(--dominant); color: #fff; }
+.segmented a span { opacity: .6; }
+
+/* ---------- cola de revisión de dudosas ---------- */
+.queue { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3) var(--s5); align-items: start;
+  padding: var(--s3) 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); margin-bottom: var(--s5); }
+.queue .key { font-family: var(--font-display); font-weight: 800; font-size: 28px; letter-spacing: -.01em; line-height: 1.1; }
+.queue .meta { color: var(--ink-2); font-size: 13px; margin-top: 6px; }
+.queue .side { display: flex; flex-direction: column; gap: var(--s1); align-items: flex-end; }
+.queue .sug { font-size: 13px; padding: 8px 14px; }
+.queue .sug span { opacity: .6; margin-right: 6px; }
+.queue .sug.on { background: var(--dominant); color: #fff; }
+
+/* ---------- presupuestos: marca «hoy» ---------- */
+.bar { position: relative; overflow: visible; }
+.bar .today { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.bar.thin { height: 4px; margin-top: 4px; min-width: 0; }
+
+/* ---------- recurrentes: calendario ---------- */
+.calendar .row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+  padding: var(--s1) 0; border-bottom: 1px solid var(--hair); }
+.calendar .d { font-family: var(--font-display); font-weight: 800; font-size: 15px; white-space: nowrap; }
+.calendar .k { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar .run { color: var(--ink-3); font-size: 12px; min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- alertas por grupo ---------- */
+.alert-group { margin-bottom: var(--s4); }
+.alert-group h2 span { font-family: var(--font-body); font-weight: 300; color: var(--ink-3); font-size: 14px; }
+.alert-group .explain { color: var(--ink-3); font-size: 12px; margin-bottom: var(--s1); }
+.alert-group .row { display: grid; grid-template-columns: 62px 64px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid var(--hair); }
+.alert-group .row.seen { color: var(--ink-3); }
+
+/* ---------- pipeline: stepper ---------- */
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair); margin-bottom: var(--s6); }
+.steps .step { padding: 20px 20px 20px 0; border-right: 1px solid var(--hair); margin-right: 20px; min-width: 0; }
+.steps .step:last-child { border-right: 0; }
+.steps .num { font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--dominant); }
+.steps .step.todo .num { color: #e58a00; }
+.steps .label { font-weight: 800; } .steps .hint { color: var(--ink-2); font-size: 12px; margin: 2px 0 10px; }
+
+/* ---------- tabla mes a mes: intensidad ---------- */
+td.heat { background: rgba(14, 59, 46, calc(0.02 + 0.16 * var(--v, 0))); }
+td.heat.zero { color: #c3c7c4; background: transparent; }
+th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
+
+/* ---------- toast ---------- */
+.toast { position: fixed; right: var(--s3); bottom: var(--s3); background: var(--dominant); color: #fff; padding: 10px 16px;
+  border-radius: 4px; font-size: 13px; font-weight: 800; box-shadow: 0 8px 24px rgba(6, 36, 27, .25); animation: toast .2s ease-out; }
+@keyframes toast { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---------- tablas anchas: scroll propio, nunca desbordar la página ---------- */
+.scroll-x { overflow: auto; min-width: 0; }
+.grid.two, .grid.three { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.grid.three > :first-child { grid-column: span 1; }
+@media (min-width: 1200px) { .grid.three { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }

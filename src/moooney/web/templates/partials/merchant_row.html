@@ -1,23 +1,27 @@
 <tr id="m-{{ m.key|replace(' ', '_') }}" class="{{ 'saved' if saved else '' }}">
   <td>
     <a href="/transactions?key={{ m.key|urlencode }}">{{ m.key }}</a>
-    {% if m.web_summary %}<details><summary class="concept">qué dice la web ({{ m.web_provider }})</summary><div class="concept">{{ m.web_summary }}</div></details>{% endif %}
+    {% if m.web_summary %}<div class="concept">web ({{ m.web_provider }}): {{ m.web_summary }}</div>{% endif %}
   </td>
   <td class="num">{{ m.n }}</td>
-  <td class="num {{ 'neg' if m.total < 0 else 'pos' }}">{{ m.total|eur(2) }}</td>
-  <td class="num muted">{{ m.last_date or '—' }}</td>
-  <td><span class="tag src-{{ m.source }}">{{ m.source }}{% if m.source not in ('user', 'rule') and m.confidence is not none %} {{ '%.2f'|format(m.confidence) }}{% endif %}</span></td>
+  <td class="num {{ 'pos' if m.total > 0 else '' }}">{{ m.total|eur(2) }}</td>
+  <td class="num muted" title="{{ m.last_date }}">{{ m.last_date|fecha if m.last_date else '—' }}</td>
+  <td><span class="conf {{ 'low' if (m.confidence or 1) < 0.5 else 'mid' if (m.confidence or 1) < 0.7 else '' }}" title="{{ SOURCE_LABEL.get(m.source, m.source) }} · confianza {{ '%.2f'|format(m.confidence or 1) }}"><i><b style="width:{{ ((m.confidence or 1) * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(m.source, m.source) }}</span></td>
   <td>
-    <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-target="closest tr" hx-swap="outerHTML">
+    {# El select guarda al cambiar: una corrección = un clic. El flujo va aparte y normalmente lo decide la categoría. #}
+    <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML">
       <select name="category">
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == m.category else '' }}>{{ c }}</option>{% endfor %}
       </select>
-      <select name="flow_type" title="flujo (vacío = el de la categoría)">
-        <option value="">flujo auto</option>
-        {% for f in taxonomy.flow_types %}<option value="{{ f }}" {{ 'selected' if f == m.flow_type else '' }}>{{ f }}</option>{% endfor %}
+      {% if saved %}<span class="concept" style="color:var(--dominant);font-weight:800">✓ {{ saved }} mov.</span>{% endif %}
+    </form>
+  </td>
+  <td>
+    <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML">
+      <input type="hidden" name="category" value="{{ m.category }}">
+      <select name="flow_type" class="quiet muted" title="normalmente lo decide la categoría">
+        {% for f in taxonomy.flow_types %}<option value="{{ f }}" {{ 'selected' if f == m.flow_type else '' }}>{{ FLOW_LABEL.get(f, f) }}</option>{% endfor %}
       </select>
-      <button class="btn small primary" type="submit">Guardar</button>
-      {% if saved %}<span class="tag ok">guardado · {{ saved }} mov.</span>{% endif %}
     </form>
   </td>
 </tr>

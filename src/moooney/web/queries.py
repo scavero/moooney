@@ -199,9 +199,9 @@ def merchants_summary(conn: sqlite3.Connection, threshold: float = 0.7) -> dict:
     row = conn.execute(
         """
         SELECT COUNT(*) AS total,
-               SUM(CASE WHEN (confidence < ? OR category = 'Otros') AND source != 'user' THEN 1 ELSE 0 END) AS dudosas,
-               SUM(CASE WHEN category = 'Otros' THEN 1 ELSE 0 END) AS otros,
-               SUM(CASE WHEN source = 'user' THEN 1 ELSE 0 END) AS user
+               COALESCE(SUM(CASE WHEN (confidence < ? OR category = 'Otros') AND source != 'user' THEN 1 ELSE 0 END), 0) AS dudosas,
+               COALESCE(SUM(CASE WHEN category = 'Otros' THEN 1 ELSE 0 END), 0) AS otros,
+               COALESCE(SUM(CASE WHEN source = 'user' THEN 1 ELSE 0 END), 0) AS user
         FROM merchants
         """,
         (threshold,),
@@ -210,6 +210,15 @@ def merchants_summary(conn: sqlite3.Connection, threshold: float = 0.7) -> dict:
         "SELECT source, COUNT(*) AS n FROM merchants GROUP BY source ORDER BY n DESC"
     ).fetchall()
     return {**dict(row), "by_source": [(r["source"], r["n"]) for r in by_source]}
+
+
+def frequent_categories(conn: sqlite3.Connection, *, limit: int = 6) -> list[sqlite3.Row]:
+    """Categorías más usadas en la memoria de comercios (para sugerir en la cola de revisión)."""
+    return conn.execute(
+        "SELECT category, COUNT(*) AS n FROM merchants WHERE category IS NOT NULL AND category != 'Otros'"
+        " GROUP BY category ORDER BY n DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
 
 
 def egress_stats(conn: sqlite3.Connection) -> dict:
@@ -270,3 +279,46 @@ def alerts_counts(conn: sqlite3.Connection) -> dict[str, int]:
         out[r["severity"]] = int(r["n"])
     out["total"] = sum(out.values())
     return out
+
+
+def _transactions_where(month, category, flow, key, q):
+    where: list[str] = []
+    params: list = []
+    if month:
+        first, last = periods.month_bounds(month)
+        where.append("t.date BETWEEN ? AND ?")
+        params += [first, last]
+    if category:
+        if category == "(sin categoría)":
+            where.append("t.category IS NULL")
+        else:
+            where.append("t.category = ?")
+            params.append(category)
+    if flow:
+        where.append("t.flow_type = ?")
+        params.append(flow)
+    if key:
+        where.append("t.concept_clean = ?")
+        params.append(key)
+    if q:
+        where.append("(t.concept LIKE ? OR t.concept_clean LIKE ?)")
+        params += [f"%{q.upper()}%", f"%{q.upper()}%"]
+    return (("WHERE " + " AND ".join(where)) if where else ""), params
+
+
+def transactions_totals(conn: sqlite3.Connection, *, month=None, category=None, flow=None, key=None, q=None) -> dict:
+    """Ingresos, gastos y neto de TODO el filtro (no solo de la página visible)."""
+    sql_where, params = _transactions_where(month, category, flow, key, q)
+    ph = ",".join("?" for _ in EXPENSE_FLOWS)
+    row = conn.execute(
+        f"""
+        SELECT COALESCE(SUM(CASE WHEN t.flow_type = 'income' THEN t.amount END), 0) AS income,
+               COALESCE(-SUM(CASE WHEN t.flow_type IN ({ph}) THEN t.amount END), 0) AS expenses,
+               COUNT(*) AS n
+        FROM transactions t {sql_where}
+        """,
+        [*EXPENSE_FLOWS, *params],
+    ).fetchone()
+    return {"income": float(row["income"]), "expenses": float(row["expenses"]),
+            "net": float(row["income"]) - float(row["expenses"]), "n": int(row["n"])}
+

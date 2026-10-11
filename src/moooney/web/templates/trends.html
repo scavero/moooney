@@ -2,78 +2,78 @@
 {% block title %}Tendencias{% endblock %}
 {% block content %}
 <div class="topbar">
-  <div><h1>Tendencias y previsión</h1><div class="subtitle">datos hasta {{ as_of }} · comparaciones solo con meses completos</div></div>
+  <div><h1>Tendencias y previsión</h1><div class="subtitle">datos hasta <span title="{{ as_of }}">{{ as_of|fecha }}</span> · las comparaciones usan solo meses completos</div></div>
 </div>
 
 <div class="grid kpis section">
-  <div class="card kpi"><div class="label">Previsión gasto fin de mes</div><div class="value neg">{{ fme.expenses|eur }}</div>
-    <div class="hint">llevas {{ fme.spent|eur }} el día {{ fme.day }}; quedan {{ fme.fixed_pending|eur }} fijos + {{ fme.variable_expected_rest|eur }} variables</div></div>
-  <div class="card kpi"><div class="label">Previsión ahorro fin de mes</div><div class="value {{ 'pos' if fme.net >= 0 else 'neg' }}">{{ fme.net|eur }}</div>
-    <div class="hint">ingresos previstos {{ fme.income|eur }}</div></div>
+  <div class="card kpi"><div class="label">Gasto previsto fin de mes</div><div class="value neg">{{ fme.expenses|eur }}</div>
+    <div class="hint">llevas {{ fme.spent|eur }} · quedan {{ fme.fixed_pending|eur }} fijos y ≈{{ fme.variable_expected_rest|eur }} variables</div></div>
+  <div class="card kpi"><div class="label">Ahorro previsto fin de mes</div><div class="value {{ 'pos' if fme.net >= 0 else 'neg' }}">{{ fme.net|eur }}</div>
+    <div class="hint">con {{ fme.income|eur }} de ingresos previstos</div></div>
   <div class="card kpi"><div class="label">Colchón</div><div class="value">{% if runway is not none %}{{ '%.1f'|format(runway) }} meses{% else %}—{% endif %}</div>
     <div class="hint">saldo {{ balance|eur }} entre el gasto medio mensual</div></div>
-  <div class="card kpi"><div class="label">Ahorro medio (6 meses completos)</div><div class="value {{ 'pos' if avg_net >= 0 else 'neg' }}">{{ avg_net|eur }}</div>
-    <div class="hint">por mes · {{ projection[-1][1]|eur }} de saldo en 12 meses si sigue igual</div></div>
+  <div class="card kpi"><div class="label">Ahorro medio · 6 meses</div><div class="value {{ 'pos' if avg_net >= 0 else 'neg' }}">{{ avg_net|eur }}</div>
+    <div class="hint">al mes · {{ projection[-1][1]|eur }} de saldo dentro de un año si sigue igual</div></div>
 </div>
 
 <div class="grid two section">
   <div class="card">
     <h2>Dónde se ha ido el dinero en 12 meses</h2>
     <table>
-      <tr><th>Categoría</th><th>Peso</th><th class="num">Total</th><th class="num">%</th><th class="num">Media/mes</th></tr>
       {% for c, total, p in share %}
       <tr>
-        <td><a href="/transactions?category={{ c|urlencode }}">{{ c }}</a></td>
-        <td><div class="bar"><span style="width:{{ p }}%"></span></div></td>
-        <td class="num">{{ total|eur }}</td>
-        <td class="num muted">{{ '%.0f'|format(p) }} %</td>
-        <td class="num">{{ (total / 12)|eur }}</td>
+        <td style="width:45%"><a href="/transactions?category={{ c|urlencode }}">{{ c }}</a><div class="bar thin"><span style="width:{{ p }}%"></span></div></td>
+        <td class="num">{{ total|eur }}<div class="concept">{{ '%.0f'|format(p) }} %</div></td>
+        <td class="num" style="color:var(--ink-2)">{{ (total / 12)|eur }}<div class="concept">al mes</div></td>
       </tr>
       {% endfor %}
     </table>
   </div>
   <div class="card">
     <h2>Próximos meses, si nada cambia</h2>
+    <div class="scroll-x">
     <table>
-      <tr><th>Mes</th><th class="num">Fijos</th><th class="num">Variables</th><th class="num">Gastos</th><th class="num">Ingresos</th><th class="num">Ahorro</th></tr>
+      <tr><th>Mes</th><th class="num">Fijos</th><th class="num">Variables</th><th class="num">Ingresos</th><th class="num">Ahorro</th></tr>
       {% for m in nxt %}
-      <tr><td>{{ m.month }}</td><td class="num">{{ m.fixed|eur }}</td><td class="num">{{ m.variable|eur }}</td><td class="num neg">{{ m.expenses|eur }}</td><td class="num pos">{{ m.income|eur }}</td><td class="num {{ 'pos' if m.net >= 0 else 'neg' }}">{{ m.net|eur }}</td></tr>
+      <tr><td style="text-transform:capitalize">{{ m.month|mes }}</td><td class="num">{{ m.fixed|eur }}</td><td class="num">{{ m.variable|eur }}</td><td class="num pos">{{ m.income|eur }}</td><td class="num {{ 'pos' if m.net >= 0 else 'neg' }}"><strong>{{ '%+.0f'|format(m.net) }} €</strong></td></tr>
       {% endfor %}
     </table>
-    <div class="muted" style="font-size:12px;margin-top:6px">Fijos: recurrentes activos normalizados a 30 días. Variables e ingresos: media de los últimos 3 meses completos.</div>
-    <h2 style="margin-top:16px">Saldo proyectado</h2>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:6px">Fijos: recurrentes activos a 30 días. Variables e ingresos: media de los 3 últimos meses completos.</div>
+    <h2 style="margin-top:24px;margin-bottom:12px">Saldo proyectado a 12 meses</h2>
     <div class="chart-box small"><canvas id="chart-proj"></canvas></div>
   </div>
 </div>
 
 <div class="card section">
-  <div class="topbar" style="margin-bottom:8px">
-    <h2>Evolución por categoría</h2>
-    <form method="get" action="/trends" class="inline-form">
-      <select name="category" onchange="this.form.submit()">
-        {% for c in categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}
-      </select>
-    </form>
+  <div class="topbar" style="margin-bottom:12px;align-items:center">
+    <h2 style="margin:0">Evolución por categoría</h2>
+    <div class="chips" style="margin:0">
+      {% for c in categories[:8] %}<a class="chip {{ 'on' if c == category else 'ghost' }}" href="/trends?category={{ c|urlencode }}">{{ c }}</a>{% endfor %}
+      {% if categories|length > 8 %}
+      <select class="quiet" onchange="window.location='/trends?category='+encodeURIComponent(this.value)"><option value="">más…</option>{% for c in categories[8:] %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}</select>
+      {% endif %}
+    </div>
   </div>
   <div class="chart-box"><canvas id="chart-cat"></canvas></div>
 </div>
 
 <div class="card">
-  <h2>Todas las categorías, mes a mes</h2>
-  <div style="overflow:auto">
-  <table>
-    <tr><th>Categoría</th>{% for m in months12 %}<th class="num">{{ m[2:] }}</th>{% endfor %}<th class="num">Media 3m</th><th class="num">Tendencia</th></tr>
+  <h2 style="margin-bottom:4px">Todas las categorías, mes a mes</h2>
+  <div class="concept" style="margin-bottom:12px">tendencia: media de los 3 últimos meses completos frente a los 3 anteriores · clic en una categoría para verla arriba</div>
+  <div class="scroll-x">
+  <table style="font-size:13px">
+    <tr><th class="sticky">Categoría</th>{% for m in months12 %}<th class="num">{{ m|mes(true) }}</th>{% endfor %}<th class="num">Media 3m</th><th class="num">Tend.</th></tr>
     {% for c, values, avg3, trend in table %}
     <tr>
-      <td><a href="/trends?category={{ c|urlencode }}">{{ c }}</a></td>
-      {% for v in values %}<td class="num {{ 'muted' if v == 0 else '' }}">{{ v|eur if v else '·' }}</td>{% endfor %}
-      <td class="num">{{ avg3|eur }}</td>
+      <td class="sticky" style="white-space:nowrap"><a href="/trends?category={{ c|urlencode }}">{{ c }}</a></td>
+      {% for v in values %}<td class="num heat {{ 'zero' if v == 0 else '' }}" style="--v:{{ '%.3f'|format(v / max_cell) }}">{{ v|eur if v else '·' }}</td>{% endfor %}
+      <td class="num"><strong>{{ avg3|eur }}</strong></td>
       <td class="num {{ 'neg' if trend > 0.15 else 'pos' if trend < -0.15 else 'muted' }}">{{ '%+.0f'|format(trend * 100) }} %</td>
     </tr>
     {% endfor %}
   </table>
   </div>
-  <div class="muted" style="font-size:12px;margin-top:6px">Tendencia: media de los 3 últimos meses completos frente a los 3 anteriores.</div>
 </div>
 
 <script>
@@ -81,17 +81,21 @@ window.renderCharts = function () {
   const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
   const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };
   const css = getComputedStyle(document.documentElement); const palette = [1,2,3,4,5,6,7,8,9].map(i => css.getPropertyValue('--chart-' + i).trim());
+  Chart.defaults.font = { ...Chart.defaults.font, family: 'Work Sans', weight: 300 }; Chart.defaults.color = '#4a5550';
+  const grid = { color: 'rgba(14,59,46,.08)' };
+  const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const lbl = m => MES[+m.slice(5, 7) - 1] + ' ' + m.slice(2, 4);
   const months = {{ months12|tojson }};
   const cat = {{ cat_values|tojson }};
   const avg = {{ cat_avg|tojson }};
-  mk('chart-cat', { type: 'bar', data: { labels: months, datasets: [
+  mk('chart-cat', { type: 'bar', data: { labels: months.map(lbl), datasets: [
       { type: 'bar', label: {{ category|tojson }}, data: cat, backgroundColor: palette[3] },
       { type: 'line', label: 'media móvil 3 meses', data: avg, borderColor: palette[5], tension: .3, pointRadius: 0, borderWidth: 2 } ] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { y: { ticks: { callback: v => eur(v) } } },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
       onClick: (e, els) => { if (els.length) window.location = '/transactions?month=' + months[els[0].index] + '&category=' + encodeURIComponent({{ category|tojson }}); } } });
   const proj = {{ projection|tojson }};
-  mk('chart-proj', { type: 'line', data: { labels: proj.map(p => p[0]), datasets: [{ label: 'saldo proyectado', data: proj.map(p => p[1]), borderColor: palette[0], backgroundColor: palette[4] + '66', fill: true, tension: .3, borderWidth: 2 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => eur(c.raw) } } }, scales: { y: { ticks: { callback: v => eur(v) } } } } });
+  mk('chart-proj', { type: 'line', data: { labels: proj.map(p => lbl(p[0])), datasets: [{ label: 'saldo proyectado', data: proj.map(p => p[1]), borderColor: palette[0], backgroundColor: palette[4] + '66', fill: true, tension: .3, borderWidth: 2, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } } } });
 };
 </script>
 {% endblock %}

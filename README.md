@@ -50,9 +50,10 @@ uv run moooney web
   comercios donde más se gasta; presupuesto y alertas.
 - **Tendencias**: previsión a fin de mes y de los próximos tres, colchón en meses, saldo proyectado a un
   año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
-- **Movimientos**: filtros por mes, categoría, flujo y texto; cada fila enlaza al comercio.
-- **Comercios**: cada clave de comercio con su fuente y confianza; corrige la categoría en línea y se aplica
-  a todos sus movimientos para siempre.
+- **Movimientos**: filtros por mes, categoría, flujo y texto, totales del filtro; la categoría se corrige en la
+  propia fila.
+- **Comercios**: cola de revisión de dudosas (una clave cada vez, con sugerencias y teclado) y tabla de todas
+  las claves con su fuente y confianza; corregir la categoría se aplica a todos sus movimientos para siempre.
 - **Recurrentes**, **Presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con
   proyección), **Alertas** (presupuesto al 80 / 100 %, importe anómalo, cargo duplicado, recurrente nuevo,
   subida de precio, ingreso que no llega, saldo proyectado negativo, comisiones).
@@ -144,7 +145,7 @@ los prefijos de operación en `categorize/normalize.py`.
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 136 tests, todos con datos sintéticos
+uv run pytest        # 139 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```

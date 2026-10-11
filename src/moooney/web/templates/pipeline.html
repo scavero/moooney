@@ -2,66 +2,81 @@
 {% block title %}Pipeline{% endblock %}
 {% block content %}
 <div class="topbar">
-  <div><h1>Pipeline</h1><div class="subtitle">{{ status.transactions }} movimientos · {{ status.date_min or '—' }} … {{ status.date_max or '—' }} · {{ status.uncategorized }} sin categoría · {{ status.imports }} importaciones</div></div>
+  <div><h1>Pipeline</h1><div class="subtitle">{{ status.transactions }} movimientos · del <span title="{{ status.date_min }}">{{ status.date_min|fecha }} {{ (status.date_min or '')[:4] }}</span> al <span title="{{ status.date_max }}">{{ status.date_max|fecha }} {{ (status.date_max or '')[:4] }}</span> · {{ status.uncategorized }} sin categoría · {{ status.imports }} importaciones</div></div>
 </div>
 
 {% if offline %}<div class="notice warn">Modo offline (MOOONEY_OFFLINE=1): no se llama a ningún modelo ni proveedor externo.</div>{% endif %}
 
 <div id="job-panel">
-  {% if job_running %}
-    {% with job=job_running %}{% include "partials/job.html" %}{% endwith %}
-  {% endif %}
+  {% if job_running %}{% with job=job_running %}{% include "partials/job.html" %}{% endwith %}{% endif %}
+</div>
+
+{# Qué pide acción, de un vistazo. Solo el paso pendiente lleva botón primario. #}
+<div class="steps">
+  {% for st in steps %}
+  <div class="step {{ '' if st.ok else 'todo' }}">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span class="num">{{ st.n }}</span><span class="tag {{ 'ok' if st.ok else 'warn' }}">{{ st.status }}</span></div>
+    <div class="label">{{ st.label }}</div>
+    <div class="hint">{{ st.hint }}</div>
+    {% if st.action %}<button class="btn small {{ 'primary' if not st.ok else '' }}" hx-post="/pipeline/jobs/{{ st.action }}" hx-target="#job-panel" hx-swap="innerHTML">{{ st.cta }}</button>
+    {% else %}<a class="btn small {{ 'primary' if not st.ok else '' }}" href="{{ st.href }}">{{ st.cta }}</a>{% endif %}
+  </div>
+  {% endfor %}
 </div>
 
 <div class="grid two section">
   <div class="card">
-    <h2>1 · Ingesta</h2>
-    {% if demo %}<div class="notice">Estás en la demo. Lo que importes aquí va a <strong>tu</strong> base de datos, no a la demo; en cuanto haya movimientos reales la app los usará.</div>{% endif %}
-    <p class="muted">Deja los Excel exportados del banco en <code>{{ excel_dir }}</code>. Cada fichero se identifica por su hash y cada movimiento por su huella: importar dos veces no duplica nada.</p>
+    <h2 style="margin-bottom:4px">1 · Ingesta</h2>
+    <div class="concept" style="margin-bottom:12px">Excel en <code>{{ excel_dir }}</code>. Fichero por hash y movimiento por huella: importar dos veces no duplica.{% if demo %} En la demo, lo que importes va a <strong>tu</strong> base.{% endif %}</div>
+    <div class="scroll-x">
     <table>
-      <tr><th>Fichero</th><th class="num">KB</th><th>Estado</th><th class="num">Filas</th><th class="num">Nuevas</th><th>Rango</th></tr>
+      <tr><th>Fichero</th><th>Estado</th><th class="num">Filas · nuevas</th><th>Rango</th></tr>
       {% for f in files %}
       <tr>
-        <td>{{ f.name }}</td><td class="num">{{ f.size_kb }}</td>
-        <td>{% if f.imported %}<span class="tag ok">importado</span> <span class="concept">{{ f.imported_at[:16] }}</span>{% else %}<span class="tag warn">pendiente</span>{% endif %}</td>
-        <td class="num">{{ f.rows_total if f.rows_total is not none else '—' }}</td>
-        <td class="num">{{ f.rows_new if f.rows_new is not none else '—' }}</td>
-        <td class="num muted">{% if f.date_min %}{{ f.date_min }} … {{ f.date_max }}{% else %}—{% endif %}</td>
+        <td>{{ f.name }}<div class="concept">{{ f.size_kb }} KB</div></td>
+        <td>{% if f.imported %}<span class="tag ok">importado</span> <span class="concept" title="{{ f.imported_at }}">{{ f.imported_at[:10]|fecha }} {{ f.imported_at[11:16] }}</span>{% else %}<span class="tag warn">pendiente</span>{% endif %}</td>
+        <td class="num">{% if f.rows_total is not none %}{{ f.rows_total }} · {{ f.rows_new }}{% else %}—{% endif %}</td>
+        <td class="muted" style="white-space:nowrap">{% if f.date_min %}{{ f.date_min }} … {{ f.date_max }}{% else %}—{% endif %}</td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="muted">no hay ficheros .xlsx en la carpeta</td></tr>
+      <tr><td colspan="4" class="muted">no hay ficheros .xlsx en la carpeta</td></tr>
       {% endfor %}
     </table>
-    <div class="actions" style="margin-top:10px">
+    </div>
+    <div class="actions" style="margin-top:12px">
       <button class="btn primary" hx-post="/pipeline/jobs/ingest" hx-target="#job-panel" hx-swap="innerHTML">Importar Excel nuevos</button>
     </div>
   </div>
 
   <div class="card">
-    <h2>2 · Categorización</h2>
-    <p class="muted">Cascada: reglas → memoria → embeddings → Clef-Flash. Solo se consultan las claves de comercio nuevas. {{ merchants.total }} claves en memoria, {{ merchants.dudosas }} dudosas.</p>
+    <h2 style="margin-bottom:4px">2 · Categorización</h2>
+    <div class="concept" style="margin-bottom:12px">reglas → memoria → parecidos → Clef-Flash. Solo se consultan las claves nuevas. {{ merchants.total }} claves en memoria, {{ merchants.dudosas }} dudosas.</div>
     <div class="actions">
       <button class="btn primary" hx-post="/pipeline/jobs/categorize" hx-target="#job-panel" hx-swap="innerHTML">Categorizar pendientes</button>
-      <button class="btn" hx-post="/pipeline/jobs/categorize-refresh" hx-target="#job-panel" hx-swap="innerHTML" title="tras editar config/rules.yaml">Reaplicar reglas</button>
-      <button class="btn" hx-post="/pipeline/jobs/categorize-rebuild" hx-target="#job-panel" hx-swap="innerHTML" title="tras cambiar la normalización de conceptos">Reconstruir claves</button>
-      <a class="btn" href="/merchants?mode=dudosas">Revisar dudosas</a>
+      <a class="btn" href="/merchants?mode=dudosas">Revisar {{ merchants.dudosas }} dudosas</a>
+      <details style="font-size:13px"><summary class="muted">mantenimiento</summary>
+        <div class="actions" style="margin-top:8px">
+          <button class="btn small" hx-post="/pipeline/jobs/categorize-refresh" hx-target="#job-panel" hx-swap="innerHTML" title="tras editar config/rules.yaml">Reaplicar reglas</button>
+          <button class="btn small" hx-post="/pipeline/jobs/categorize-rebuild" hx-target="#job-panel" hx-swap="innerHTML" title="tras cambiar la normalización de conceptos">Reconstruir claves</button>
+        </div>
+      </details>
     </div>
-    <dl class="kv" style="margin-top:12px">
-      <dt>decider</dt><dd>{{ llm.decider ~ ' → ' ~ llm.models[llm.decider if llm.decider in llm.models else 'clef'] if llm else 'sin config/llm.yaml' }}</dd>
-      <dt>proxy</dt><dd>{{ llm.base_url if llm else '—' }}</dd>
-      <dt>embeddings</dt><dd>{{ llm.models.embeddings if llm else '—' }}</dd>
+    <dl class="kv" style="margin-top:16px;font-size:13px">
+      <dt>decisión</dt><dd>{{ llm.models[llm.decider if llm.decider in llm.models else 'clef'] if llm else 'sin config/llm.yaml' }}{% if llm %} <span class="muted">vía {{ llm.base_url|replace('https://', '') }}</span>{% endif %}</dd>
+      <dt>parecidos</dt><dd>{{ llm.models.embeddings if llm else '—' }}</dd>
+      <dt>redacción</dt><dd>{{ llm.models.redaccion if llm else '—' }}</dd>
     </dl>
   </div>
 </div>
 
 <div class="grid two section">
   <div class="card">
-    <h2>2.5 · Enriquecimiento externo <span class="tag {{ 'ok' if enrichment and enrichment.enabled else 'warn' }}">{{ 'activado' if enrichment and enrichment.enabled else 'desactivado' }}</span></h2>
-    <p class="muted"><strong>Único punto donde algo sale de tu máquina y de tu infraestructura.</strong> Para los comercios que siguen dudosos se consulta
-      {% if enrichment %}{{ enrichment.providers|join(' → ') }}{% endif %} con la clave de comercio limpia, nunca importes ni fechas. Revisa primero la lista.</p>
+    <h2 style="margin-bottom:4px">2.5 · Enriquecimiento externo <span class="tag {{ 'ok' if enrichment and enrichment.enabled else 'warn' }}" style="vertical-align:middle">{{ 'activado' if enrichment and enrichment.enabled else 'desactivado' }}</span></h2>
+    <div class="concept" style="margin-bottom:12px"><strong style="color:var(--ink-2)">Único punto donde algo sale de tu equipo.</strong> Para las dudosas se consulta
+      {% if enrichment %}{{ enrichment.providers|join(' → ') }}{% endif %} con la clave limpia, nunca importes ni fechas. Mira la lista antes de activarlo.</div>
     <div class="actions">
       <button class="btn" hx-get="/pipeline/enrich/preview" hx-target="#enrich-preview" hx-swap="innerHTML">Ver qué se consultaría</button>
-      <button class="btn primary" hx-post="/pipeline/jobs/enrich" hx-target="#job-panel" hx-swap="innerHTML" {% if not enrichment or not enrichment.enabled %}disabled title="activa el enriquecimiento primero"{% endif %}>Enriquecer dudosas</button>
+      {% if enrichment and enrichment.enabled %}<button class="btn primary" hx-post="/pipeline/jobs/enrich" hx-target="#job-panel" hx-swap="innerHTML">Enriquecer dudosas</button>{% endif %}
       {% if enrichment %}
       <form method="post" action="/pipeline/enrichment/toggle" style="display:inline">
         <input type="hidden" name="enabled" value="{{ 0 if enrichment.enabled else 1 }}">
@@ -73,8 +88,8 @@
   </div>
 
   <div class="card">
-    <h2>3 · Analítica</h2>
-    <p class="muted">Recurrentes, presupuestos y alertas se recalculan con cada visita a sus páginas; este botón lo fuerza y registra las alertas nuevas.</p>
+    <h2 style="margin-bottom:4px">3 · Analítica</h2>
+    <div class="concept" style="margin-bottom:12px">recurrentes, presupuestos y alertas se recalculan al visitar sus páginas; este botón lo fuerza y registra las alertas nuevas.</div>
     <div class="actions">
       <button class="btn primary" hx-post="/pipeline/jobs/alerts" hx-target="#job-panel" hx-swap="innerHTML">Recalcular recurrentes y alertas</button>
       <a class="btn" href="/budgets">Presupuestos</a>
@@ -84,30 +99,26 @@
 
 <div class="grid two section">
   <div class="card">
-    <h2>Qué ha salido de aquí (auditoría)</h2>
-    <h3 style="font-size:14px;margin:8px 0 4px">Modelos (ClusterTIC)</h3>
+    <h2 style="margin-bottom:12px">Qué ha salido de aquí</h2>
+    <div class="scroll-x">
     <table>
-      <tr><th>Modelo</th><th>Propósito</th><th class="num">Llamadas</th><th class="num">Tokens entrada</th><th>Última</th></tr>
-      {% for r in egress.llm %}<tr><td>{{ r.model }}</td><td class="muted">{{ r.purpose }}</td><td class="num">{{ r.n }}</td><td class="num">{{ r.tokens }}</td><td class="num muted">{{ (r.last or '')[:16] }}</td></tr>{% else %}<tr><td colspan="5" class="muted">ninguna</td></tr>{% endfor %}
+      <tr><th>Destino</th><th>Para qué</th><th class="num">Llamadas</th><th>Última</th></tr>
+      {% for r in egress.llm %}<tr><td>{{ r.model }} <span class="concept">modelo · ClusterTIC</span></td><td class="muted">{{ r.purpose }} · {{ r.tokens }} tokens</td><td class="num">{{ r.n }}</td><td class="muted" title="{{ r.last }}">{{ (r.last or '')[:10]|fecha }} {{ (r.last or '')[11:16] }}</td></tr>{% endfor %}
+      {% for r in egress.web %}<tr><td>{{ r.provider }} <span class="concept">Internet</span></td><td class="muted">enriquecer · <span class="tag {{ 'ok' if r.status == 'hit' else 'crit' if r.status == 'error' else '' }}">{{ r.status }}</span></td><td class="num">{{ r.n }}</td><td class="muted" title="{{ r.last }}">{{ (r.last or '')[:10]|fecha }} {{ (r.last or '')[11:16] }}</td></tr>{% endfor %}
+      {% if not egress.llm and not egress.web %}<tr><td colspan="4" class="muted">nada ha salido todavía</td></tr>{% endif %}
     </table>
-    <h3 style="font-size:14px;margin:12px 0 4px">Internet (fase 2.5)</h3>
-    <table>
-      <tr><th>Proveedor</th><th>Estado</th><th class="num">Consultas</th><th>Última</th></tr>
-      {% for r in egress.web %}<tr><td>{{ r.provider }}</td><td><span class="tag {{ 'ok' if r.status == 'hit' else 'crit' if r.status == 'error' else '' }}">{{ r.status }}</span></td><td class="num">{{ r.n }}</td><td class="num muted">{{ (r.last or '')[:16] }}</td></tr>{% else %}<tr><td colspan="4" class="muted">ninguna</td></tr>{% endfor %}
-    </table>
+    </div>
   </div>
   <div class="card">
-    <h2>Historial</h2>
-    <h3 style="font-size:14px;margin:8px 0 4px">Importaciones</h3>
-    <table>
-      <tr><th>Fecha</th><th>Fichero</th><th class="num">Filas</th><th class="num">Nuevas</th></tr>
-      {% for i in imports %}<tr><td class="num muted">{{ i.imported_at[:16] }}</td><td>{{ i.filename }}</td><td class="num">{{ i.rows_total }}</td><td class="num">{{ i.rows_new }}</td></tr>{% endfor %}
+    <h2 style="margin-bottom:12px">Historial</h2>
+    <div class="scroll-x">
+    <table style="table-layout:fixed">
+      <tr><th>Cuándo</th><th>Qué</th><th>Resultado</th></tr>
+      {% for i in imports %}<tr><td class="muted" title="{{ i.imported_at }}">{{ i.imported_at[:10]|fecha }} {{ i.imported_at[11:16] }}</td><td>importación · {{ i.filename }}</td><td>{{ i.rows_total }} filas, {{ i.rows_new }} nuevas</td></tr>{% endfor %}
+      {% for j in jobs %}<tr><td class="muted">{{ j.started_at[11:16] }}</td><td><a href="/pipeline/jobs/{{ j.id }}" hx-target="#job-panel" hx-swap="innerHTML">{{ j.name }}</a></td><td><span class="tag {{ 'ok' if j.status == 'done' else 'crit' if j.status == 'error' else 'info' }}">{{ {'done': 'terminado', 'error': 'error', 'running': 'en marcha'}.get(j.status, j.status) }}</span></td></tr>{% endfor %}
     </table>
-    <h3 style="font-size:14px;margin:12px 0 4px">Trabajos de esta sesión</h3>
-    <table>
-      <tr><th>Inicio</th><th>Trabajo</th><th>Estado</th></tr>
-      {% for j in jobs %}<tr><td class="num muted">{{ j.started_at[11:19] }}</td><td><a href="/pipeline/jobs/{{ j.id }}" hx-target="#job-panel" hx-swap="innerHTML">{{ j.name }}</a></td><td><span class="tag {{ 'ok' if j.status == 'done' else 'crit' if j.status == 'error' else 'info' }}">{{ j.status }}</span></td></tr>{% else %}<tr><td colspan="3" class="muted">ninguno</td></tr>{% endfor %}
-    </table>
+    </div>
+    {% if not jobs %}<div class="concept" style="margin-top:8px">ningún trabajo en esta sesión</div>{% endif %}
   </div>
 </div>
 {% endblock %}
