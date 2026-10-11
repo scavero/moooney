@@ -3,6 +3,9 @@
 Pipeline local de finanzas personales. Analiza los extractos exportados del Banco Santander
 sin enviar ningún dato bancario fuera de la máquina o de la infraestructura propia.
 
+Diagramas de la arquitectura (flujo de datos, cascada de categorización, fronteras de
+privacidad y módulos): [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+
 ## Requisitos
 
 - [uv](https://docs.astral.sh/uv/) (Python 3.12 se instala solo)

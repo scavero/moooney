@@ -1,6 +1,6 @@
 # AGENTS.md — moooney
 
-Contexto permanente para cualquier agente de IA que trabaje en este repositorio. Léelo entero antes de tocar nada. El diseño completo está en `docs/DESIGN.md` y manda sobre este fichero en lo técnico.
+Contexto permanente para cualquier agente de IA que trabaje en este repositorio. Léelo entero antes de tocar nada. El diseño completo está en `docs/DESIGN.md` y manda sobre este fichero en lo técnico. Los diagramas (Mermaid) están en `docs/ARQUITECTURA.md`; actualízalos cuando cambie una etapa, una tabla o una frontera de datos.
 
 ## Qué es este proyecto
 
@@ -46,7 +46,7 @@ moooney/
   config/      settings.yaml  categories.yaml  rules.yaml  llm.yaml  enrichment.yaml  budgets.yaml  seed.yaml
   data/        (ignorado) excel/  clean/  moooney.db
   reports/     (ignorado)
-  docs/        DESIGN.md  PROMPT_FASE1.md  PROMPT_FASE2.md  PROMPT_FASE2_5.md  clef_test.json  clef_test.ps1
+  docs/        DESIGN.md  ARQUITECTURA.md  PROMPT_FASE1.md  PROMPT_FASE2.md  PROMPT_FASE2_5.md  clef_test.json  clef_test.ps1
   src/moooney/
     cli.py
     config.py
