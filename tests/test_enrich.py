@@ -185,6 +185,11 @@ def test_select_candidates_respeta_disparador_y_cache(tmp_path):
             ("TIENDA RARA", -9.0, "Otros", 0.2, "user", "expense"),  # user: nunca
         ],
     )
+    with conn:  # entrada de memoria huerfana (sin transacciones): no es candidata
+        conn.execute(
+            "INSERT INTO merchants (key, category, subcategory, flow_type, source, confidence,"
+            " updated_at) VALUES ('CLAVE VIEJA', 'Otros', 'otros', 'expense', 'clef', 0.1, 't')"
+        )
     cands = select_candidates(conn, _settings())
     by_key = {c.key: c for c in cands}
     assert set(by_key) == {"CAFETERIA GATO AZUL", "BIZUM ENVIADO"}

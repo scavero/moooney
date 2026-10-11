@@ -101,3 +101,35 @@ def test_regex_invalida_rechazada(tmp_path):
     )
     with pytest.raises(ValueError, match="regex invalida"):
         load_rules(path)
+
+
+def test_reglas_reales_estaciones_de_servicio_y_marcas_vistas():
+    from pathlib import Path
+
+    from moooney.categorize.rules import load_rules, match_rules
+    from moooney.categorize.taxonomy import load_taxonomy
+
+    raiz = Path(__file__).resolve().parent.parent
+    taxonomy = load_taxonomy(raiz / "config" / "categories.yaml")
+    rules = load_rules(raiz / "config" / "rules.yaml", taxonomy=taxonomy)
+    casos = {
+        "E S FICTICIA": ("Transporte", "combustible"),
+        "ES PUEBLO INVENTADO": ("Transporte", "combustible"),
+        "O XANTAR DE NADIE": ("Alimentacion", "restaurantes"),
+        "TASCA IMAGINARIA": ("Alimentacion", "restaurantes"),
+        "FIVE GUYS SPAIN": ("Alimentacion", "restaurantes"),
+        "OCINE PREMIUM": ("Ocio", "cultura"),
+        "ENTRADAS EVENTO": ("Ocio", "cultura"),
+        "INTIM UOMO NERV": ("Compras", "ropa y calzado"),
+        "ANA AEROPORTOS": ("Transporte", "transporte publico"),
+        "UKVI": ("Impuestos y tasas", "trafico"),
+        "SOCIEDAD ESPANOLA DE ALGO": ("Educacion", "formacion"),
+    }
+    for clave, (cat, sub) in casos.items():
+        m = match_rules(clave, rules)
+        assert m is not None, clave
+        assert (m.category, m.subcategory) == (cat, sub), clave
+    # "ESTUDIO MA" o "ESTRELLA" no son estaciones de servicio
+    for clave in ("ESTUDIO MA", "ESTRELLA", "ESPACIO X"):
+        m = match_rules(clave, rules)
+        assert m is None or m.subcategory != "combustible", clave

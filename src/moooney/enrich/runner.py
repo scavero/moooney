@@ -80,6 +80,7 @@ def select_candidates(
           {"" if force else "AND e.key IS NULL"}
           {"AND m.key = ?" if only_key else ""}
         GROUP BY m.key
+        HAVING COUNT(t.id) > 0
         ORDER BY ABS(COALESCE(SUM(t.amount), 0)) DESC
     """
     params: list = [trig.max_confidence, *trig.also_if_category, *trig.skip_flow_types]

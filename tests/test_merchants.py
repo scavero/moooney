@@ -135,3 +135,5 @@ def test_rebuild_clean_keys_migra_la_memoria(tmp_path):
     m = repo.get_merchant(conn, "TASCA DO RIO")
     assert m["source"] == "user" and m["category"] == "Alimentacion"
     assert rebuild_clean_keys(conn) == (0, 0)  # idempotente
+    # la clave antigua ya no la usa nadie: desaparece de la memoria
+    assert repo.get_merchant(conn, 'TRANSACCION CONTACTLESS EN TASCA DO RIO') is None

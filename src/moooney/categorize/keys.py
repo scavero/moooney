@@ -55,6 +55,15 @@ def rebuild_clean_keys(conn: sqlite3.Connection) -> tuple[int, int]:
                 " confidence = ? WHERE concept_clean = ? AND category IS NULL",
                 (old["category"], old["subcategory"], old["flow_type"], old["confidence"], nueva),
             )
+        # Entradas de memoria cuya clave ya no usa ninguna transaccion: fuera.
+        # Las de source=user ya se copiaron a la clave nueva en el bucle anterior.
+        conn.execute(
+            "DELETE FROM merchants WHERE key NOT IN (SELECT DISTINCT concept_clean FROM"
+            " transactions WHERE concept_clean IS NOT NULL)"
+        )
+        conn.execute(
+            "DELETE FROM merchant_embeddings WHERE key NOT IN (SELECT key FROM merchants)"
+        )
     return len(cambios), migradas
 
 
