@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Informe {{ month }}{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Informe y consejos</h1><div class="subtitle">{{ month }} · redactado por el modelo de texto a partir de agregados; ningún movimiento sale de aquí</div></div>
+  <div class="month-nav">
+    <a class="btn" href="/report?month={{ prev_month }}">‹</a>
+    <select onchange="window.location='/report?month='+this.value">
+      {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }}>{{ m }}</option>{% endfor %}
+    </select>
+    <a class="btn" href="/report?month={{ next_month }}">›</a>
+  </div>
+</div>
+
+<div id="job-panel">
+  {% if job_running %}{% with job=job_running %}{% include "partials/job.html" %}{% endwith %}{% endif %}
+</div>
+
+<div class="grid three">
+  <div class="card">
+    {% if report %}
+    <div class="muted" style="font-size:12px;margin-bottom:8px">generado el {{ report.created_at[:16] }} · {{ report.kind }} · {{ report.model }}</div>
+    <div class="prose">{{ report_html|safe }}</div>
+    {% else %}
+    <div class="empty">
+      <p>Todavía no hay informe de {{ month }}.</p>
+      <p class="muted">El modelo recibe solo el resumen del mes, las categorías, los hallazgos, el presupuesto, los recurrentes y la previsión, y devuelve un informe breve con acciones ordenadas por euros al mes.</p>
+    </div>
+    {% endif %}
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Generar</h2>
+      <div class="actions">
+        <button class="btn primary" hx-post="/report/generate?month={{ month }}" hx-target="#job-panel" hx-swap="innerHTML" {% if offline or not has_llm %}disabled title="sin modelo (offline o sin config/llm.yaml)"{% endif %}>Con el modelo ({{ model_name }})</button>
+        <form method="post" action="/report/generate-offline?month={{ month }}"><button class="btn" type="submit">Sin modelo (solo reglas)</button></form>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:8px">La versión sin modelo ordena los hallazgos del diagnóstico. Con el modelo tarda unos segundos y queda registrada en la auditoría.</p>
+    </div>
+    <div class="card">
+      <h2>Qué se le envía</h2>
+      <details><summary>ver el JSON de agregados</summary><pre class="log" style="max-height:400px">{{ payload_json }}</pre></details>
+    </div>
+  </div>
+</div>
+{% endblock %}

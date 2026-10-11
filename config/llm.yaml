@@ -16,3 +16,9 @@ timeout_s: 30
 max_retries: 3
 backoff_s: 1.0
 max_concurrency: 8
+
+# Extra para el modelo de redaccion: los Qwen 3 razonan por defecto y el razonamiento
+# se come el limite de tokens; vLLM lo desactiva con enable_thinking=false.
+chat_extra:
+  chat_template_kwargs:
+    enable_thinking: false

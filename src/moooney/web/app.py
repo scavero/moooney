@@ -27,6 +27,7 @@ from moooney.analytics.recurring import load_recurring
 from moooney.config import Settings, load_settings
 from moooney.db import repo
 from moooney.llm.client import offline_enabled
+from moooney.report import advice
 from moooney.web import queries, service
 from moooney.web.jobs import JobRegistry
 from moooney.web.service import Paths
@@ -299,6 +300,47 @@ def create_app(config_path: Path | None = None) -> FastAPI:
     def alert_ack(conn: DB, alert_id: int):
         alerts_mod.acknowledge(conn, alert_id)
         return Response(status_code=200)
+
+    # ---------- informe ----------
+
+    @app.get("/report", response_class=HTMLResponse)
+    def report_page(request: Request, conn: DB, month: str | None = None):
+        import json
+
+        import markdown as md
+
+        m = resolve_month(conn, month)
+        if m is None:
+            return render(request, conn, "empty.html")
+        service.refresh_recurring(conn)
+        row = advice.latest_report(conn, m)
+        html = md.markdown(row["content"], extensions=["tables"]) if row else ""
+        llm = service.llm_settings_or_none(state.paths)
+        limits = budgets_mod.load_budgets_config(state.paths.budgets)
+        payload = advice.build_payload(conn, m, budgets_limits=limits or None)
+        return render(
+            request, conn, "report.html", month=m, prev_month=periods.prev_month(m),
+            next_month=periods.next_month(m), report=row, report_html=html,
+            has_llm=llm is not None, model_name=(llm.models.get("redaccion") if llm else "—"),
+            payload_json=json.dumps(payload, ensure_ascii=False, indent=1),
+        )
+
+    @app.post("/report/generate", response_class=HTMLResponse)
+    def report_generate(request: Request, month: str | None = None):
+        s, p = state.settings, state.paths
+        try:
+            job = state.jobs.start(
+                f"Informe {month or 'del mes'} con el modelo",
+                lambda log: service.job_report(s, p, log, month=month, use_model=True),
+            )
+        except RuntimeError as e:
+            return HTMLResponse(f'<div class="notice warn">{e}</div>')
+        return templates.TemplateResponse(request, "partials/job.html", {"request": request, "job": job})
+
+    @app.post("/report/generate-offline")
+    def report_generate_offline(month: str | None = None):
+        service.job_report(state.settings, state.paths, lambda _line: None, month=month, use_model=False)
+        return RedirectResponse(f"/report?month={month}" if month else "/report", status_code=303)
 
     # ---------- pipeline ----------
 

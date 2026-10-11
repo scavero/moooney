@@ -37,6 +37,9 @@ class LLMSettings(BaseModel):
     max_retries: int = 3
     backoff_s: float = 1.0
     max_concurrency: int = 8
+    # Parámetros extra para el modelo de redacción. Los Qwen 3 razonan por defecto y el
+    # razonamiento se come el límite de tokens: se desactiva con enable_thinking=false (vLLM).
+    chat_extra: dict = {"chat_template_kwargs": {"enable_thinking": False}}
 
 
 def load_llm_settings(path: Path | None = None) -> LLMSettings:
@@ -130,6 +133,7 @@ class LLMClient:
         purpose: str,
         response_format: dict | None = None,
         max_tokens: int | None = None,
+        extra: dict | None = None,
     ) -> str:
         """Chat completion. Devuelve el content del primer choice."""
         payload: dict = {"model": model, "messages": messages}
@@ -137,13 +141,19 @@ class LLMClient:
             payload["response_format"] = response_format
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
+        if extra:
+            payload.update(extra)
         data = self._post("/chat/completions", payload, model=model, purpose=purpose)
         try:
-            content = data["choices"][0]["message"]["content"]
+            choice = data["choices"][0]
+            content = choice["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise LLMError("respuesta del LLM sin choices[0].message.content") from exc
-        if not isinstance(content, str):
-            raise LLMError("el content del LLM no es texto")
+        if isinstance(content, list):  # partes de contenido estilo OpenAI
+            content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
+        if not isinstance(content, str) or not content.strip():
+            motivo = " (limite de tokens agotado)" if choice.get("finish_reason") == "length" else ""
+            raise LLMError(f"el LLM devolvio un content vacio{motivo}")
         return content
 
     def embed(self, *, model: str, texts: list[str], purpose: str) -> list[list[float]]:

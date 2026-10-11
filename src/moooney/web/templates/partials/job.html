@@ -9,6 +9,7 @@
 {% else %}…{% endfor %}</div>
   {% if not job.running %}
   <div class="actions" style="margin-top:8px">
+    {% if job.name.startswith('Informe') %}<a class="btn small primary" href="/report">Ver informe</a>{% endif %}
     <a class="btn small" href="/pipeline">Actualizar página</a>
     <a class="btn small" href="/merchants?mode=dudosas">Revisar dudosas</a>
     <a class="btn small" href="/">Resumen</a>

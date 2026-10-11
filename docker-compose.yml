@@ -1,0 +1,44 @@
+# Levanta moooney con un solo comando:   docker compose up -d
+# Luego abre http://127.0.0.1:8765
+#
+# - ./data    tus Excel (data/excel), la base SQLite y la demo. Nunca entra en la imagen.
+# - ./config  taxonomía, reglas, modelos, enriquecimiento y tus presupuestos.
+# - .env      LITELLM_API_KEY (y opcionalmente LITELLM_BASE_URL, GOOGLE_PLACES_API_KEY).
+#
+# El puerto se publica SOLO en 127.0.0.1: nadie más en tu red puede abrir la web.
+
+services:
+  web:
+    build: .
+    image: moooney:local
+    container_name: moooney-web
+    ports:
+      - "127.0.0.1:8765:8765"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - MOOONEY_OFFLINE=${MOOONEY_OFFLINE:-0}
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./reports:/app/reports
+    restart: unless-stopped
+
+  # Opcional: vigila data/excel y corre la pipeline sola cuando dejas un Excel nuevo.
+  #   docker compose --profile watch up -d
+  watch:
+    profiles: ["watch"]
+    image: moooney:local
+    container_name: moooney-watch
+    command: ["uv", "run", "--no-sync", "moooney", "watch", "--interval", "120"]
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./reports:/app/reports
+    restart: unless-stopped
+    depends_on:
+      - web

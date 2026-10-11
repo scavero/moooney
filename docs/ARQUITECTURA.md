@@ -43,8 +43,9 @@ flowchart LR
 
     subgraph f45["Fases 4-5"]
         GUI["Fase 4 · web/ (FastAPI + HTMX)<br/>resumen, movimientos, comercios,<br/>presupuestos, alertas, pipeline"]
-        REPORT["Fase 5 · report/<br/>previsión, consejos e informe<br/>(Qwen sobre agregados)"]:::todo
-        WATCH["Fase 5 · watch / tarea programada"]:::todo
+        INS["Fase 4.5 · insights.py + forecast.py<br/>diagnóstico, tendencias, previsión"]
+        REPORT["Fase 5 · report/advice.py<br/>informe con consejos<br/>(Qwen sobre agregados)"]
+        WATCH["Fase 5 · ingest/watch.py<br/>vigilancia de la carpeta"]
     end
 
     DB[("data/moooney.db<br/>SQLite")]
@@ -61,8 +62,9 @@ flowchart LR
     RECUR --> ALERTS
     BUDGET --> ALERTS --> DB
     DB --> GUI --> DB
-    METRICS -.-> REPORT
-    WATCH -.-> DETECT
+    METRICS --> INS --> GUI
+    INS --> REPORT --> DB
+    WATCH --> DETECT
 
     classDef todo fill:#eee,stroke:#999,color:#666,stroke-dasharray: 4 3
 ```
@@ -120,7 +122,7 @@ flowchart LR
     subgraph org["ClusterTIC · proxy LiteLLM (autoalojado)"]
         CLEF["clef-flash<br/>decisiones"]
         BGE["bge-m3<br/>embeddings"]
-        QWEN["qwen3.8-flash-next<br/>informes (fases 4+)"]
+        QWEN["qwen3.8-flash-next<br/>informe mensual"]
     end
 
     subgraph internet["Internet (solo fase 2.5, opcional, desactivable)"]
@@ -132,7 +134,9 @@ flowchart LR
     RAW -- "claves de comercio +<br/>importe medio redondeado a decenas<br/>+ nº apariciones" --> ANON
     ANON --> CLEF
     ANON --> BGE
-    RAW -. "agregados mensuales<br/>por categoría (fase 4)" .-> QWEN
+    RAW -- "solo agregados mensuales:<br/>resumen, categorías, hallazgos,<br/>recurrentes, previsión (JSON ≤ 12k chars)" --> ANON
+    ANON --> QWEN
+    QWEN --> LOG1
     ANON -- "solo la clave de comercio limpia<br/>(sin importes, fechas, personas)" --> NOM
     ANON --> DDG
     ANON --> GP
@@ -157,14 +161,15 @@ las dos fronteras a la vez.
 flowchart TB
     subgraph cli["cli.py (typer)"]
         C1[inspect] --- C2[ingest] --- C3[status] --- C4[merchants] --- C5[categorize] --- C6[enrich] --- C7[review] --- C8[eval-clef]
-        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts] --- C13[web] --- C14[demo]
+        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts] --- C13[web] --- C14[demo] --- C15[report] --- C16[watch]
     end
 
     subgraph src["src/moooney/"]
         ING["ingest/<br/>detect · parse_santander · load"]
         CAT["categorize/<br/>normalize · keys · rules · taxonomy<br/>embed · pipeline · evaluate"]
         ENRM["enrich/<br/>settings · query · providers · runner"]
-        ANA["analytics/<br/>periods · recurring · metrics<br/>budgets · alerts"]
+        ANA["analytics/<br/>periods · recurring · metrics<br/>budgets · alerts · insights · forecast"]
+        REP["report/<br/>advice"]
         WEB["web/<br/>app · queries · service · jobs<br/>templates · static"]
         LLM["llm/<br/>client · anonymize · decide"]
         DBM["db/<br/>schema.sql · repo"]
@@ -181,6 +186,7 @@ flowchart TB
         T8[(recurring)]
         T9[(budgets)]
         T10[(alerts)]
+        T11[(reports)]
     end
 
     subgraph cfg["config/*.yaml"]
@@ -192,8 +198,9 @@ flowchart TB
         Y6[budgets · ignorado]
     end
 
-    cli --> ING & CAT & ENRM & ANA & WEB
-    WEB --> ING & CAT & ENRM & ANA
+    cli --> ING & CAT & ENRM & ANA & WEB & REP
+    WEB --> ING & CAT & ENRM & ANA & REP
+    REP --> ANA & LLM
     CAT --> LLM
     ENRM --> LLM
     ING & CAT & ENRM & ANA & LLM --> DBM --> tablas

@@ -24,6 +24,19 @@ _MANY_DECIMALS = re.compile(r"\d+\.\d{3,}")
 MAX_STATE_CHARS = 3500
 
 
+def assert_safe_text(text: str, *, max_chars: int) -> str:
+    """Mismas barreras que un state, con un tope de longitud propio (informes)."""
+    if _IBAN.search(text):
+        raise AnonymizeError("el texto contiene algo con forma de IBAN")
+    if _LONG_DIGITS.search(text):
+        raise AnonymizeError("el texto contiene una secuencia de 8+ digitos")
+    if _DIGIT_GROUPS.search(text):
+        raise AnonymizeError("el texto contiene grupos de digitos tipo tarjeta")
+    if len(text) > max_chars:
+        raise AnonymizeError(f"el texto supera {max_chars} caracteres")
+    return text
+
+
 def assert_safe_state(state: str) -> str:
     """Valida el texto que va a un modelo. El error describe el problema,
     nunca reproduce el contenido (para no filtrarlo a logs ni pantallas)."""

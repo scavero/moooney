@@ -23,6 +23,7 @@ Pipeline local de finanzas personales. El usuario exporta a mano extractos de su
 - Configuración en `config/*.yaml`. Rutas en `config/settings.yaml`.
 - Código, nombres de variables, commits y docstrings en español salvo identificadores técnicos habituales en inglés (`date`, `amount`, `flow_type`).
 - Formateo y lint con `ruff`. Tests con `pytest`. Todo verde antes de cada commit.
+- La imagen Docker no contiene datos: `.dockerignore` excluye `data/`, `reports/`, `budgets.yaml` y `.env`. `config/` sí va dentro como valores por defecto.
 - Commits pequeños y descriptivos, un tema por commit. Push a `origin/main` solo al cerrar cada fase, tras verificar con `git status` y `git log --stat -1` que no entra nada de `data/` ni `reports/`.
 - Windows 11 y PowerShell. Usa rutas con `pathlib`, nunca cadenas con barras fijas. Codificación UTF-8 explícita al leer y escribir ficheros.
 
@@ -58,7 +59,8 @@ moooney/
     llm/         client.py  anonymize.py  prompts/
     web/         app.py  queries.py  service.py  jobs.py  templates/  static/
     demo.py
-    report/      monthly.py (fase 5)
+    report/      advice.py
+    ingest/      watch.py (además de detect, parse_santander, load)
   tests/
 ```
 
@@ -69,7 +71,8 @@ moooney/
 2.5. **Enriquecimiento externo** (opcional): buscador o mapas para comercios que la cascada no resuelve. Ver `docs/PROMPT_FASE2_5.md`.
 3. **Analítica** (hecha 2026-10-11): métricas mensuales, recurrentes, presupuestos, alertas. Comandos `metrics`, `recurring`, `budget init|set|show`, `alerts`.
 4. **Web app (GUI)** (hecha 2026-10-11): FastAPI + Jinja + HTMX en `src/moooney/web/`, comando `moooney web`; toda la CLI desde el navegador. `moooney demo` genera una base sintética (`src/moooney/demo.py`) para probarla y para los tests de la web.
-5. **Empaquetado e informe**: `docker compose` para que cualquiera lo levante clonando el repo (librerías JS en local, sin CDN), previsión, consejos con Qwen sobre agregados, informe mensual, `watch`.
+4.5. **Diagnóstico y previsión** (hecho 2026-10-11): `analytics/insights.py` y `analytics/forecast.py`, página `/trends` y tarjeta de diagnóstico en el resumen. htmx y Chart.js servidos desde `static/vendor/`.
+5. **Empaquetado e informe** (hecho 2026-10-11): `Dockerfile` + `docker-compose.yml` (volúmenes `data/`, `config/`, `reports/`; puerto solo en 127.0.0.1; perfil `watch`), informe mensual con el modelo de texto sobre agregados (`report/advice.py`, página `/report`, comando `report`), vigilancia de la carpeta (`ingest/watch.py`, comando `watch`).
 
 ## Cómo trabajar con el usuario
 

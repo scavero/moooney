@@ -185,7 +185,10 @@ moooney/
 2.5. **Enriquecimiento externo**: opcional, activado tras revisión del usuario. ✔
 3. **Analítica**: métricas, recurrentes, presupuestos, alertas. ✔
 4. **Web app (GUI)**: ver y controlar toda la pipeline desde el navegador, en local. ✔
-5. **Empaquetado e informe**: docker compose, librerías JS en local, previsión, consejos LLM, informe mensual, watch.
+4.5. **Diagnóstico, tendencias y previsión** en la web; librerías JS en local. ✔
+5. **Empaquetado e informe**: docker compose, informe mensual con consejos del modelo, watch. ✔
+
+Próximo (sin fecha): importación del Excel de la tarjeta de crédito y conciliación con la liquidación; más bancos (solo requiere alias de columnas y prefijos); etiquetas de usuario en movimientos sueltos.
 
 ## Preguntas abiertas
 
@@ -228,4 +231,8 @@ moooney/
 - 2026-10-11 (fase 4): `moooney demo` genera `data/demo/` con configuración propia y 14 meses sintéticos deterministas (semilla fija) para ver la web sin datos reales; los tests de la web usan el mismo generador. El enriquecimiento de la demo se escribe siempre desactivado.
 - 2026-10-11 (fase 4, bugs encontrados con la demo): la normalización dejaba en "SIN CLAVE" cualquier concepto que empezara por un marcador de corte (COMISION…, RECIBO…), así que las comisiones no tenían clave propia; ahora un marcador al principio no corta. La proyección del presupuesto extrapolaba linealmente también lo fijo ya pagado (alquiler del día 2 proyectado ×3); ahora solo extrapola la parte variable.
 - 2026-10-11 (fase 4): HTMX y Chart.js se cargan desde CDN con versión fija (cdnjs no tiene Chart.js 4.4.7; se usa jsDelivr). Empaquetarlos en `static/` queda para la fase 5 junto con el docker compose.
+- 2026-10-11 (fase 4.5, diagnóstico): hallazgos deterministas ordenados por severidad e impacto en €/mes. Para el mes incompleto, las categorías se comparan a prorrata de días transcurridos y se omiten las dominadas por cargos fijos (un alquiler del día 2 no "se dispara" el día 10). Previsión: fin de mes = gastado + recurrentes que vencen en lo que queda + variable medio por día de los últimos 3 meses completos × días restantes; próximos meses = fijo normalizado a 30 días + variable medio + ingresos medios; colchón = saldo / gasto medio; saldo proyectado = saldo + ahorro neto medio × meses. Todo reproducible con una consulta.
+- 2026-10-11 (fase 5, informe): el modelo de texto (`models.redaccion`, Qwen) recibe un JSON de agregados (resumen, serie, categorías con variación, hallazgos, recurrentes, alertas, presupuesto, previsión, colchón) acotado a 12.000 caracteres y pasado por `assert_safe_text` (mismas barreras que un state, tope propio). Prompt de sistema con estructura fija y prohibición de inventar cifras y de aconsejar productos financieros. Cada informe se guarda en la tabla `reports` (histórico de versiones) y en `reports/YYYY-MM.md`. Sin modelo u offline, `fallback_report` ordena los hallazgos deterministas.
+- 2026-10-11 (fase 5, docker): imagen `python:3.12-slim` + uv, sin datos dentro (`.dockerignore`), `config/` copiado como valores por defecto y sustituido por el volumen del compose. El proceso escucha en 0.0.0.0 dentro del contenedor y el compose publica el puerto solo en `127.0.0.1`. Perfil `watch` opcional con el mismo código de la web (`service.job_*`). Probado: build y demo servida desde el contenedor.
+- 2026-10-11 (fase 5, watch): sondeo por hash cada N segundos, sin dependencias; `--once` para el Programador de tareas de Windows o cron. Corre ingesta → categorización → enriquecimiento (si está activado) → alertas.
 - 2026-10-10 (fase 2): `eval-clef` mide al decider contra `data/eval/merchants_labeled.csv` (50 claves reales etiquetadas a mano, git-ignored; BOM tolerado con utf-8-sig). No escribe en `merchants`. Umbrales: categoría >85 %, flow_type >95 %. Resultado final: categoría 90 %, flow_type 100 %. La calibración muestra que la confianza solo es fiable por encima de 0.7 (95-100 % de acierto); por debajo, ~83 %.

@@ -121,3 +121,14 @@ CREATE TABLE IF NOT EXISTS recurring (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_category_month ON budgets(category, month);
+
+-- Fase 5: informes generados (con modelo o sin él). Se guarda cada versión.
+CREATE TABLE IF NOT EXISTS reports (
+    id         INTEGER PRIMARY KEY,
+    month      TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    model      TEXT,
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reports_month ON reports(month);

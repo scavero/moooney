@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}moooney{% endblock %} · moooney</title>
-  <link rel="stylesheet" href="/static/app.css?v=4">
+  <link rel="stylesheet" href="/static/app.css?v=5">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
 </head>
@@ -19,6 +19,7 @@
       <a href="/merchants" class="{{ 'active' if path.startswith('/merchants') else '' }}">Comercios</a>
       <a href="/recurring" class="{{ 'active' if path.startswith('/recurring') else '' }}">Recurrentes</a>
       <a href="/budgets" class="{{ 'active' if path.startswith('/budgets') else '' }}">Presupuestos</a>
+      <a href="/report" class="{{ 'active' if path.startswith('/report') else '' }}">Informe</a>
       <a href="/alerts" class="{{ 'active' if path.startswith('/alerts') else '' }}">
         Alertas
         {% if alerts_counts.total %}<span class="pill {{ 'crit' if alerts_counts.critical else 'warn' if alerts_counts.warning else '' }}">{{ alerts_counts.total }}</span>{% endif %}

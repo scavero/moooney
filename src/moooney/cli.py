@@ -929,6 +929,56 @@ def alerts(
     console.print("[dim]moooney alerts --ack ID  ·  --ack-all[/dim]")
 
 
+# ---------- fase 5: informe y vigilancia ----------
+
+
+@app.command()
+def report(
+    month: str = typer.Option(None, "--month", help="Mes YYYY-MM (por defecto, el del último movimiento)."),
+    no_model: bool = typer.Option(False, "--no-model", help="Sin modelo: solo los hallazgos deterministas."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Informe mensual con consejos (Markdown en reports/YYYY-MM.md y en la web)."""
+    from moooney.web import service
+
+    settings = _settings(config)
+    paths = service.Paths(config.parent if config else Path("config"))
+    service.job_report(settings, paths, lambda line: console.print(f"[dim]{line}[/dim]"),
+                       month=month, use_model=not no_model)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        from moooney.report.advice import latest_report
+
+        m = month or periods.month_of(periods.as_of_date(conn) or "")
+        row = latest_report(conn, m)
+    finally:
+        conn.close()
+    if row:
+        console.print(row["content"], markup=False, highlight=False)
+
+
+@app.command()
+def watch(
+    interval: float = typer.Option(60.0, "--interval", help="Segundos entre comprobaciones."),
+    once: bool = typer.Option(False, "--once", help="Comprueba una vez y sale (para tareas programadas)."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Vigila data/excel y corre la pipeline entera cuando aparece un Excel nuevo."""
+    from moooney.ingest.watch import watch as watch_loop
+
+    settings = _settings(config)
+    config_dir = config.parent if config else Path("config")
+    console.print(f"vigilando {settings.paths.excel_dir} cada {interval:.0f} s (Ctrl+C para parar)")
+    try:
+        runs = watch_loop(settings, config_dir, lambda line: console.print(line, markup=False),
+                          interval=interval, once=once)
+    except KeyboardInterrupt:
+        console.print("parado")
+        return
+    if once:
+        console.print(f"pipeline ejecutada {runs} vez/veces")
+
+
 # ---------- fase 4: web ----------
 
 

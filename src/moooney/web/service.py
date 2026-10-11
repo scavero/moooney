@@ -281,6 +281,45 @@ def job_enrich(settings: Settings, paths: Paths, log: Logger, *, limit: int | No
         conn.close()
 
 
+def job_report(settings: Settings, paths: Paths, log: Logger, *, month: str | None = None,
+               use_model: bool = True) -> None:
+    from moooney.report import advice
+
+    conn = repo.connect(settings.paths.db_path, check_same_thread=False)
+    recorder: CallRecorder | None = None
+    try:
+        refresh_recurring(conn)
+        limits = budgets_mod.load_budgets_config(paths.budgets)
+        payload = advice.build_payload(conn, month, budgets_limits=limits or None)
+        m = payload["mes"]
+        log(f"agregados de {m} preparados ({len(advice.payload_text(payload))} caracteres)")
+        llm = llm_settings_or_none(paths)
+        if use_model and llm is not None and not offline_enabled():
+            recorder = CallRecorder(conn)
+            cliente = LLMClient(llm, recorder=recorder)
+            try:
+                content = advice.generate_report(cliente, llm, payload)
+                model = llm.models.get("redaccion", "?")
+                kind = "modelo"
+                log(f"informe redactado por {model}")
+            except LLMError as e:
+                log(f"el modelo falló ({e}); se guarda la versión sin modelo")
+                content, model, kind = advice.fallback_report(payload), None, "reglas"
+        else:
+            motivo = "modo offline" if offline_enabled() else "sin modelo"
+            log(f"{motivo}: informe a partir de los hallazgos deterministas")
+            content, model, kind = advice.fallback_report(payload), None, "reglas"
+        advice.store_report(conn, month=m, kind=kind, model=model, content=content)
+        out_dir = Path("reports")
+        out_dir.mkdir(exist_ok=True)
+        (out_dir / f"{m}.md").write_text(content + "\n", encoding="utf-8")
+        log(f"guardado en reports/{m}.md")
+    finally:
+        if recorder is not None:
+            recorder.flush()
+        conn.close()
+
+
 def job_alerts(settings: Settings, paths: Paths, log: Logger) -> None:
     conn = repo.connect(settings.paths.db_path, check_same_thread=False)
     try:
