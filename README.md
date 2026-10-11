@@ -88,7 +88,8 @@ Diagramas en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md); diseño y decisiones 
   referencia larga antes de enviarlo. Todo queda en `llm_calls` y `web_calls`, visibles en *Pipeline*.
 - La web solo escucha en `127.0.0.1` y no tiene cuentas: es para tu máquina.
 - `MOOONEY_OFFLINE=1` bloquea toda llamada a modelos y a Internet; todo lo demás sigue funcionando.
-- Las librerías de la web (htmx, Chart.js) se sirven desde el propio repo, sin CDN.
+- Las librerías de la web (htmx, Chart.js) se sirven desde el propio repo, sin CDN. Las fuentes (Fraunces y
+  Work Sans) se cargan de Google Fonts: es la única petición externa de la web y no lleva ningún dato.
 
 ## Docker
 

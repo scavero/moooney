@@ -25,6 +25,7 @@ Pipeline local de finanzas personales. El usuario exporta a mano extractos de su
 - Formateo y lint con `ruff`. Tests con `pytest`. Todo verde antes de cada commit.
 - La imagen Docker no contiene datos: `.dockerignore` excluye `data/`, `reports/`, `budgets.yaml` y `.env`. `config/` sí va dentro como valores por defecto.
 - Commits pequeños y descriptivos, un tema por commit. Push a `origin/main` solo al cerrar cada fase, tras verificar con `git status` y `git log --stat -1` que no entra nada de `data/` ni `reports/`.
+- Sistema visual de la web (guía del usuario, no negociable): Fraunces para display y Work Sans para texto, pesos 200 y 800, nunca Inter/Roboto/sistema; un dominante y un acento en variables CSS (`static/app.css`); sin degradados ni tarjetas con borde; ritmo de 8 px; jerarquía por tipo y espacio.
 - Windows 11 y PowerShell. Usa rutas con `pathlib`, nunca cadenas con barras fijas. Codificación UTF-8 explícita al leer y escribir ficheros.
 
 ## Modelos disponibles (proxy LiteLLM de ClusterTIC)

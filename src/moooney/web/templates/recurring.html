@@ -7,11 +7,11 @@
     {% if all %}<a class="btn" href="/recurring">solo activos</a>{% else %}<a class="btn" href="/recurring?all=1">incluir inactivos</a>{% endif %}
   </div>
 </div>
-<div class="grid kpis" style="margin-bottom:16px">
+<div class="grid kpis section">
   <div class="card kpi"><div class="label">Gasto fijo mensual estimado</div><div class="value neg">{{ monthly_fixed|eur }}</div><div class="hint">recurrentes activos de gasto, normalizados a 30 días</div></div>
   <div class="card kpi"><div class="label">Recurrentes activos</div><div class="value">{{ rows|selectattr('active')|list|length }}</div></div>
 </div>
-<div class="grid two">
+<div class="grid two section">
   <div class="card">
     <h2>Todos</h2>
     <table>

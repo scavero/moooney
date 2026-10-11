@@ -29,7 +29,7 @@
     {% endif %}
   </div>
   <div>
-    <div class="card" style="margin-bottom:16px">
+    <div class="card">
       <h2>Generar</h2>
       <div class="actions">
         <button class="btn primary" hx-post="/report/generate?month={{ month }}" hx-target="#job-panel" hx-swap="innerHTML" {% if offline or not has_llm %}disabled title="sin modelo (offline o sin config/llm.yaml)"{% endif %}>Con el modelo ({{ model_name }})</button>

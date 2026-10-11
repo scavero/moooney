@@ -16,7 +16,7 @@
   </div>
 </div>
 
-<div class="grid kpis" style="margin-bottom:16px">
+<div class="grid kpis section">
   <div class="card kpi"><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div></div>
   <div class="card kpi"><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div>
     <div class="hint">fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}</div></div>
@@ -30,22 +30,22 @@
     <div class="hint"><a href="/alerts">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos</a></div></div>
 </div>
 
-<div class="card" style="margin-bottom:16px">
+<div class="card section">
   <h2>Diagnóstico de {{ month }} <a class="muted" style="font-size:13px;font-weight:normal" href="/trends">tendencias y previsión</a></h2>
   {% if insights %}
-  <table>
+  <table class="diag">
     {% for i in insights %}
     <tr>
       <td style="width:1%"><span class="tag {{ i.tone }}">{{ {'ok': 'bien', 'info': 'dato', 'warn': 'ojo', 'crit': 'mal'}[i.tone] }}</span></td>
       <td><strong>{{ i.title }}</strong><div class="concept">{{ i.detail }}{% if i.link %} <a href="{{ i.link }}">ver</a>{% endif %}</div></td>
-      <td class="num" style="width:1%;white-space:nowrap">{% if i.impact > 0 %}<span class="pos">{{ i.impact|eur }}/mes</span>{% endif %}</td>
+      <td class="num" style="width:1%">{% if i.impact > 0 %}<span class="impact">{{ i.impact|eur }}</span><div class="concept">al mes</div>{% endif %}</td>
     </tr>
     {% endfor %}
   </table>
   {% else %}<p class="muted">Aún no hay meses completos suficientes para comparar.</p>{% endif %}
 </div>
 
-<div class="grid three" style="margin-bottom:16px">
+<div class="grid three section">
   <div class="card">
     <h2>Gasto por categoría, últimos 12 meses</h2>
     <div class="chart-box"><canvas id="chart-cats"></canvas></div>
@@ -56,7 +56,7 @@
   </div>
 </div>
 
-<div class="grid two" style="margin-bottom:16px">
+<div class="grid two section">
   <div class="card">
     <h2>Ingresos, gastos y ahorro</h2>
     <div class="chart-box small"><canvas id="chart-flows"></canvas></div>
@@ -96,7 +96,7 @@
     <div class="muted" style="font-size:12px;margin-top:6px">vs media: {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos anteriores. Rojo = más gasto que antes.</div>
   </div>
   <div>
-    <div class="card" style="margin-bottom:16px">
+    <div class="card section">
       <h2>Presupuesto {{ month }} <a class="muted" style="font-size:13px;font-weight:normal" href="/budgets?month={{ month }}">ver todo</a></h2>
       {% if budget_rows %}
       <table>
@@ -130,7 +130,7 @@ window.renderCharts = function () {
   const months = {{ chart_months|tojson }};
   const series = {{ chart_series|tojson }};
   const flows = {{ chart_flows|tojson }};
-  const palette = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#db2777','#65a30d','#9ca3af'];
+  const css = getComputedStyle(document.documentElement); const palette = [1,2,3,4,5,6,7,8,9].map(i => css.getPropertyValue('--chart-' + i).trim());
   const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
   const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };
   mk('chart-cats', { type: 'bar',
@@ -144,9 +144,9 @@ window.renderCharts = function () {
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.label + ': ' + eur(c.raw) } } } } });
   mk('chart-flows', { type: 'line',
     data: { labels: months, datasets: [
-      { label: 'Ingresos', data: flows.ingresos, borderColor: '#16a34a', backgroundColor: '#16a34a22', tension: .3, fill: false },
-      { label: 'Gastos', data: flows.gastos, borderColor: '#dc2626', backgroundColor: '#dc262622', tension: .3, fill: false },
-      { label: 'Ahorro', data: flows.ahorro, borderColor: '#2563eb', backgroundColor: '#2563eb22', tension: .3, fill: true } ] },
+      { label: 'Ingresos', data: flows.ingresos, borderColor: palette[2], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5 },
+      { label: 'Gastos', data: flows.gastos, borderColor: palette[5], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5 },
+      { label: 'Ahorro', data: flows.ahorro, borderColor: palette[0], backgroundColor: palette[4] + '66', tension: .3, fill: true, borderWidth: 2 } ] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { y: { ticks: { callback: v => eur(v) } } } } });
 };
 </script>

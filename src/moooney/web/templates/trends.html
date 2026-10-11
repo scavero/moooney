@@ -5,7 +5,7 @@
   <div><h1>Tendencias y previsión</h1><div class="subtitle">datos hasta {{ as_of }} · comparaciones solo con meses completos</div></div>
 </div>
 
-<div class="grid kpis" style="margin-bottom:16px">
+<div class="grid kpis section">
   <div class="card kpi"><div class="label">Previsión gasto fin de mes</div><div class="value neg">{{ fme.expenses|eur }}</div>
     <div class="hint">llevas {{ fme.spent|eur }} el día {{ fme.day }}; quedan {{ fme.fixed_pending|eur }} fijos + {{ fme.variable_expected_rest|eur }} variables</div></div>
   <div class="card kpi"><div class="label">Previsión ahorro fin de mes</div><div class="value {{ 'pos' if fme.net >= 0 else 'neg' }}">{{ fme.net|eur }}</div>
@@ -16,7 +16,7 @@
     <div class="hint">por mes · {{ projection[-1][1]|eur }} de saldo en 12 meses si sigue igual</div></div>
 </div>
 
-<div class="grid two" style="margin-bottom:16px">
+<div class="grid two section">
   <div class="card">
     <h2>Dónde se ha ido el dinero en 12 meses</h2>
     <table>
@@ -24,7 +24,7 @@
       {% for c, total, p in share %}
       <tr>
         <td><a href="/transactions?category={{ c|urlencode }}">{{ c }}</a></td>
-        <td><div class="bar"><span style="width:{{ p }}%;background:#2563eb"></span></div></td>
+        <td><div class="bar"><span style="width:{{ p }}%"></span></div></td>
         <td class="num">{{ total|eur }}</td>
         <td class="num muted">{{ '%.0f'|format(p) }} %</td>
         <td class="num">{{ (total / 12)|eur }}</td>
@@ -46,7 +46,7 @@
   </div>
 </div>
 
-<div class="card" style="margin-bottom:16px">
+<div class="card section">
   <div class="topbar" style="margin-bottom:8px">
     <h2>Evolución por categoría</h2>
     <form method="get" action="/trends" class="inline-form">
@@ -80,16 +80,17 @@
 window.renderCharts = function () {
   const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
   const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };
+  const css = getComputedStyle(document.documentElement); const palette = [1,2,3,4,5,6,7,8,9].map(i => css.getPropertyValue('--chart-' + i).trim());
   const months = {{ months12|tojson }};
   const cat = {{ cat_values|tojson }};
   const avg = {{ cat_avg|tojson }};
   mk('chart-cat', { type: 'bar', data: { labels: months, datasets: [
-      { type: 'bar', label: {{ category|tojson }}, data: cat, backgroundColor: '#2563eb99' },
-      { type: 'line', label: 'media móvil 3 meses', data: avg, borderColor: '#dc2626', tension: .3, pointRadius: 0 } ] },
+      { type: 'bar', label: {{ category|tojson }}, data: cat, backgroundColor: palette[3] },
+      { type: 'line', label: 'media móvil 3 meses', data: avg, borderColor: palette[5], tension: .3, pointRadius: 0, borderWidth: 2 } ] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { y: { ticks: { callback: v => eur(v) } } },
       onClick: (e, els) => { if (els.length) window.location = '/transactions?month=' + months[els[0].index] + '&category=' + encodeURIComponent({{ category|tojson }}); } } });
   const proj = {{ projection|tojson }};
-  mk('chart-proj', { type: 'line', data: { labels: proj.map(p => p[0]), datasets: [{ label: 'saldo proyectado', data: proj.map(p => p[1]), borderColor: '#16a34a', backgroundColor: '#16a34a22', fill: true, tension: .3 }] },
+  mk('chart-proj', { type: 'line', data: { labels: proj.map(p => p[0]), datasets: [{ label: 'saldo proyectado', data: proj.map(p => p[1]), borderColor: palette[0], backgroundColor: palette[4] + '66', fill: true, tension: .3, borderWidth: 2 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => eur(c.raw) } } }, scales: { y: { ticks: { callback: v => eur(v) } } } } });
 };
 </script>

@@ -13,7 +13,7 @@
   {% endif %}
 </div>
 
-<div class="grid two" style="margin-bottom:16px">
+<div class="grid two section">
   <div class="card">
     <h2>1 · Ingesta</h2>
     <p class="muted">Deja los Excel exportados del banco en <code>{{ excel_dir }}</code>. Cada fichero se identifica por su hash y cada movimiento por su huella: importar dos veces no duplica nada.</p>
@@ -53,7 +53,7 @@
   </div>
 </div>
 
-<div class="grid two" style="margin-bottom:16px">
+<div class="grid two section">
   <div class="card">
     <h2>2.5 · Enriquecimiento externo <span class="tag {{ 'ok' if enrichment and enrichment.enabled else 'warn' }}">{{ 'activado' if enrichment and enrichment.enabled else 'desactivado' }}</span></h2>
     <p class="muted"><strong>Único punto donde algo sale de tu máquina y de tu infraestructura.</strong> Para los comercios que siguen dudosos se consulta
@@ -81,7 +81,7 @@
   </div>
 </div>
 
-<div class="grid two">
+<div class="grid two section">
   <div class="card">
     <h2>Qué ha salido de aquí (auditoría)</h2>
     <h3 style="font-size:14px;margin:8px 0 4px">Modelos (ClusterTIC)</h3>
