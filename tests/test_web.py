@@ -36,13 +36,15 @@ def test_formato_euro():
 
 
 def test_paginas_principales_responden(client):
-    for path in ("/", "/transactions", "/merchants", "/merchants?mode=all", "/recurring",
+    for path in ("/", "/trends", "/trends?category=Alimentacion", "/transactions", "/merchants", "/merchants?mode=all", "/recurring",
                  "/recurring?all=1", "/budgets", "/alerts", "/alerts?all=1", "/pipeline"):
         r = client.get(path)
         assert r.status_code == 200, path
         assert "moooney" in r.text
     r = client.get("/?month=2026-09")
-    assert r.status_code == 200 and "2026-09" in r.text
+    assert r.status_code == 200 and "2026-09" in r.text and "Diagnóstico" in r.text
+    r = client.get("/trends")
+    assert "Previsión gasto fin de mes" in r.text and "Dónde se ha ido el dinero" in r.text
     r = client.get("/transactions?month=2026-09&category=Alimentacion&q=MERCADONA")
     assert r.status_code == 200 and "MERCADONA" in r.text
 

@@ -171,6 +171,14 @@ def category_breakdown(conn: sqlite3.Connection, month: str, *, compare_months: 
     return out
 
 
+def full_months_before_safe(conn: sqlite3.Connection, month: str, n: int, *, as_of: str,
+                            first: str | None) -> list[MonthSummary]:
+    """Últimos n meses completos anteriores a `month` (envoltorio para la web)."""
+    from moooney.analytics.forecast import full_months_before
+
+    return full_months_before(conn, month, n, as_of=as_of, first=first)
+
+
 def build_report(conn: sqlite3.Connection, month: str | None = None, *, n_months: int = 6) -> MetricsReport:
     as_of = periods.as_of_date(conn)
     if as_of is None:

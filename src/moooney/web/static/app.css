@@ -45,6 +45,7 @@ h2 { font-size: 17px; margin: 0 0 10px; }
   .sidebar nav a { padding: 6px 10px; font-size: 14px; }
   .sidebar-foot { margin-top: 0; margin-left: auto; flex-direction: row; gap: 10px; }
   .content { padding: 16px; }
+  .card > table, .card > div > table { display: block; overflow-x: auto; }
 }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
 .card.kpi .label { color: var(--muted); font-size: 13px; }

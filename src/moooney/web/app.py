@@ -19,8 +19,10 @@ from fastapi.templating import Jinja2Templates
 
 from moooney.analytics import alerts as alerts_mod
 from moooney.analytics import budgets as budgets_mod
+from moooney.analytics import forecast as forecast_mod
+from moooney.analytics import insights as insights_mod
 from moooney.analytics import periods
-from moooney.analytics.metrics import build_report
+from moooney.analytics.metrics import full_months_before_safe
 from moooney.analytics.recurring import load_recurring
 from moooney.config import Settings, load_settings
 from moooney.db import repo
@@ -102,7 +104,7 @@ def create_app(config_path: Path | None = None) -> FastAPI:
         if m is None:
             return render(request, conn, "empty.html")
         service.refresh_recurring(conn)
-        report = build_report(conn, m, n_months=12)
+        insights, report = insights_mod.build_insights(conn, m)
         series_months = [s.month for s in report.series]
         cat_series = queries.category_series(conn, series_months)
         top_cats = list(cat_series.items())[:8]
@@ -126,6 +128,47 @@ def create_app(config_path: Path | None = None) -> FastAPI:
             },
             budget_rows=budget_rows[:6],
             pending=alerts_mod.pending_alerts(conn)[:5],
+            insights=insights[:7],
+        )
+
+    # ---------- tendencias y previsión ----------
+
+    @app.get("/trends", response_class=HTMLResponse)
+    def trends(request: Request, conn: DB, category: str | None = None):
+        as_of = periods.as_of_date(conn)
+        if as_of is None:
+            return render(request, conn, "empty.html")
+        service.refresh_recurring(conn)
+        first = periods.first_date(conn)
+        month = periods.month_of(as_of)
+        months12 = [*periods.last_n_months(month, 11), month]
+        series = queries.category_series(conn, months12)
+        categories = list(series) or ["Otros"]
+        category = category if category in series else categories[0]
+        values = series.get(category, [0.0] * 12)
+        avg = [sum(values[max(0, i - 2): i + 1]) / len(values[max(0, i - 2): i + 1]) for i in range(len(values))]
+        full = [periods.is_full_month(mm, as_of, first) for mm in months12]
+        table = []
+        for c, vals in series.items():
+            complete = [v for v, ok in zip(vals, full, strict=True) if ok]
+            last3 = complete[-3:]
+            prev3 = complete[-6:-3]
+            avg3 = sum(last3) / len(last3) if last3 else 0.0
+            prev = sum(prev3) / len(prev3) if prev3 else 0.0
+            trend = (avg3 - prev) / prev if prev > 0 else 0.0
+            table.append((c, vals, avg3, trend))
+        history = full_months_before_safe(conn, month, 6, as_of=as_of, first=first)
+        avg_net = sum(h.net for h in history) / len(history) if history else 0.0
+        return render(
+            request, conn, "trends.html", as_of=as_of, category=category, categories=categories,
+            months12=months12, cat_values=values, cat_avg=avg, table=table,
+            share=insights_mod.spend_share_12m(conn, as_of),
+            fme=forecast_mod.forecast_month_end(conn, as_of, first=first),
+            nxt=forecast_mod.forecast_next_months(conn, as_of, n=3, first=first),
+            runway=forecast_mod.runway_months(conn, as_of, first=first),
+            balance=forecast_mod.last_balance(conn),
+            projection=forecast_mod.savings_projection(conn, as_of, months=12, first=first),
+            avg_net=avg_net,
         )
 
     # ---------- movimientos ----------

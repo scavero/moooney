@@ -30,6 +30,21 @@
     <div class="hint"><a href="/alerts">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos</a></div></div>
 </div>
 
+<div class="card" style="margin-bottom:16px">
+  <h2>Diagnóstico de {{ month }} <a class="muted" style="font-size:13px;font-weight:normal" href="/trends">tendencias y previsión</a></h2>
+  {% if insights %}
+  <table>
+    {% for i in insights %}
+    <tr>
+      <td style="width:1%"><span class="tag {{ i.tone }}">{{ {'ok': 'bien', 'info': 'dato', 'warn': 'ojo', 'crit': 'mal'}[i.tone] }}</span></td>
+      <td><strong>{{ i.title }}</strong><div class="concept">{{ i.detail }}{% if i.link %} <a href="{{ i.link }}">ver</a>{% endif %}</div></td>
+      <td class="num" style="width:1%;white-space:nowrap">{% if i.impact > 0 %}<span class="pos">{{ i.impact|eur }}/mes</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Aún no hay meses completos suficientes para comparar.</p>{% endif %}
+</div>
+
 <div class="grid three" style="margin-bottom:16px">
   <div class="card">
     <h2>Gasto por categoría, últimos 12 meses</h2>
