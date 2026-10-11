@@ -49,7 +49,7 @@ moooney/
   config/      settings.yaml  categories.yaml  rules.yaml  llm.yaml  enrichment.yaml  budgets.yaml (ignorado)  budgets.example.yaml
   data/        (ignorado) excel/  clean/  moooney.db
   reports/     (ignorado)
-  docs/        DESIGN.md  ARQUITECTURA.md  PROMPT_FASE1.md  PROMPT_FASE2.md  PROMPT_FASE2_5.md  clef_test.json  clef_test.ps1
+  docs/        DESIGN.md  ARQUITECTURA.md  clef_test.json  clef_test.ps1  historico/ (prompts de OpenCode de las fases 1-2.5, ya no describen el proceso)
   src/moooney/
     cli.py
     config.py
@@ -69,9 +69,9 @@ moooney/
 
 ## Fases
 
-1. **Ingesta** (en curso): `inspect`, parseo Santander → CSV limpio, deduplicación, carga en SQLite, `status`. Sin IA. Ver `docs/PROMPT_FASE1.md`.
-2. **Categorización**: normalización de conceptos, memoria de comercios, reglas, embeddings, Clef-Flash, `review`. Ver `docs/PROMPT_FASE2.md`.
-2.5. **Enriquecimiento externo** (opcional): buscador o mapas para comercios que la cascada no resuelve. Ver `docs/PROMPT_FASE2_5.md`.
+1. **Ingesta** (en curso): `inspect`, parseo Santander → CSV limpio, deduplicación, carga en SQLite, `status`. Sin IA. Ver `docs/historico/PROMPT_FASE1.md`.
+2. **Categorización**: normalización de conceptos, memoria de comercios, reglas, embeddings, Clef-Flash, `review`. Ver `docs/historico/PROMPT_FASE2.md`.
+2.5. **Enriquecimiento externo** (opcional): buscador o mapas para comercios que la cascada no resuelve. Ver `docs/historico/PROMPT_FASE2_5.md`.
 3. **Analítica** (hecha 2026-10-11): métricas mensuales, recurrentes, presupuestos, alertas. Comandos `metrics`, `recurring`, `budget init|set|show`, `alerts`.
 4. **Web app (GUI)** (hecha 2026-10-11): FastAPI + Jinja + HTMX en `src/moooney/web/`, comando `moooney web`; toda la CLI desde el navegador. `moooney demo` genera una base sintética (`src/moooney/demo.py`) para probarla y para los tests de la web.
 4.5. **Diagnóstico y previsión** (hecho 2026-10-11): `analytics/insights.py` y `analytics/forecast.py`, página `/trends` y tarjeta de diagnóstico en el resumen. htmx y Chart.js servidos desde `static/vendor/`.

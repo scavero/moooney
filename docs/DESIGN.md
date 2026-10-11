@@ -81,7 +81,7 @@ saneado de la consulta), `providers.py` (Nominatim, SearXNG, DuckDuckGo vía `dd
 Places Text Search, limitador de ritmo), `runner.py` (selección de candidatas, caché, registro,
 segunda ronda). Comando `moooney enrich` y flag `categorize --enrich`.
 
-Detalle en `docs/PROMPT_FASE2_5.md`.
+Detalle en `docs/historico/PROMPT_FASE2_5.md`.
 
 ### 5. Métricas (SQL sobre SQLite, sin IA)
 - Mensual: ingresos, gastos, ahorro neto, tasa de ahorro.
