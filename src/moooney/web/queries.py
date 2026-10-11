@@ -158,6 +158,17 @@ def merchants_page(
     return Page(rows=rows, total=int(total), page=page, per_page=per_page)
 
 
+QUEUE_MIN_TX = 2
+QUEUE_MIN_EUR = 30.0
+
+
+def split_queue(rows: list[sqlite3.Row]) -> tuple[list[sqlite3.Row], list[sqlite3.Row]]:
+    """(las que importan, cola larga): una clave importa si tiene ≥ 2 movimientos o ≥ 30 €."""
+    importantes = [r for r in rows if r["n"] >= QUEUE_MIN_TX or abs(float(r["total"])) >= QUEUE_MIN_EUR]
+    resto = [r for r in rows if r["n"] < QUEUE_MIN_TX and abs(float(r["total"])) < QUEUE_MIN_EUR]
+    return importantes, resto
+
+
 def merchant_row(conn: sqlite3.Connection, key: str) -> sqlite3.Row | None:
     return conn.execute(
         """

@@ -115,15 +115,20 @@ def upsert_merchant(
     source: str,
     confidence: float,
     updated_at: str,
+    force: bool = False,
 ) -> bool:
     """Guarda la clasificación de una clave respetando la precedencia de fuentes.
 
-    Devuelve False si una fuente de mayor rango (p. ej. user) ya la fijó.
+    Devuelve False si una fuente de mayor rango (p. ej. user) ya la fijó. `force`
+    salta la precedencia (reintentos y segunda opinión sobre claves de un modelo),
+    pero nunca sobre una clave corregida por el usuario.
     """
     existing = get_merchant(conn, key)
     if existing is not None:
         prev = SOURCE_PRIORITY.get(existing["source"], 0)
-        if prev > SOURCE_PRIORITY.get(source, 0):
+        if existing["source"] == "user" and source != "user":
+            return False
+        if not force and prev > SOURCE_PRIORITY.get(source, 0):
             return False
     with conn:
         conn.execute(

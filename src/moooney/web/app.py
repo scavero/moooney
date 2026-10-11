@@ -41,7 +41,7 @@ HERE = Path(__file__).resolve().parent
 FLOW_LABEL = {"expense": "gasto", "income": "ingreso", "transfer_internal": "traspaso",
               "investment": "inversión", "card_settlement": "tarjeta"}
 SOURCE_LABEL = {"user": "corregido por ti", "rule": "regla", "clef": "modelo", "clef_web": "modelo + web",
-                "embedding": "parecido", "llm": "modelo"}
+                "embedding": "parecido", "llm": "segunda opinión"}
 SEVERITY_LABEL = {"critical": "crítica", "warning": "aviso", "info": "dato"}
 ALERT_TYPE_LABEL = {
     "budget_80": "presupuesto al 80 %", "budget_100": "presupuesto superado", "anomalous_amount": "importe anómalo",
@@ -310,11 +310,15 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
 
     @app.get("/merchants", response_class=HTMLResponse)
     def merchants(request: Request, conn: DB, mode: str = "dudosas", q: str | None = None,
-                  category: str | None = None, page: int = 1, skip: str = ""):
+                  category: str | None = None, page: int = 1, skip: str = "", queue: str = ""):
         pg = queries.merchants_page(conn, mode=mode, q=q or None, category=category or None, page=page)
         skipped = [s for s in skip.split("|") if s]
-        queue = queries.merchants_page(conn, mode="dudosas", per_page=200).rows
-        pending = [r for r in queue if r["key"] not in skipped]
+        todas = queries.merchants_page(conn, mode="dudosas", per_page=500).rows
+        # La cola enseña por defecto solo las que importan: ≥ 2 movimientos o ≥ 30 €. La cola larga
+        # de claves de un solo cargo pequeño se resume en euros y se puede abrir con ?queue=all.
+        importantes, cola_larga = queries.split_queue(todas)
+        queue_rows = todas if queue == "all" else importantes
+        pending = [r for r in queue_rows if r["key"] not in skipped]
         tx = taxonomy()
         current = pending[0] if pending else None
         suggestions: list[str] = []
@@ -327,8 +331,9 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         return render(
             request, conn, "merchants.html", page=pg, mode=mode, q=q or "", category=category or "",
             summary=queries.merchants_summary(conn), taxonomy=tx,
-            queue_current=current, queue_pos=len(queue) - len(pending) + 1, queue_total=len(queue),
-            queue_suggestions=suggestions, skip=skip,
+            queue_current=current, queue_pos=len(queue_rows) - len(pending) + 1, queue_total=len(queue_rows),
+            queue_suggestions=suggestions, skip=skip, queue_mode=queue,
+            tail_n=len(cola_larga), tail_total=sum(abs(float(r["total"])) for r in cola_larga),
         )
 
     @app.post("/merchants/{key:path}/category", response_class=HTMLResponse)
@@ -558,6 +563,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         "categorize": "Categorizar pendientes",
         "categorize-refresh": "Reaplicar reglas",
         "categorize-rebuild": "Reconstruir claves",
+        "categorize-retry": "Reintentar dudosas con el decider",
+        "second-opinion": "Segunda opinión del modelo de texto",
         "enrich": "Enriquecer dudosas por web",
         "alerts": "Recalcular recurrentes y alertas",
     }
@@ -574,6 +581,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
             "categorize": lambda log: service.job_categorize(s, p, log),
             "categorize-refresh": lambda log: service.job_categorize(s, p, log, refresh=True),
             "categorize-rebuild": lambda log: service.job_categorize(s, p, log, rebuild=True, refresh=True),
+            "categorize-retry": lambda log: service.job_categorize(s, p, log, retry=True),
+            "second-opinion": lambda log: service.job_categorize(s, p, log, second_opinion=True),
             "enrich": lambda log: service.job_enrich(s, p, log),
             "alerts": lambda log: service.job_alerts(s, p, log),
         }

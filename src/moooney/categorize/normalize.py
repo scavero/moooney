@@ -49,6 +49,34 @@ _AEAT = re.compile(r"\b(AEAT|DEVOLUCIONES? TRIBUTARIAS|HACIENDA)\b")
 
 FALLBACK_KEY = "SIN CLAVE"
 
+# Tipo de operación según el prefijo del concepto. Se pierde al construir la clave,
+# pero es una pista fuerte para el modelo: un recibo domiciliado rara vez es ocio.
+_OP_TYPES: list[tuple[str, tuple[str, ...]]] = [
+    ("bizum", ("BIZUM", "COMPRA BIZUM", "PAGO BIZUM")),
+    ("recibo domiciliado", ("RECIBO", "ADEUDO")),
+    ("compra con tarjeta", ("COMPRA", "PAGO MOVIL", "PAGO POR MOVIL", "PAGO EN", "PAGO DE", "PAGO ",
+                            "TRANSACCION CONTACTLESS", "SUMUP", "ZETTLE", "ZTL")),
+    ("transferencia", ("TRANSFERENCIA", "TRASPASO")),
+    ("retirada de efectivo", ("RETIRADA", "REINTEGRO")),
+    ("ingreso en cajero", ("INGRESO EN CAJERO",)),
+    ("liquidacion de tarjeta", ("LIQUIDACION",)),
+    ("nomina", ("NOMINA",)),
+    ("comision bancaria", ("COMISION",)),
+]
+
+
+def operation_type(concept: str) -> str | None:
+    """'RECIBO DE AGUAS DE LA VILLA' → 'recibo domiciliado'; None si no se reconoce."""
+    texto = re.sub(r"\s+", " ", _upper_sin_acentos(concept or "")).strip()
+    for marker in ("DEVOLUCION DE ", "DEVOLUCION "):
+        if texto.startswith(marker):
+            texto = texto[len(marker):]
+            break
+    for label, prefixes in _OP_TYPES:
+        if texto.startswith(prefixes):
+            return label
+    return None
+
 
 def _upper_sin_acentos(texto: str) -> str:
     nfkd = unicodedata.normalize("NFKD", texto.upper())

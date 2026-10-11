@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from moooney.categorize import embed
+from moooney.categorize.normalize import operation_type
 from moooney.categorize.rules import Rule, match_rules
 from moooney.categorize.taxonomy import Taxonomy
 from moooney.db import repo
@@ -30,6 +31,7 @@ class KeyJob:
     n: int
     avg_amount: float
     gap_days: float | None
+    op_type: str | None = None  # recibo domiciliado, compra con tarjeta… (ver normalize)
 
 
 def pending_jobs(conn: sqlite3.Connection) -> list[KeyJob]:
@@ -37,7 +39,7 @@ def pending_jobs(conn: sqlite3.Connection) -> list[KeyJob]:
     rows = conn.execute(
         """
         SELECT t.concept_clean AS k, COUNT(*) AS n, AVG(t.amount) AS avg_amount,
-               MIN(t.date) AS dmin, MAX(t.date) AS dmax
+               MIN(t.date) AS dmin, MAX(t.date) AS dmax, MIN(t.concept) AS concept
         FROM transactions t
         LEFT JOIN merchants m ON m.key = t.concept_clean
         WHERE t.concept_clean IS NOT NULL AND m.key IS NULL
@@ -56,7 +58,9 @@ def _jobs_from_rows(rows) -> list[KeyJob]:
             d0 = date.fromisoformat(r["dmin"])
             d1 = date.fromisoformat(r["dmax"])
             gap = (d1 - d0).days / (r["n"] - 1)
-        jobs.append(KeyJob(key=r["k"], n=r["n"], avg_amount=float(r["avg_amount"]), gap_days=gap))
+        concept = r["concept"] if "concept" in r.keys() else None
+        jobs.append(KeyJob(key=r["k"], n=r["n"], avg_amount=float(r["avg_amount"]), gap_days=gap,
+                           op_type=operation_type(concept) if concept else None))
     return jobs
 
 
@@ -68,12 +72,30 @@ def pending_jobs_for_keys(conn: sqlite3.Connection, keys: list[str]) -> list[Key
     rows = conn.execute(
         f"""
         SELECT concept_clean AS k, COUNT(*) AS n, AVG(amount) AS avg_amount,
-               MIN(date) AS dmin, MAX(date) AS dmax
+               MIN(date) AS dmin, MAX(date) AS dmax, MIN(concept) AS concept
         FROM transactions
         WHERE concept_clean IN ({placeholders})
         GROUP BY concept_clean
         """,
         keys,
+    ).fetchall()
+    return _jobs_from_rows(rows)
+
+
+def dudosa_jobs(conn: sqlite3.Connection, *, threshold: float = 0.7,
+                sources: tuple[str, ...] = ("clef", "clef_web", "llm")) -> list[KeyJob]:
+    """Claves dudosas (confianza < umbral u Otros) que vienen de un modelo, las de más euros primero."""
+    ph = ",".join("?" for _ in sources)
+    rows = conn.execute(
+        f"""
+        SELECT t.concept_clean AS k, COUNT(*) AS n, AVG(t.amount) AS avg_amount,
+               MIN(t.date) AS dmin, MAX(t.date) AS dmax, MIN(t.concept) AS concept
+        FROM merchants m JOIN transactions t ON t.concept_clean = m.key
+        WHERE m.source IN ({ph}) AND (m.confidence < ? OR m.category = 'Otros')
+        GROUP BY t.concept_clean
+        ORDER BY ABS(SUM(t.amount)) DESC
+        """,
+        [*sources, threshold],
     ).fetchall()
     return _jobs_from_rows(rows)
 
@@ -121,9 +143,10 @@ def build_state(job: KeyJob) -> str:
     media = round(job.avg_amount / 10) * 10
     tipo = "gasto" if job.avg_amount < 0 else "abono"
     gap = f", intervalo medio entre apariciones {round(job.gap_days)} dias" if job.gap_days else ""
+    op = f" Tipo de operacion: {job.op_type}." if job.op_type else ""
     return (
         f"Concepto de un apunte: {job.key}. "
-        f"Importe medio: {media:+.0f} EUR ({tipo}) en {job.n} apariciones{gap}."
+        f"Importe medio: {media:+.0f} EUR ({tipo}) en {job.n} apariciones{gap}.{op}"
     )
 
 

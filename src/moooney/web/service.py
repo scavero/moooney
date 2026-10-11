@@ -188,7 +188,8 @@ def job_ingest(settings: Settings, log: Logger) -> None:
 
 
 def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: bool = False,
-                   refresh: bool = False, rebuild: bool = False) -> None:
+                   refresh: bool = False, rebuild: bool = False, retry: bool = False,
+                   second_opinion: bool = False) -> None:
     taxonomy = taxonomy_for(paths)
     rules = load_rules(paths.rules, taxonomy=taxonomy)
     conn = repo.connect(settings.paths.db_path, check_same_thread=False)
@@ -224,6 +225,28 @@ def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: boo
         elif restantes:
             motivo = "modo offline" if offline_enabled() else "sin config/llm.yaml" if llm is None else "sin modelo"
             log(f"{len(restantes)} claves quedan pendientes ({motivo})")
+        if (retry or second_opinion) and not no_llm:
+            if llm is None or offline_enabled():
+                log("reintento/segunda opinión omitidos: " + ("modo offline" if offline_enabled() else "sin config/llm.yaml"))
+            else:
+                from moooney.categorize.reask import reask_dudosas
+                from moooney.categorize.second_opinion import run_second_opinion
+
+                if recorder is None:
+                    recorder = CallRecorder(conn)
+                cliente = LLMClient(llm, recorder=recorder)
+                if retry:
+                    rs = reask_dudosas(
+                        conn, build_decider(llm, cliente), taxonomy, build_questions(taxonomy),
+                        max_workers=llm.max_concurrency, on_progress=lambda k, m: log(f"  {k}: {m}"),
+                    )
+                    log(f"reintento: {rs.examined} dudosas, {rs.improved} mejoran "
+                        f"({rs.changed} cambian de categoría), {rs.failed} fallidas")
+                if second_opinion:
+                    recorder.flush()
+                    ss = run_second_opinion(conn, cliente, llm, taxonomy, on_progress=lambda k, m: log(f"  {k}: {m}"))
+                    log(f"segunda opinión: {ss.examined} dudosas, {ss.changed} cambian, {ss.confirmed} confirmadas, "
+                        f"{ss.kept} se quedan, {ss.failed} fallidas")
         sin = conn.execute("SELECT COUNT(*) AS n FROM transactions WHERE category IS NULL").fetchone()["n"]
         log(f"movimientos sin categoría: {sin}")
     finally:

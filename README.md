@@ -55,8 +55,10 @@ uv run moooney web
   año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
 - **Movimientos**: filtros por mes, categoría, flujo y texto, totales del filtro; la categoría se corrige en la
   propia fila; **Exportar CSV** descarga el filtro completo listo para Excel.
-- **Comercios**: cola de revisión de dudosas (una clave cada vez, con sugerencias y teclado) y tabla de todas
-  las claves con su fuente y confianza; corregir la categoría se aplica a todos sus movimientos para siempre.
+- **Comercios**: cola de revisión de dudosas (una clave cada vez, las que importan primero, con sugerencias y
+  teclado) y tabla de todas las claves con su fuente y confianza; corregir la categoría se aplica a todos sus
+  movimientos para siempre. Antes de revisar a mano, *Pipeline* ofrece **Reintentar dudosas** (el decider con el
+  tipo de operación y el resumen web) y **Segunda opinión** (el modelo de texto, por lotes).
 - **Recurrentes**, **Presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con
   proyección), **Alertas** (presupuesto al 80 / 100 %, importe anómalo, cargo duplicado, recurrente nuevo,
   subida de precio, ingreso que no llega, saldo proyectado negativo, comisiones).
@@ -135,7 +137,7 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `ingest` | Importa los Excel nuevos de `data/excel/` (idempotente) |
 | `status` | Estado de la base |
 | `merchants` | Claves de comercio con transacciones e importe |
-| `categorize` | Cascada de categorización; `--refresh-rules`, `--rebuild-keys`, `--enrich`, `--no-llm`, `--dry-run` |
+| `categorize` | Cascada de categorización; `--refresh-rules`, `--rebuild-keys`, `--enrich`, `--retry-dudosas`, `--second-opinion`, `--no-llm`, `--dry-run` |
 | `enrich` | Enriquecimiento externo; `--dry-run --out fichero` lista las consultas sin enviar nada |
 | `review` | Corregir a mano dudosas y Otros |
 | `eval-clef` | Mide al modelo contra claves etiquetadas a mano |

@@ -55,7 +55,7 @@ moooney/
     config.py
     db/          schema.sql  repo.py
     ingest/      detect.py  parse_santander.py  load.py
-    categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py
+    categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py  reask.py  second_opinion.py
     enrich/      settings.py  query.py  providers.py  runner.py
     analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py
     llm/         client.py  anonymize.py  prompts/

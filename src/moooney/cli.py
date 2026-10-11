@@ -192,6 +192,14 @@ def categorize(
         False, "--rebuild-keys",
         help="Recalcula todas las claves de comercio (tras cambiar la normalización), migrando la memoria.",
     ),
+    retry_dudosas: bool = typer.Option(
+        False, "--retry-dudosas",
+        help="Vuelve a preguntar al decider por las dudosas con tipo de operación y resumen web.",
+    ),
+    second_opinion: bool = typer.Option(
+        False, "--second-opinion",
+        help="Segunda opinión del modelo de texto, por lotes, sobre las dudosas que sigan siéndolo.",
+    ),
     config: Path = CONFIG_OPTION,
 ) -> None:
     """Categoriza las claves nuevas en cascada: reglas -> embeddings -> Clef."""
@@ -288,6 +296,35 @@ def categorize(
                 if recorder is not None:
                     recorder.flush()
                 _run_enrich(conn, enr, llm, cliente, taxonomy, limit=None, force=False, key=None)
+
+        if retry_dudosas or second_opinion:
+            if cliente is None or no_llm:
+                console.print("[yellow]reintento/segunda opinión omitidos: no hay modelo disponible[/yellow]")
+            else:
+                from moooney.categorize.reask import reask_dudosas
+                from moooney.categorize.second_opinion import run_second_opinion
+
+                questions = build_questions(taxonomy)
+                if retry_dudosas:
+                    rs = reask_dudosas(
+                        conn, build_decider(llm, cliente), taxonomy, questions,
+                        max_workers=llm.max_concurrency,
+                        on_progress=lambda k, m: console.print(f"  [dim]{k}[/dim]: {m}"),
+                    )
+                    console.print(
+                        f"reintento: {rs.examined} dudosas, [green]{rs.improved}[/green] mejoran "
+                        f"({rs.changed} cambian de categoría), {rs.failed} fallidas"
+                    )
+                if second_opinion:
+                    recorder.flush()
+                    ss = run_second_opinion(
+                        conn, cliente, llm, taxonomy,
+                        on_progress=lambda k, m: console.print(f"  [dim]{k}[/dim]: {m}"),
+                    )
+                    console.print(
+                        f"segunda opinión: {ss.examined} dudosas, [green]{ss.changed}[/green] cambian, "
+                        f"{ss.confirmed} confirmadas con más confianza, {ss.kept} se quedan, {ss.failed} fallidas"
+                    )
 
         _print_categorizacion(conn)
     finally:

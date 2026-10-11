@@ -54,6 +54,8 @@
     <div class="actions">
       <button class="btn primary" hx-post="/pipeline/jobs/categorize" hx-target="#job-panel" hx-swap="innerHTML">Categorizar pendientes</button>
       <a class="btn" href="/merchants?mode=dudosas">Revisar {{ merchants.dudosas }} dudosas</a>
+      <button class="btn" hx-post="/pipeline/jobs/categorize-retry" hx-target="#job-panel" hx-swap="innerHTML" title="vuelve a preguntar al decider por las dudosas, con el tipo de operación y el resumen web">Reintentar dudosas</button>
+      <button class="btn" hx-post="/pipeline/jobs/second-opinion" hx-target="#job-panel" hx-swap="innerHTML" title="el modelo de texto revisa por lotes las dudosas que sigan siéndolo; solo sustituye si está seguro">Segunda opinión</button>
       <details style="font-size:13px"><summary class="muted">mantenimiento</summary>
         <div class="actions" style="margin-top:8px">
           <button class="btn small" hx-post="/pipeline/jobs/categorize-refresh" hx-target="#job-panel" hx-swap="innerHTML" title="tras editar config/rules.yaml">Reaplicar reglas</button>
