@@ -27,8 +27,10 @@ Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.12 solo). O Docke
 
 ## Con tus datos
 
-1. **Exporta** los movimientos de tu cuenta a Excel desde la web del banco (Santander: Cuentas → Movimientos
-   → filtro de fechas amplio → Descargar → Excel). Déjalos en `data/excel/`.
+1. **Exporta** los movimientos de tu cuenta a Excel desde la web del banco y déjalos en `data/excel/`:
+   - **Santander**: Cuentas → Movimientos → filtro de fechas amplio → Descargar → Excel.
+   - **BBVA**: Cuentas → Movimientos → Exportar → Excel («Últimos movimientos»).
+   Se detecta el banco por la cabecera del fichero; puedes mezclar bancos en la misma carpeta.
 2. **Clave del modelo**: copia `.env.example` a `.env` y pon `LITELLM_API_KEY`. Vale cualquier servidor
    compatible con la API de OpenAI (LiteLLM, vLLM, Ollama…); los modelos se configuran en `config/llm.yaml`.
    Sin clave también funciona: categoriza por reglas y memoria, y el informe sale sin modelo.
@@ -159,8 +161,9 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `config/enrichment.yaml` | Enriquecimiento: activado, disparador, vetos, proveedores, tope de consultas |
 | `config/budgets.yaml` | Tus límites mensuales (ignorado por git; `budget init` lo crea) |
 
-Para otro banco basta con ajustar `settings.yaml` (fila de cabecera y alias de columnas) y, si hace falta,
-los prefijos de operación en `categorize/normalize.py`.
+Para otro banco se añade un perfil en `settings.yaml` bajo `banks:` (alias de columnas, etiqueta de cuenta)
+y, si su concepto no lleva el tipo de operación delante como el del Santander, un constructor de concepto en
+`ingest/banks.py` que lo reescriba a esa forma (el del BBVA es el ejemplo).
 
 ## Desarrollo
 

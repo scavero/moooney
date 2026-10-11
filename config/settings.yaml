@@ -20,3 +20,23 @@ parser:
     concept: ["concepto", "descripcion"]
     amount: ["importe", "importe eur", "importe (eur)", "importe en eur"]
     balance: ["saldo", "saldo eur", "saldo (eur)"]
+
+# Otros bancos. Se prueban en orden tras el perfil principal; gana el primero cuya
+# cabecera mapea todas sus columnas obligatorias. Para añadir un banco: alias de columnas
+# y, si su concepto no lleva el tipo de operación delante, un constructor en ingest/banks.py.
+banks:
+  - name: bbva
+    # "Últimos movimientos" exportado desde la web/app del BBVA (Cuentas → Movimientos → Exportar → Excel).
+    # No trae IBAN: la cuenta es una etiqueta fija. "F.Valor" es el día de la operación (la tarjeta se
+    # contabiliza días después en "Fecha"), por eso va como fecha principal. "Observaciones" lleva el
+    # número de tarjeta y no se mapea nunca.
+    account: bbva
+    concept_builder: bbva
+    required_columns: [date, concept, amount, balance]
+    columns:
+      date: ["f.valor", "f valor", "fecha valor"]
+      value_date: ["fecha", "f.operacion", "fecha operacion"]
+      concept: ["concepto"]
+      operation: ["movimiento"]
+      amount: ["importe", "importe eur", "importe (eur)"]
+      balance: ["disponible", "saldo"]

@@ -61,6 +61,40 @@ def make_santander_xlsx(
     return path
 
 
+FAKE_BBVA_ROWS = [
+    # (F.Valor, Fecha, Concepto, Movimiento, Importe, Disponible) — inventados
+    ("11/10/2026", "13/10/2026", "Tienda Inventada            villaficticia   es", "Pago con tarjeta", -12.5, 987.65),
+    ("10/10/2026", "13/10/2026", "Bizum", "Enviado: nota de prueba", -20.0, 1000.15),
+    ("06/10/2026", "06/10/2026", "Adeudo seguros ficticios", "Adeudo nº 20262780020093", -45.0, 1020.15),
+    ("04/10/2026", "05/10/2026", "Ret. efectivo  a debito con tarj. en cajero. aut.", "Otros", -50.0, 1065.15),
+    ("02/10/2026", "02/10/2026", "Transferencia realizada", "Alquiler piso de prueba", "-600,00", "1.115,15"),
+    ("01/10/2026", "01/10/2026", "Abono de nómina", "Empresa Ficticia SL", 1700.0, 1715.15),
+]
+
+
+def make_bbva_xlsx(path: Path, rows: list[tuple] = FAKE_BBVA_ROWS) -> Path:
+    """Genera un .xlsx con la estructura del "Últimos movimientos" del BBVA.
+
+    Columna A vacía, título y fecha de generación arriba (la fila 3 empieza por "Fecha"
+    y NO es la cabecera), cabecera en la fila 5 con dos columnas "Divisa" y una
+    "Observaciones" que lleva un número con pinta de tarjeta y nunca debe acabar en la base.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Informe BBVA"
+    ws["B2"] = "Últimos movimientos"
+    ws["B3"] = "Fecha de generación del informe: 11/10/2026"
+    labels = ["F.Valor", "Fecha", "Concepto", "Movimiento", "Importe", "Divisa", "Disponible", "Divisa", "Observaciones"]
+    for j, label in enumerate(labels, start=2):
+        ws.cell(row=5, column=j, value=label)
+    for i, (vdate, fdate, concept, movement, amount, balance) in enumerate(rows, start=6):
+        values = [vdate, fdate, concept, movement, amount, "EUR", balance, "EUR", f"4000111122223333 {concept.upper()}"]
+        for j, value in enumerate(values, start=2):
+            ws.cell(row=i, column=j, value=value)
+    wb.save(path)
+    return path
+
+
 def make_settings(tmp_path: Path) -> Settings:
     """Settings reales del repo con las rutas apuntando a tmp_path."""
     data = yaml.safe_load((REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8"))

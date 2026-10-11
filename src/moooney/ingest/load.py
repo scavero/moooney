@@ -53,7 +53,7 @@ def ingest_file(path: Path, conn, settings: Settings) -> IngestOutcome:
     if repo.get_import_by_hash(conn, sha256) is not None:
         return IngestOutcome(path.name, sha256, 0, 0, None, None, skipped=True)
 
-    result = inspect_file(path, settings.parser)
+    result = inspect_file(path, settings.profiles)
     df = result.df
     assert df is not None
     rows_total = len(df)

@@ -1,10 +1,12 @@
-"""Parser de extractos del Santander España (.xlsx).
+"""Parser de extractos bancarios (.xlsx): Santander y, por perfiles, otros bancos.
 
-Filas superiores con titular/IBAN/saldo, luego una fila de cabecera cuya primera
-celda no vacia contiene la palabra clave ("fecha", normalizada), y despues los
-movimientos. Todas las cadenas comparables se normalizan a minusculas sin acentos
-ni espacios dobles. Los mensajes de error solo mencionan nombres de columna o
-indices de fila, nunca valores de celdas.
+Filas superiores con titular/IBAN/saldo o con el título del informe, luego una fila
+de cabecera y después los movimientos. La cabecera se localiza por sus columnas: la
+primera fila en la que casan al menos dos alias del perfil; si a esa fila le falta una
+obligatoria, el error dice cuál (nunca valores de celdas). Se prueban los perfiles de
+`settings.profiles` en orden (Santander primero, luego `banks:`) y gana el primero que
+mapea todas sus columnas obligatorias. Todas las cadenas comparables se normalizan a
+minúsculas sin acentos ni espacios dobles.
 """
 
 import re
@@ -18,6 +20,8 @@ import pandas as pd
 from openpyxl import load_workbook
 
 from moooney.config import TARGET_COLUMNS, ParserSettings
+from moooney.ingest.banks import BUILDERS
+from moooney.ingest.banks import clean_concept as clean_concept  # reexportado: lo usan tests y load
 
 TARGET_COLUMNS_FULL = [*TARGET_COLUMNS, "account"]
 
@@ -36,6 +40,7 @@ class ParseError(Exception):
 class InspectResult:
     sheet_name: str
     header_row: int  # 1-based, como lo ve el usuario en Excel
+    bank: str = "santander"
     mapping: dict[str, str] = field(default_factory=dict)  # destino -> cabecera original
     unmapped: list[str] = field(default_factory=list)
     account_found: bool = False
@@ -63,24 +68,29 @@ def find_header_row(rows: list[tuple], keyword: str) -> int | None:
     return None
 
 
-def map_columns(header: tuple, parser: ParserSettings) -> tuple[dict[str, int], dict[int, str]]:
-    """Mapea columna destino -> indice de columna, y devuelve {indice: nombre original}."""
+def _match_header(header: tuple, parser: ParserSettings) -> tuple[dict[str, int], dict[int, str]]:
+    """Columnas destino que casan en esta fila (sin exigir las obligatorias)."""
     found_by_index: dict[int, str] = {}
     normalized: list[str | None] = []
-    for idx, cell in enumerate(header):
+    for cell in header:
         if cell is None or (isinstance(cell, str) and not cell.strip()):
             normalized.append(None)
             continue
-        name = normalize_name(cell)
-        normalized.append(name)
-        found_by_index[idx] = str(cell).strip()
+        normalized.append(normalize_name(cell))
+        found_by_index[len(normalized) - 1] = str(cell).strip()
 
     aliases = {target: {normalize_name(a) for a in al} for target, al in parser.columns.items()}
     mapping: dict[str, int] = {}
     for target, alias_set in aliases.items():
         for idx, name in enumerate(normalized):
-            if name is not None and name in alias_set and target not in mapping:
+            if name is not None and name in alias_set and target not in mapping and idx not in mapping.values():
                 mapping[target] = idx
+    return mapping, found_by_index
+
+
+def map_columns(header: tuple, parser: ParserSettings) -> tuple[dict[str, int], dict[int, str]]:
+    """Mapea columna destino -> indice de columna, y devuelve {indice: nombre original}."""
+    mapping, found_by_index = _match_header(header, parser)
     missing = [c for c in parser.required_columns if c not in mapping]
     if missing:
         raise ParseError(
@@ -88,6 +98,39 @@ def map_columns(header: tuple, parser: ParserSettings) -> tuple[dict[str, int], 
             f"{list(found_by_index.values())}"
         )
     return mapping, found_by_index
+
+
+MAX_HEADER_SEARCH = 60
+
+
+def detect_header(
+    rows: list[tuple], profiles: list[ParserSettings]
+) -> tuple[ParserSettings, int, dict[str, int], dict[int, str]]:
+    """(perfil, índice 0-based de la cabecera, mapeo, nombres originales).
+
+    Para cada perfil, la primera fila en la que casan al menos dos columnas destino es su
+    candidata; si le faltan obligatorias se guarda el error más informativo y se sigue.
+    """
+    best_error: ParseError | None = None
+    best_score = -1
+    for profile in profiles:
+        for i, row in enumerate(rows[:MAX_HEADER_SEARCH]):
+            partial, _ = _match_header(row, profile)
+            if len(partial) < 2:
+                continue
+            try:
+                mapping, found = map_columns(row, profile)
+            except ParseError as e:
+                if len(partial) > best_score:
+                    best_score, best_error = len(partial), e
+                continue
+            return profile, i, mapping, found
+    if best_error is not None:
+        raise best_error
+    raise ParseError(
+        "no se localizo la fila de cabecera (ninguna fila casa con las columnas de los perfiles "
+        f"{[p.name for p in profiles]}); filas leidas: {len(rows)}"
+    )
 
 
 def extract_account(prelude_rows: list[tuple]) -> str:
@@ -153,11 +196,6 @@ def parse_date_value(value: object) -> str:
     raise ParseError("fecha con formato no reconocido")
 
 
-def clean_concept(value: object) -> str:
-    s = str(value or "").upper().replace("\u00a0", " ")
-    return re.sub(r"\s+", " ", s).strip()
-
-
 def _read_rows(path: Path, parser: ParserSettings) -> tuple[str, list[tuple]]:
     if path.suffix.lower() == ".xls":
         raise ParseError("formato .xls no soportado; exporta el extracto a .xlsx")
@@ -176,17 +214,37 @@ def _read_rows(path: Path, parser: ParserSettings) -> tuple[str, list[tuple]]:
     return sheet_name, rows
 
 
-def inspect_file(path: Path, parser: ParserSettings) -> InspectResult:
-    """Parsea devolviendo tambien los metadatos que enseña el comando inspect."""
-    sheet_name, rows = _read_rows(path, parser)
-    header_idx = find_header_row(rows, parser.header_keyword)
-    if header_idx is None:
-        raise ParseError(
-            "no se localizo la fila de cabecera (primera celda no vacia con "
-            f"{parser.header_keyword!r}); filas leidas: {len(rows)}"
-        )
-    mapping_idx, found_by_index = map_columns(rows[header_idx], parser)
-    account = extract_account(rows[:header_idx])
+def inspect_file(path: Path, parser: ParserSettings | list[ParserSettings]) -> InspectResult:
+    """Parsea devolviendo tambien los metadatos que enseña el comando inspect.
+
+    Acepta un perfil o la lista de perfiles (`settings.profiles`): gana el primero que
+    reconoce la cabecera.
+    """
+    profiles = [parser] if isinstance(parser, ParserSettings) else list(parser)
+    by_sheet: dict[str | None, tuple[str, list[tuple]]] = {}
+    for p in profiles:
+        if p.sheet not in by_sheet:
+            by_sheet[p.sheet] = _read_rows(path, p)
+    # detect_header necesita filas de la hoja de cada perfil: se agrupan por hoja
+    chosen = None
+    error: ParseError | None = None
+    for sheet, (sheet_name, rows) in by_sheet.items():
+        try:
+            profile, header_idx, mapping_idx, found_by_index = detect_header(
+                rows, [p for p in profiles if p.sheet == sheet]
+            )
+        except ParseError as e:
+            error = error or e
+            continue
+        chosen = (profile, sheet_name, rows, header_idx, mapping_idx, found_by_index)
+        break
+    if chosen is None:
+        assert error is not None
+        raise error
+    profile, sheet_name, rows, header_idx, mapping_idx, found_by_index = chosen
+    parser = profile
+    account = extract_account(rows[:header_idx]) if parser.account == "iban" else parser.account
+    build_concept = BUILDERS[parser.concept_builder]
 
     def cell(row: tuple, target: str):
         idx = mapping_idx.get(target)
@@ -212,7 +270,7 @@ def inspect_file(path: Path, parser: ParserSettings) -> InspectResult:
             {
                 "date": iso_date,
                 "value_date": iso_vdate,
-                "concept": clean_concept(cell(row, "concept")),
+                "concept": build_concept(cell(row, "concept"), cell(row, "operation")),
                 "amount": amount,
                 "balance": balance,
                 "account": account,
@@ -223,11 +281,12 @@ def inspect_file(path: Path, parser: ParserSettings) -> InspectResult:
     result = InspectResult(
         sheet_name=sheet_name,
         header_row=header_idx + 1,
+        bank=parser.name,
         mapping={t: found_by_index[i] for t, i in sorted(mapping_idx.items())},
         unmapped=[
             n for idx, n in found_by_index.items() if idx not in mapping_idx.values()
         ],
-        account_found=account != "principal",
+        account_found=parser.account == "iban" and account != "principal",
         df=df,
     )
     return result
@@ -238,9 +297,11 @@ def parse(path: Path | str, settings: object) -> pd.DataFrame:
 
     Acepta un Settings completo o directamente su ParserSettings.
     """
-    parser = getattr(settings, "parser", settings)
-    if not isinstance(parser, ParserSettings):
-        raise TypeError("se espera Settings o ParserSettings")
-    result = inspect_file(Path(path), parser)
+    profiles = getattr(settings, "profiles", None)
+    if profiles is None:
+        if not isinstance(settings, ParserSettings):
+            raise TypeError("se espera Settings o ParserSettings")
+        profiles = [settings]
+    result = inspect_file(Path(path), profiles)
     assert result.df is not None
     return result.df

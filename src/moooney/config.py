@@ -7,6 +7,8 @@ from pydantic import BaseModel, field_validator
 
 # Columnas destino del parser. 'account' se deriva del IBAN, no de una columna.
 TARGET_COLUMNS = ["date", "value_date", "concept", "amount", "balance"]
+# Columnas opcionales que algunos bancos traen y el constructor de concepto aprovecha.
+OPTIONAL_COLUMNS = ["operation"]
 
 
 class PathsSettings(BaseModel):
@@ -16,10 +18,20 @@ class PathsSettings(BaseModel):
 
 
 class ParserSettings(BaseModel):
+    """Perfil de un banco: dónde está la tabla y cómo se llaman sus columnas.
+
+    `account`: "iban" deriva la cuenta del IBAN de las filas de cabecera; cualquier otro
+    valor es una etiqueta fija (el BBVA no exporta el IBAN). `concept_builder`: cómo se
+    compone el concepto a partir de las celdas (ver ingest/banks.py).
+    """
+
+    name: str = "santander"
     sheet: str | None = None
     header_keyword: str = "fecha"
     required_columns: list[str] = ["date", "concept", "amount", "balance"]
     columns: dict[str, list[str]]
+    account: str = "iban"
+    concept_builder: str = "plain"
 
     @field_validator("columns")
     @classmethod
@@ -27,7 +39,7 @@ class ParserSettings(BaseModel):
         faltan = [c for c in TARGET_COLUMNS if c not in v]
         if faltan:
             raise ValueError(f"faltan columnas destino en parser.columns: {faltan}")
-        desconocidas = [c for c in v if c not in TARGET_COLUMNS]
+        desconocidas = [c for c in v if c not in TARGET_COLUMNS and c not in OPTIONAL_COLUMNS]
         if desconocidas:
             raise ValueError(f"columnas destino desconocidas en parser.columns: {desconocidas}")
         return v
@@ -44,6 +56,12 @@ class ParserSettings(BaseModel):
 class Settings(BaseModel):
     paths: PathsSettings = PathsSettings()
     parser: ParserSettings
+    banks: list[ParserSettings] = []
+
+    @property
+    def profiles(self) -> list[ParserSettings]:
+        """Perfiles en orden de prueba: el principal (Santander) y después los demás bancos."""
+        return [self.parser, *self.banks]
 
 
 def load_settings(path: Path | None = None) -> Settings:

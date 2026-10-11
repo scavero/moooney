@@ -4,7 +4,7 @@ Contexto permanente para cualquier agente de IA que trabaje en este repositorio.
 
 ## Qué es este proyecto
 
-Pipeline local de finanzas personales. El usuario exporta a mano extractos de su cuenta del Santander (Excel), la pipeline los detecta, los limpia a CSV, los carga en SQLite, categoriza cada movimiento con un modelo de decisión (Clef-Flash) y calcula métricas, presupuestos, alertas, previsiones y consejos. Objetivo: mejorar la economía mensual del usuario sin que sus datos salgan de su máquina ni de la infraestructura de su organización.
+Pipeline local de finanzas personales. El usuario exporta a mano extractos de su cuenta (Excel del Santander o del BBVA; otros bancos por perfil en `settings.yaml`), la pipeline los detecta, los limpia a CSV, los carga en SQLite, categoriza cada movimiento con un modelo de decisión (Clef-Flash) y calcula métricas, presupuestos, alertas, previsiones y consejos. Objetivo: mejorar la economía mensual del usuario sin que sus datos salgan de su máquina ni de la infraestructura de su organización.
 
 ## Reglas inviolables
 
@@ -54,7 +54,7 @@ moooney/
     cli.py
     config.py
     db/          schema.sql  repo.py
-    ingest/      detect.py  parse_santander.py  load.py
+    ingest/      detect.py  parse_santander.py  banks.py  load.py
     categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py  reask.py  second_opinion.py
     enrich/      settings.py  query.py  providers.py  runner.py
     analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py

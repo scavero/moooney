@@ -62,16 +62,17 @@ def inspect(
     """Comprueba si el parser entiende un Excel. No muestra conceptos ni importes."""
     settings = _settings(config)
     try:
-        result = inspect_file(ruta, settings.parser)
+        result = inspect_file(ruta, settings.profiles)
     except ParseError as e:
         console.print(f"[red]No se ha podido interpretar {ruta.name}: {e}[/red]")
         raise typer.Exit(code=1) from None
 
     df = result.df
     assert df is not None
+    console.print(f"[bold]Banco:[/bold] {result.bank}")
     console.print(f"[bold]Hoja:[/bold] {result.sheet_name}")
     console.print(f"[bold]Fila de cabecera:[/bold] {result.header_row}")
-    console.print(f"[bold]Cuenta:[/bold] {'IBAN detectado' if result.account_found else 'principal'}")
+    console.print(f"[bold]Cuenta:[/bold] {'IBAN detectado' if result.account_found else 'etiqueta fija'}")
 
     table = Table(title="Mapeo de columnas")
     table.add_column("Columna destino")

@@ -12,6 +12,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # El cliente exige la variable aunque los tests usen un transporte simulado; valor falso.
+      LITELLM_API_KEY: ci-sin-red
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
