@@ -123,6 +123,8 @@ def test_reglas_reales_estaciones_de_servicio_y_marcas_vistas():
         "INTIM UOMO NERV": ("Compras", "ropa y calzado"),
         "ANA AEROPORTOS": ("Transporte", "transporte publico"),
         "UKVI": ("Impuestos y tasas", "trafico"),
+        "GA VI C C C": ("Alimentacion", "supermercado"),
+        "ALIPAY TIENDA FICTICIA": ("Ocio", "viajes"),
         "SOCIEDAD ESPANOLA DE ALGO": ("Educacion", "formacion"),
     }
     for clave, (cat, sub) in casos.items():
