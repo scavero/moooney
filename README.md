@@ -92,6 +92,32 @@ en la tabla `web_calls`; cada clave se consulta una sola vez (caché en `merchan
 La segunda ronda con Clef solo sobreescribe si mejora la confianza y nunca pisa una
 corrección tuya. `MOOONEY_OFFLINE=1` bloquea también estos proveedores.
 
+## Uso (fase 3: analítica)
+
+Todo determinista, sin modelos. La fecha de referencia es siempre la del último movimiento cargado.
+
+```powershell
+# Métricas del mes: ingresos, gastos (fijos/variables), ahorro, inversión y gasto por
+# categoría con variación frente al mes anterior y a la media de meses completos
+uv run moooney metrics                 # --month 2026-09 | --months 12
+
+# Cargos e ingresos recurrentes (periodo, importe, próxima fecha); --all incluye inactivos
+uv run moooney recurring
+
+# Presupuestos: propuesta inicial (mediana de 6 meses completos, -10 % en variables),
+# ajuste manual y seguimiento con proyección a fin de mes
+uv run moooney budget init             # --months 6 --cut 0.10 --force
+uv run moooney budget set Ocio 120
+uv run moooney budget show             # --month 2026-09
+
+# Alertas: presupuesto al 80/100 %, importe anómalo, cargo duplicado, recurrente nuevo,
+# subida de precio, ingreso ausente, saldo proyectado negativo, comisiones
+uv run moooney alerts                  # --ack ID | --ack-all
+```
+
+Los límites viven en `config/budgets.yaml` (ignorado por git; ejemplo en
+`config/budgets.example.yaml`) y se materializan por mes en la tabla `budgets`.
+
 ## Privacidad
 
 `data/`, `reports/` y los `.env` están ignorados por git. Ningún comando imprime conceptos,

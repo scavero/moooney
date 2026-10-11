@@ -43,7 +43,7 @@ Base URL `https://litellm.clusterticgalicia.com/v1`, API compatible con OpenAI, 
 moooney/
   AGENTS.md
   pyproject.toml
-  config/      settings.yaml  categories.yaml  rules.yaml  llm.yaml  enrichment.yaml  budgets.yaml  seed.yaml
+  config/      settings.yaml  categories.yaml  rules.yaml  llm.yaml  enrichment.yaml  budgets.yaml (ignorado)  budgets.example.yaml
   data/        (ignorado) excel/  clean/  moooney.db
   reports/     (ignorado)
   docs/        DESIGN.md  ARQUITECTURA.md  PROMPT_FASE1.md  PROMPT_FASE2.md  PROMPT_FASE2_5.md  clef_test.json  clef_test.ps1
@@ -54,7 +54,7 @@ moooney/
     ingest/      detect.py  parse_santander.py  load.py
     categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py
     enrich/      settings.py  query.py  providers.py  runner.py
-    analytics/   metrics.py  recurring.py  budgets.py  alerts.py  forecast.py
+    analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py
     llm/         client.py  anonymize.py  prompts/
     report/      monthly.py
   tests/
@@ -65,9 +65,9 @@ moooney/
 1. **Ingesta** (en curso): `inspect`, parseo Santander → CSV limpio, deduplicación, carga en SQLite, `status`. Sin IA. Ver `docs/PROMPT_FASE1.md`.
 2. **Categorización**: normalización de conceptos, memoria de comercios, reglas, embeddings, Clef-Flash, `review`. Ver `docs/PROMPT_FASE2.md`.
 2.5. **Enriquecimiento externo** (opcional): buscador o mapas para comercios que la cascada no resuelve. Ver `docs/PROMPT_FASE2_5.md`.
-3. **Analítica**: métricas mensuales, recurrentes, presupuestos, alertas.
-4. **Informe**: previsión, consejos con Qwen, informe mensual en Markdown.
-5. **Automatización**: `watch`, tarea programada, UI ligera.
+3. **Analítica** (hecha 2026-10-11): métricas mensuales, recurrentes, presupuestos, alertas. Comandos `metrics`, `recurring`, `budget init|set|show`, `alerts`.
+4. **Web app (GUI)**: interfaz web local para ver y controlar todo lo anterior: ingesta, categorización y revisión, enriquecimiento, métricas, recurrentes, presupuestos y alertas. Decisión del usuario (2026-10-11): la GUI va antes que el informe.
+5. **Informe y automatización**: previsión, consejos con Qwen sobre agregados, informe mensual, `watch` y tarea programada.
 
 ## Cómo trabajar con el usuario
 

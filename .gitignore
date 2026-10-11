@@ -22,6 +22,9 @@ backups/
 informes/
 reports/
 
+# Presupuestos del usuario (importes personales)
+config/budgets.yaml
+
 # Credenciales y configuración local
 .env
 .env.*

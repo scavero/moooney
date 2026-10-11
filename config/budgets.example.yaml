@@ -1,0 +1,9 @@
+# Ejemplo de config/budgets.yaml (ese fichero esta ignorado por git: son tus importes).
+# Generalo con `uv run moooney budget init` y ajustalo a mano o con `moooney budget set`.
+updated_at: 2026-01-01
+limits:
+  Alimentacion: 400
+  Transporte: 150
+  Ocio: 120
+  Compras: 100
+  Suscripciones: 40

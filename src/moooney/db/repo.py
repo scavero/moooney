@@ -25,8 +25,19 @@ def connect(db_path: Path, *, check_same_thread: bool = True) -> sqlite3.Connect
         conn.execute("DROP TABLE merchant_embeddings")
     schema = files("moooney.db").joinpath("schema.sql").read_text(encoding="utf-8")
     conn.executescript(schema)
+    _migrate(conn)
     conn.commit()
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Cambios sobre tablas ya creadas (CREATE IF NOT EXISTS no añade columnas)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(alerts)")}
+    if "dedup_key" not in cols:
+        conn.execute("ALTER TABLE alerts ADD COLUMN dedup_key TEXT")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_dedup ON alerts(dedup_key)"
+    )
 
 
 # ---------- imports ----------

@@ -7,6 +7,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from moooney.analytics import alerts as alerts_mod
+from moooney.analytics import budgets as budgets_mod
+from moooney.analytics import periods
+from moooney.analytics.metrics import build_report
+from moooney.analytics.recurring import detect_recurring, load_recurring, store_recurring
 from moooney.categorize.evaluate import CALIBRATION_BINS, evaluate, load_labels
 from moooney.categorize.keys import backfill_clean_keys, key_stats, rebuild_clean_keys
 from moooney.categorize.pipeline import (
@@ -652,6 +657,276 @@ def eval_clef(
     )
     if not (cat_ok and flow_ok):
         raise typer.Exit(code=1)
+
+
+# ---------- fase 3: analítica ----------
+
+
+def _eur(v: float | None) -> str:
+    return "—" if v is None else f"{v:,.0f} €"
+
+
+def _delta(v: float | None) -> str:
+    if v is None:
+        return "—"
+    color = "red" if v > 0 else "green"
+    return f"[{color}]{v:+,.0f} €[/{color}]"
+
+
+def _budgets_path(config: Path | None) -> Path:
+    return (config.parent if config else Path("config")) / "budgets.yaml"
+
+
+def _refresh_recurring(conn) -> int:
+    as_of = periods.as_of_date(conn)
+    if as_of is None:
+        return 0
+    items = detect_recurring(conn, as_of)
+    return store_recurring(conn, items, datetime.now().isoformat(timespec="seconds"))
+
+
+@app.command()
+def metrics(
+    month: str = typer.Option(None, "--month", help="Mes YYYY-MM (por defecto, el del último movimiento)."),
+    months: int = typer.Option(6, "--months", help="Meses de serie a mostrar."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Métricas del mes: ingresos, gastos, ahorro, fijo/variable y gasto por categoría."""
+    settings = _settings(config)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        _refresh_recurring(conn)
+        try:
+            report = build_report(conn, month, n_months=months)
+        except ValueError as e:
+            console.print(f"[red]{e}[/red]")
+            raise typer.Exit(code=1) from None
+    finally:
+        conn.close()
+
+    s = report.summary
+    aviso = "" if s.full_month else " [dim](mes incompleto)[/dim]"
+    console.print(f"[bold]Mes {report.month}[/bold]{aviso} · datos hasta {report.as_of}")
+    t = Table(title="Resumen del mes")
+    t.add_column("Métrica")
+    t.add_column("Valor", justify="right")
+    t.add_row("Ingresos", _eur(s.income))
+    t.add_row("Gastos", _eur(s.expenses))
+    t.add_row("  fijos (recurrentes)", _eur(s.fixed_expenses))
+    t.add_row("  variables", _eur(s.variable_expenses))
+    t.add_row("Ahorro neto (ingresos - gastos)", _eur(s.net))
+    t.add_row("Tasa de ahorro", "—" if s.savings_rate is None else f"{s.savings_rate:.0%}")
+    t.add_row("Aportado a inversión", _eur(s.investment))
+    t.add_row("Movimientos", str(s.n_tx))
+    console.print(t)
+
+    serie = Table(title=f"Últimos {len(report.series)} meses")
+    for col in ("Mes", "Ingresos", "Gastos", "Fijos", "Ahorro", "Tasa", "Inversión"):
+        serie.add_column(col, justify="right" if col != "Mes" else "left")
+    for m in report.series:
+        serie.add_row(
+            m.month + ("" if m.full_month else "*"), _eur(m.income), _eur(m.expenses),
+            _eur(m.fixed_expenses), _eur(m.net),
+            "—" if m.savings_rate is None else f"{m.savings_rate:.0%}", _eur(m.investment),
+        )
+    console.print(serie)
+    if any(not m.full_month for m in report.series):
+        console.print("[dim]* mes incompleto en los datos[/dim]")
+
+    cat = Table(title="Gasto por categoría")
+    for col in ("Categoría", "Importe", "%", "Fijo", "vs mes ant.", "vs media"):
+        cat.add_column(col, justify="right" if col != "Categoría" else "left")
+    for c in report.categories:
+        cat.add_row(c.category, _eur(c.amount), f"{c.pct:.0f} %", _eur(c.fixed_amount),
+                    _delta(c.delta_prev), _delta(c.delta_avg))
+    console.print(cat)
+    n_hist = report.categories[0].n_prev_months if report.categories else 0
+    console.print(f"[dim]vs media: {n_hist} meses completos anteriores[/dim]")
+
+
+@app.command()
+def recurring(
+    all_items: bool = typer.Option(False, "--all", help="Incluye recurrentes inactivos."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Detecta cargos e ingresos recurrentes (periodo, importe, próxima fecha)."""
+    settings = _settings(config)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        n = _refresh_recurring(conn)
+        rows = load_recurring(conn, active_only=not all_items)
+    finally:
+        conn.close()
+    t = Table(title=f"Recurrentes ({len(rows)} de {n} detectados)")
+    for col in ("Clave", "Categoría", "Periodo", "Importe", "Fijo", "Último", "Próximo", "Activo"):
+        t.add_column(col)
+    for r in rows:
+        t.add_row(
+            r["key"][:36], r["category"] or "—", r["period_label"],
+            f"{r['amount_avg']:+,.2f} €", "sí" if r["amount_cv"] <= 0.15 else "varía",
+            r["last_seen"], r["next_expected"], "sí" if r["active"] else "no",
+        )
+    console.print(t)
+
+
+budget_app = typer.Typer(help="Presupuestos mensuales por categoría.")
+app.add_typer(budget_app, name="budget")
+
+
+@budget_app.command("init")
+def budget_init(
+    months: int = typer.Option(6, "--months", help="Meses completos de histórico para la mediana."),
+    cut: float = typer.Option(0.10, "--cut", help="Recorte objetivo en categorías variables (0.10 = 10 %)."),
+    force: bool = typer.Option(False, "--force", help="Sobrescribe config/budgets.yaml si existe."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Propone límites por categoría (mediana del histórico menos un recorte) y los guarda."""
+    settings = _settings(config)
+    path = _budgets_path(config)
+    if path.exists() and not force:
+        console.print(f"[yellow]{path} ya existe; usa --force para regenerarlo[/yellow]")
+        raise typer.Exit(code=1)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        _refresh_recurring(conn)
+        as_of = periods.as_of_date(conn)
+        if as_of is None:
+            console.print("[red]no hay transacciones[/red]")
+            raise typer.Exit(code=1)
+        month = periods.month_of(as_of)
+        proposal = budgets_mod.propose_budgets(
+            conn, month, months=months, cut=cut, as_of=as_of, first=periods.first_date(conn)
+        )
+        if not proposal:
+            console.print("[red]no hay meses completos suficientes para proponer presupuestos[/red]")
+            raise typer.Exit(code=1)
+        limits = {cat: v["limit"] for cat, v in proposal.items()}
+        budgets_mod.save_budgets_config(
+            path, limits, meta={"source": "proposal", "months": months, "cut": cut, "as_of": as_of}
+        )
+        budgets_mod.materialize_month(conn, month, limits, source="proposal")
+    finally:
+        conn.close()
+    t = Table(title=f"Propuesta de presupuesto (mediana de {months} meses completos)")
+    for col in ("Categoría", "Mediana", "% fijo", "Recorte", "Límite"):
+        t.add_column(col, justify="right" if col != "Categoría" else "left")
+    for cat, v in proposal.items():
+        t.add_row(cat, _eur(v["median"]), f"{v['fixed_share']:.0%}",
+                  f"{v['cut_applied']:.0%}", f"[bold]{_eur(v['limit'])}[/bold]")
+    console.print(t)
+    console.print(f"guardado en {path}; ajústalo a mano o con [bold]moooney budget set[/bold]")
+
+
+@budget_app.command("set")
+def budget_set(
+    categoria: str = typer.Argument(..., help="Categoría tal como aparece en categories.yaml."),
+    importe: float = typer.Argument(..., help="Límite mensual en euros."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Fija el límite de una categoría (para el mes actual y los siguientes)."""
+    settings = _settings(config)
+    try:
+        taxonomy = load_taxonomy()
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1) from None
+    if categoria not in taxonomy.categories:
+        console.print(f"[red]categoría desconocida: {categoria!r}[/red]")
+        raise typer.Exit(code=1)
+    path = _budgets_path(config)
+    limits = budgets_mod.load_budgets_config(path)
+    limits[categoria] = importe
+    budgets_mod.save_budgets_config(path, limits, meta={"source": "user"})
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        as_of = periods.as_of_date(conn)
+        if as_of:
+            budgets_mod.materialize_month(
+                conn, periods.month_of(as_of), {categoria: importe}, source="user"
+            )
+    finally:
+        conn.close()
+    console.print(f"[green]{categoria}: {importe:,.0f} €/mes[/green]")
+
+
+@budget_app.command("show")
+def budget_show(
+    month: str = typer.Option(None, "--month", help="Mes YYYY-MM (por defecto, el actual)."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Gastado frente a presupuesto, con proyección a fin de mes."""
+    settings = _settings(config)
+    limits_cfg = budgets_mod.load_budgets_config(_budgets_path(config))
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        as_of = periods.as_of_date(conn)
+        if as_of is None:
+            console.print("[red]no hay transacciones[/red]")
+            raise typer.Exit(code=1)
+        month = month or periods.month_of(as_of)
+        limits = budgets_mod.limits_for_month(conn, month, limits_cfg)
+        if not limits:
+            console.print("[yellow]sin presupuestos: ejecuta `moooney budget init`[/yellow]")
+            raise typer.Exit(code=1)
+        if month == periods.month_of(as_of) and limits_cfg:
+            budgets_mod.materialize_month(conn, month, limits_cfg, source="config")
+            limits = limits_cfg
+        rows = budgets_mod.budget_status(conn, month, limits, as_of=as_of)
+    finally:
+        conn.close()
+    t = Table(title=f"Presupuesto {month} (datos hasta {as_of})")
+    for col in ("Categoría", "Límite", "Gastado", "%", "Restante", "Proyección"):
+        t.add_column(col, justify="right" if col != "Categoría" else "left")
+    for r in rows:
+        color = "red" if r.pct >= 100 else "yellow" if r.pct >= 80 else "green"
+        t.add_row(r.category, _eur(r.limit), _eur(r.spent), f"[{color}]{r.pct:.0f} %[/{color}]",
+                  _eur(r.remaining), _eur(r.projected))
+    console.print(t)
+
+
+@app.command()
+def alerts(
+    ack: int = typer.Option(None, "--ack", help="Marca como vista la alerta con este id."),
+    ack_all: bool = typer.Option(False, "--ack-all", help="Marca todas como vistas."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Detecta alertas (presupuesto, anomalías, duplicados, recurrentes, saldo, comisiones)."""
+    settings = _settings(config)
+    limits_cfg = budgets_mod.load_budgets_config(_budgets_path(config))
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        if ack is not None or ack_all:
+            n = alerts_mod.acknowledge(conn, None if ack_all else ack)
+            console.print(f"[green]{n} alerta(s) marcadas como vistas[/green]")
+            return
+        as_of = periods.as_of_date(conn)
+        if as_of is None:
+            console.print("[red]no hay transacciones[/red]")
+            raise typer.Exit(code=1)
+        _refresh_recurring(conn)
+        month = periods.month_of(as_of)
+        budget_rows = None
+        if limits_cfg:
+            limits = budgets_mod.limits_for_month(conn, month, limits_cfg)
+            budget_rows = budgets_mod.budget_status(conn, month, limits, as_of=as_of)
+        found = alerts_mod.run_alerts(conn, as_of, budget_rows, month)
+        nuevas = alerts_mod.store_alerts(conn, found)
+        pendientes = alerts_mod.pending_alerts(conn)
+    finally:
+        conn.close()
+    console.print(f"{len(found)} alertas detectadas, [bold]{nuevas}[/bold] nuevas, "
+                  f"{len(pendientes)} pendientes de ver (datos hasta {as_of})")
+    if not pendientes:
+        return
+    t = Table(title="Alertas pendientes")
+    for col in ("id", "Nivel", "Fecha", "Tipo", "Mensaje"):
+        t.add_column(col)
+    colores = {"critical": "red", "warning": "yellow", "info": "cyan"}
+    for a in pendientes:
+        c = colores.get(a["severity"], "white")
+        t.add_row(str(a["id"]), f"[{c}]{a['severity']}[/{c}]", a["date"], a["type"], a["message"])
+    console.print(t)
+    console.print("[dim]moooney alerts --ack ID  ·  --ack-all[/dim]")
 
 
 if __name__ == "__main__":

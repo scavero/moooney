@@ -34,10 +34,17 @@ flowchart LR
         ROUND2["runner.py<br/>segunda ronda con Clef<br/>solo si mejora la confianza"]
     end
 
-    subgraph f3["Fases 3-5 · pendientes"]
-        METRICS["analytics/<br/>métricas, recurrentes,<br/>presupuestos, alertas"]:::todo
-        REPORT["report/<br/>previsión e informe mensual<br/>(Qwen sobre agregados)"]:::todo
-        WATCH["watch / tarea programada / UI"]:::todo
+    subgraph f3["Fase 3 · Analítica (sin IA)"]
+        RECUR["recurring.py<br/>periodo, importe, próxima fecha"]
+        METRICS["metrics.py<br/>ingresos, gastos fijos/variables,<br/>ahorro, categorías vs histórico"]
+        BUDGET["budgets.py<br/>propuesta (mediana -10 %),<br/>seguimiento y proyección"]
+        ALERTS["alerts.py<br/>8 detectores por reglas,<br/>dedup por clave"]
+    end
+
+    subgraph f45["Fases 4-5 · pendientes"]
+        GUI["Fase 4 · web app local<br/>ver y controlar toda la pipeline"]:::todo
+        REPORT["Fase 5 · report/<br/>previsión, consejos e informe<br/>(Qwen sobre agregados)"]:::todo
+        WATCH["Fase 5 · watch / tarea programada"]:::todo
     end
 
     DB[("data/moooney.db<br/>SQLite")]
@@ -48,7 +55,13 @@ flowchart LR
     DB --> NORM --> CASCADE --> DB
     DB --> REVIEW --> DB
     CASCADE -. "confianza < 0,6<br/>o categoría Otros" .-> QUERY --> PROV --> ROUND2 --> DB
-    DB --> METRICS --> REPORT
+    DB --> RECUR --> DB
+    DB --> METRICS
+    DB --> BUDGET --> DB
+    RECUR --> ALERTS
+    BUDGET --> ALERTS --> DB
+    DB -.-> GUI
+    METRICS -.-> REPORT
     WATCH -.-> DETECT
 
     classDef todo fill:#eee,stroke:#999,color:#666,stroke-dasharray: 4 3
@@ -144,12 +157,14 @@ las dos fronteras a la vez.
 flowchart TB
     subgraph cli["cli.py (typer)"]
         C1[inspect] --- C2[ingest] --- C3[status] --- C4[merchants] --- C5[categorize] --- C6[enrich] --- C7[review] --- C8[eval-clef]
+        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts]
     end
 
     subgraph src["src/moooney/"]
         ING["ingest/<br/>detect · parse_santander · load"]
         CAT["categorize/<br/>normalize · keys · rules · taxonomy<br/>embed · pipeline · evaluate"]
         ENRM["enrich/<br/>settings · query · providers · runner"]
+        ANA["analytics/<br/>periods · recurring · metrics<br/>budgets · alerts"]
         LLM["llm/<br/>client · anonymize · decide"]
         DBM["db/<br/>schema.sql · repo"]
     end
@@ -162,7 +177,9 @@ flowchart TB
         T5[(merchant_enrichment)]
         T6[(llm_calls)]
         T7[(web_calls)]
-        T8[(budgets · alerts<br/>fase 3)]:::todo
+        T8[(recurring)]
+        T9[(budgets)]
+        T10[(alerts)]
     end
 
     subgraph cfg["config/*.yaml"]
@@ -171,16 +188,18 @@ flowchart TB
         Y3[rules]
         Y4[llm]
         Y5[enrichment]
+        Y6[budgets · ignorado]
     end
 
-    cli --> ING & CAT & ENRM
+    cli --> ING & CAT & ENRM & ANA
     CAT --> LLM
     ENRM --> LLM
-    ING & CAT & ENRM & LLM --> DBM --> tablas
+    ING & CAT & ENRM & ANA & LLM --> DBM --> tablas
     Y1 --> ING
     Y2 & Y3 --> CAT
     Y4 --> LLM
     Y5 --> ENRM
+    Y6 --> ANA
 
     classDef todo fill:#eee,stroke:#999,color:#666,stroke-dasharray: 4 3
 ```

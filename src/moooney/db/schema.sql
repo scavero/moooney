@@ -101,3 +101,23 @@ CREATE TABLE IF NOT EXISTS web_calls (
     status       TEXT NOT NULL,
     payload_hash TEXT
 );
+
+-- Fase 3: recurrentes detectados (se recalcula entero en cada `recurring`).
+CREATE TABLE IF NOT EXISTS recurring (
+    key           TEXT PRIMARY KEY,
+    category      TEXT,
+    flow_type     TEXT NOT NULL,
+    period_days   INTEGER NOT NULL,
+    period_label  TEXT NOT NULL,
+    n             INTEGER NOT NULL,
+    amount_avg    REAL NOT NULL,
+    amount_last   REAL NOT NULL,
+    amount_cv     REAL NOT NULL,
+    first_seen    TEXT NOT NULL,
+    last_seen     TEXT NOT NULL,
+    next_expected TEXT NOT NULL,
+    active        INTEGER NOT NULL DEFAULT 1,
+    updated_at    TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_category_month ON budgets(category, month);
