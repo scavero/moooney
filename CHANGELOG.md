@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.1.0)
+## 1.1.1 · 2026-11-06
 
 - **Comercios y Tendencias** con el mismo criterio de legibilidad: en Comercios, barra de progreso de la cola,
   la dudosa marcada en ámbar junto a la categoría actual y la tabla de claves en cinco columnas (origen, última
