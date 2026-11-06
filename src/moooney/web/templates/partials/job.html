@@ -1,18 +1,20 @@
-<div class="card" style="margin-bottom:16px" id="job-{{ job.id }}"
+<div class="card job" style="margin-bottom:24px" id="job-{{ job.id }}"
      {% if job.running %}hx-get="/pipeline/jobs/{{ job.id }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
-  <h2>{{ job.name }}
-    <span class="tag {{ 'info' if job.running else 'ok' if job.status == 'done' else 'crit' }}">{{ 'en marcha…' if job.running else 'terminado' if job.status == 'done' else 'error' }}</span>
-    <span class="concept">{{ job.started_at[11:19] }}{% if job.finished_at %} → {{ job.finished_at[11:19] }}{% endif %}</span>
-  </h2>
+  <div class="topbar" style="margin-bottom:8px;align-items:baseline">
+    <h2 style="margin:0">{{ job.name }}
+      <span class="tag {{ 'info' if job.running else 'ok' if job.status == 'done' else 'crit' }}" style="vertical-align:middle">{{ 'en marcha…' if job.running else 'terminado' if job.status == 'done' else 'error' }}</span>
+    </h2>
+    <span class="concept">Empezó a las {{ job.started_at[11:19] }}{% if job.finished_at %}, terminó a las {{ job.finished_at[11:19] }}{% endif %}</span>
+  </div>
   {% if job.error %}<div class="notice crit">{{ job.error }}</div>{% endif %}
   <div class="log">{% for line in job.lines %}{{ line }}
 {% else %}…{% endfor %}</div>
   {% if not job.running %}
-  <div class="actions" style="margin-top:8px">
-    {% if job.name.startswith('Informe') %}<a class="btn small primary" href="/report">Ver informe</a>{% endif %}
-    <a class="btn small" href="/pipeline">Actualizar página</a>
-    <a class="btn small" href="/merchants?mode=dudosas">Revisar dudosas</a>
-    <a class="btn small" href="/">Resumen</a>
+  <div class="actions" style="margin-top:12px">
+    {% if job.name.startswith('Informe') %}<a class="btn primary" href="/report">Ver informe</a>{% endif %}
+    <a class="btn ghost" href="/pipeline">Actualizar página</a>
+    <a class="btn ghost" href="/merchants?mode=dudosas">Revisar dudosas</a>
+    <a class="btn ghost" href="/">Resumen</a>
   </div>
   {% endif %}
 </div>

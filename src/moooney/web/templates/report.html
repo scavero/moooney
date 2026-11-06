@@ -2,13 +2,14 @@
 {% block title %}Informe {{ month|mes }}{% endblock %}
 {% block content %}
 <div class="topbar">
-  <div><h1>Informe y consejos</h1><div class="subtitle"><span style="text-transform:capitalize">{{ month|mes }}</span> · acciones ordenadas por euros al mes · ningún movimiento sale de aquí</div></div>
+  <div><h1>Informe y consejos</h1><div class="subtitle"><span style="text-transform:capitalize">{{ month|mes }}</span>. Acciones ordenadas por euros al mes; ningún movimiento sale de aquí.</div></div>
   <div class="month-nav">
-    <a class="btn" href="/report?month={{ prev_month }}">‹</a>
-    <select onchange="window.location='/report?month='+this.value">
+    <a class="btn ghost" href="/report?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>
+    <label for="month-select" style="position:absolute;left:-9999px">Mes</label>
+    <select id="month-select" onchange="window.location='/report?month='+this.value">
       {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}
     </select>
-    <a class="btn" href="/report?month={{ next_month }}">›</a>
+    <a class="btn ghost" href="/report?month={{ next_month }}" aria-label="mes siguiente" title="mes siguiente">›</a>
   </div>
 </div>
 
@@ -19,12 +20,12 @@
 <div class="grid three">
   <div class="card">
     {% if report %}
-    <div class="muted" style="font-size:12px;margin-bottom:8px">generado el <span title="{{ report.created_at }}">{{ report.created_at[:10]|fecha }} {{ report.created_at[11:16] }}</span> · {{ 'con el modelo ' ~ report.model if report.kind == 'modelo' else 'sin modelo, a partir de las reglas' }}</div>
+    <div class="concept" style="margin-bottom:12px">Generado el <span title="{{ report.created_at }}">{{ report.created_at[:10]|fecha }} a las {{ report.created_at[11:16] }}</span>, {{ 'con el modelo ' ~ report.model if report.kind == 'modelo' else 'sin modelo, a partir de las reglas' }}.</div>
     <div class="prose">{{ report_html|safe }}</div>
     {% else %}
     <div class="empty">
-      <p>Todavía no hay informe de <span style="text-transform:capitalize">{{ month|mes }}</span>.</p>
-      <p class="muted">La versión sin modelo ordena los hallazgos del diagnóstico y sale al instante; la versión con modelo redacta a partir de los mismos agregados.</p>
+      <p style="font-size:18px">Todavía no hay informe de <span style="text-transform:capitalize">{{ month|mes }}</span>.</p>
+      <p style="max-width:52ch;margin:8px auto 16px">La versión sin modelo ordena los hallazgos del diagnóstico y sale al instante. La versión con modelo redacta a partir de los mismos agregados.</p>
       <form method="post" action="/report/generate-offline?month={{ month }}"><button class="btn primary" type="submit">Generar ahora (sin modelo)</button></form>
     </div>
     {% endif %}
@@ -35,13 +36,14 @@
       <div class="concept" style="margin-bottom:12px">{{ model_name }} recibe solo los agregados de abajo y devuelve un informe breve. Tarda unos segundos y queda en la auditoría.</div>
       <div class="actions">
         <button class="btn primary" hx-post="/report/generate?month={{ month }}" hx-target="#job-panel" hx-swap="innerHTML" {% if offline or not has_llm %}disabled{% endif %}>Redactar con el modelo</button>
-        {% if report %}<form method="post" action="/report/generate-offline?month={{ month }}"><button class="btn" type="submit">Regenerar sin modelo</button></form>{% endif %}
+        {% if report %}<form method="post" action="/report/generate-offline?month={{ month }}"><button class="btn ghost" type="submit">Regenerar sin modelo</button></form>{% endif %}
       </div>
-      {% if offline or not has_llm %}<div class="concept" style="color:#8a4b00;margin-top:8px">No disponible: {{ 'modo offline (MOOONEY_OFFLINE=1)' if offline else 'falta config/llm.yaml o la clave LITELLM_API_KEY' }}. <a href="/pipeline">Ver en Pipeline →</a></div>{% endif %}
+      {% if offline or not has_llm %}<div class="flag" style="margin-top:12px">No disponible: {{ 'modo offline' if offline else 'falta config/llm.yaml o la clave del proxy' }}. <a href="/settings">Ver en Ajustes →</a></div>{% endif %}
     </div>
     <div class="card">
-      <h2>Qué se le enviaría</h2>
-      <details><summary>ver el JSON de agregados</summary><pre class="log" style="max-height:400px">{{ payload_json }}</pre></details>
+      <h2 style="margin-bottom:4px">Qué se le enviaría</h2>
+      <div class="concept" style="margin-bottom:8px">Agregados del mes, sin movimientos ni comercios sueltos.</div>
+      <details><summary>Ver el JSON de agregados ↓</summary><pre class="log" style="max-height:400px;margin-top:8px">{{ payload_json }}</pre></details>
     </div>
   </div>
 </div>

@@ -341,7 +341,9 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .steps .step:last-child { border-right: 0; }
 .steps .num { font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--dominant); }
 .steps .step.todo .num { color: var(--warn-ink); }
-.steps .label { font-weight: 700; } .steps .hint { color: var(--ink-3); font-size: 13px; margin: 2px 0 10px; }
+.steps .label { font-weight: 700; } .steps .hint { color: var(--ink-3); font-size: 13px; margin: 2px 0 12px; }
+.steps .btn { white-space: nowrap; }
+.job .log { max-height: 280px; }
 
 /* ---------- tabla mes a mes: intensidad ---------- */
 td.heat { background: rgba(14, 59, 46, calc(0.02 + 0.16 * var(--v, 0))); }

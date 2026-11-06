@@ -1,13 +1,13 @@
 {% if items %}
-<div class="notice">{{ items|selectattr('query')|list|length }} consultas saldrían a Internet ({{ items|length }} candidatas; las que no tienen consulta están vetadas: personas, bizums, PayPal…). Solo sale el texto de la columna <strong>consulta</strong>.</div>
-<div style="max-height:320px;overflow:auto">
-<table>
+<div class="notice">{{ items|selectattr('query')|list|length }} consultas saldrían a Internet, de {{ items|length }} candidatas. Las que no tienen consulta están vetadas: personas, bizums, PayPal… Solo sale el texto de la columna <strong>Consulta</strong>.</div>
+<div class="scroll-x" style="max-height:320px;overflow:auto">
+<table class="keys-table">
   <tr><th>Clave</th><th>Categoría actual</th><th>Consulta que saldría</th></tr>
   {% for i in items %}
   <tr class="{{ '' if i.query else 'muted' }}">
-    <td>{{ i.key }}</td>
-    <td class="muted">{{ i.category }} ({{ '%.2f'|format(i.confidence) }})</td>
-    <td>{% if i.query %}<code>{{ i.query }}</code>{% else %}<span class="tag">vetada</span>{% endif %}</td>
+    <td style="font-weight:500">{{ i.key }}</td>
+    <td style="color:var(--ink-2)">{{ i.category }} ({{ '%.2f'|format(i.confidence)|replace('.', ',') }})</td>
+    <td>{% if i.query %}<code>{{ i.query }}</code>{% else %}<span class="tag info">vetada</span>{% endif %}</td>
   </tr>
   {% endfor %}
 </table>

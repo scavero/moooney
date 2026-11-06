@@ -84,7 +84,7 @@ def test_web_informe_sin_modelo_en_offline(demo):
         assert r.status_code == 200
         assert "En una frase" in r.text and "reglas" in r.text
         r = c.get("/report?month=2026-09")
-        assert r.status_code == 200 and "ver el JSON" in r.text
+        assert r.status_code == 200 and "el JSON de agregados" in r.text
 
 
 def test_watch_detecta_excel_nuevo_y_corre_la_pipeline(tmp_path, monkeypatch):

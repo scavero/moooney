@@ -1,5 +1,13 @@
 # Cambios
 
+## Sin publicar (tras 1.1.3)
+
+- **Informe, Pipeline y Ajustes** con el mismo criterio de legibilidad: subtítulos y notas como frases, navegación
+  de mes de Informe como en Resumen, aviso de «no disponible» con la marca ámbar en vez de un color suelto, botones
+  del stepper y del panel de trabajo a 40 px, mantenimiento de categorización plegado con explicación, tablas de
+  Pipeline con la misma densidad que Comercios, etiquetas en los campos de clave, «opcional» en peso 400 y el texto
+  largo de Ajustes a 16 px.
+
 ## 1.1.3 · 2026-11-06
 
 - **Alertas** con el mismo criterio de legibilidad: filtros de nivel y «Pendientes / Con las vistas» como
