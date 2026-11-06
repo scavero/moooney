@@ -327,12 +327,12 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .budget-table input[type=number] { min-height: 36px; width: 84px; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* ---------- alertas por grupo ---------- */
-.alert-group { margin-bottom: var(--s4); }
+.alert-group { margin-bottom: var(--s5); }
 .alert-group h2 span { font-family: var(--font-body); font-weight: 400; color: var(--ink-3); font-size: 15px; }
-.alert-group .explain { color: var(--ink-3); font-size: 13px; margin-bottom: var(--s1); }
-.alert-group .row { display: grid; grid-template-columns: 62px 64px minmax(0, 1fr) auto; gap: 12px; align-items: center;
-  padding: 10px 0; border-bottom: 1px solid var(--hair); }
-.alert-group .row.seen { color: var(--ink-3); }
+.alert-table td { padding-top: 8px; padding-bottom: 8px; }
+.alert-table td.when { white-space: nowrap; color: var(--ink-2); font-weight: 400; }
+.alert-table .tag { min-width: 56px; text-align: center; }
+.alert-table tr.seen td, .alert-table tr.seen a { color: var(--ink-3); }
 
 /* ---------- pipeline: stepper ---------- */
 .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); border-top: 1px solid var(--hair);

@@ -1,5 +1,12 @@
 # Cambios
 
+## Sin publicar (tras 1.1.2)
+
+- **Alertas** con el mismo criterio de legibilidad: filtros de nivel y «Pendientes / Con las vistas» como
+  controles segmentados (los chips salían todos en verde desde el cambio de Movimientos), cada grupo como tabla
+  con cabecera (nivel, fecha, qué pasa, acción), el comercio o la categoría en peso 500 al inicio del mensaje y
+  aviso propio cuando un filtro no devuelve nada.
+
 ## 1.1.2 · 2026-11-06
 
 - **Recurrentes y Presupuestos** con el mismo criterio de legibilidad: en Recurrentes, control «Activos / Con

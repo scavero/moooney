@@ -2,41 +2,56 @@
 {% block title %}Alertas{% endblock %}
 {% block content %}
 <div class="topbar">
-  <div><h1>Alertas</h1><div class="subtitle">reglas, no modelo: cada alerta se puede reproducir con una consulta · recalcular no duplica</div></div>
+  <div><h1>Alertas</h1><div class="subtitle">Reglas, no modelo: cada alerta se puede reproducir con una consulta. Recalcular no duplica.</div></div>
   <div class="actions">
+    {% if alerts_counts.total %}<form method="post" action="/alerts/ack-all"><button class="btn ghost" type="submit">Marcar todas como vistas</button></form>{% endif %}
     <form method="post" action="/alerts/refresh"><button class="btn primary" type="submit">Recalcular</button></form>
-    {% if alerts_counts.total %}<form method="post" action="/alerts/ack-all"><button class="btn" type="submit">Marcar todas como vistas</button></form>{% endif %}
   </div>
 </div>
+
 {% set base = '/alerts?all=' ~ all %}
-<div class="chips" style="align-items:center;margin-bottom:24px">
-  <a class="chip {{ 'on' if not severity else 'ghost' }}" href="{{ base }}">todas {{ total }}</a>
-  <a class="chip {{ 'on' if severity == 'critical' else 'ghost' }}" href="{{ base }}&severity=critical">críticas {{ counts.critical }}</a>
-  <a class="chip {{ 'on' if severity == 'warning' else 'ghost' }}" href="{{ base }}&severity=warning">avisos {{ counts.warning }}</a>
-  <a class="chip {{ 'on' if severity == 'info' else 'ghost' }}" href="{{ base }}&severity=info">datos {{ counts.info }}</a>
-  <label style="margin-left:auto;display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);cursor:pointer"><input type="checkbox" {{ 'checked' if all else '' }} onchange="window.location='/alerts?all={{ 0 if all else 1 }}&severity={{ severity }}'">ver también las vistas</label>
+<div class="filters" style="margin-bottom:24px">
+  <div class="segmented" aria-label="Nivel">
+    <a class="{{ 'on' if not severity else '' }}" href="{{ base }}">Todas <span>{{ total }}</span></a>
+    <a class="{{ 'on' if severity == 'critical' else '' }}" href="{{ base }}&severity=critical">Críticas <span>{{ counts.critical }}</span></a>
+    <a class="{{ 'on' if severity == 'warning' else '' }}" href="{{ base }}&severity=warning">Avisos <span>{{ counts.warning }}</span></a>
+    <a class="{{ 'on' if severity == 'info' else '' }}" href="{{ base }}&severity=info">Datos <span>{{ counts.info }}</span></a>
+  </div>
+  <div class="segmented" aria-label="Qué alertas ver" style="margin-left:auto">
+    <a class="{{ '' if all else 'on' }}" href="/alerts?severity={{ severity }}">Pendientes</a>
+    <a class="{{ 'on' if all else '' }}" href="/alerts?all=1&severity={{ severity }}">Con las vistas</a>
+  </div>
 </div>
+
 {% if rows %}
   {% for type, items in groups.items() %}
   <div class="alert-group">
     <div class="topbar" style="margin-bottom:4px;align-items:baseline">
       <h2 style="margin:0">{{ ALERT_TYPE_LABEL.get(type, type) }} <span>{{ items|length }}</span></h2>
-      {% if items|rejectattr('acknowledged')|list %}<form method="post" action="/alerts/ack-type/{{ type }}"><button class="link-btn" type="submit" style="padding:0;font-size:12px">marcar el grupo como visto</button></form>{% endif %}
+      {% if items|rejectattr('acknowledged')|list %}<form method="post" action="/alerts/ack-type/{{ type }}"><button class="link-btn" type="submit" style="padding:0">Marcar el grupo como visto</button></form>{% endif %}
     </div>
-    <div class="explain">{{ ALERT_EXPLAIN.get(type, '') }}</div>
-    {% for a in items %}
-    <div class="row {{ 'seen' if a.acknowledged else '' }}">
-      <span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ SEVERITY_LABEL[a.severity] }}</span>
-      <span class="num muted" style="font-size:13px" title="{{ a.date }}">{{ a.date|fecha }}</span>
-      <span>{{ a.message }}
-        {% set subject = a.message.split(':')[0] %}
-        {% if a.type.startswith('budget') %}<a href="/transactions?month={{ a.date[:7] }}&category={{ subject|urlencode }}"><strong>ver movimientos →</strong></a>
-        {% elif a.type in ('anomalous_amount', 'duplicate_charge', 'price_increase', 'new_recurring', 'missing_income') %}<a href="/transactions?key={{ subject|urlencode }}"><strong>ver comercio →</strong></a>
-        {% elif a.type == 'bank_fee' %}<a href="/transactions?month={{ a.date[:7] }}&category=Comisiones%20bancarias"><strong>ver comisiones →</strong></a>{% endif %}</span>
-      <span>{% if not a.acknowledged %}<button class="btn small" hx-post="/alerts/{{ a.id }}/ack" hx-target="closest .row" hx-swap="outerHTML">Entendido</button>{% else %}<span class="concept">vista</span>{% endif %}</span>
-    </div>
-    {% endfor %}
+    <div class="concept" style="margin-bottom:8px">{{ ALERT_EXPLAIN.get(type, '') }}</div>
+    <table class="alert-table">
+      <tr><th>Nivel</th><th>Fecha</th><th>Qué pasa</th><th></th></tr>
+      {% for a in items %}
+      {% set subject = a.message.split(':')[0] %}
+      {% set rest = a.message[subject|length:] %}
+      <tr class="{{ 'seen' if a.acknowledged else '' }}">
+        <td><span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ SEVERITY_LABEL[a.severity] }}</span></td>
+        <td class="when" title="{{ a.date }}">{{ a.date|fecha }}</td>
+        <td><span style="font-weight:500">{{ subject }}</span>{{ rest }}
+          {% if a.type.startswith('budget') %} <a href="/transactions?month={{ a.date[:7] }}&category={{ subject|urlencode }}" style="font-weight:700;white-space:nowrap">Ver movimientos →</a>
+          {% elif a.type in ('anomalous_amount', 'duplicate_charge', 'price_increase', 'new_recurring', 'missing_income') %} <a href="/transactions?key={{ subject|urlencode }}" style="font-weight:700;white-space:nowrap">Ver comercio →</a>
+          {% elif a.type == 'bank_fee' %} <a href="/transactions?month={{ a.date[:7] }}&category=Comisiones%20bancarias" style="font-weight:700;white-space:nowrap">Ver comisiones →</a>{% endif %}</td>
+        <td class="num">{% if not a.acknowledged %}<button class="btn small" hx-post="/alerts/{{ a.id }}/ack" hx-target="closest tr" hx-swap="outerHTML">Entendido</button>{% else %}<span class="concept">vista</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
   </div>
   {% endfor %}
-{% else %}<div class="empty">Nada pendiente. Pulsa <strong>Recalcular</strong> tras importar movimientos nuevos.</div>{% endif %}
+{% elif severity or all %}
+<div class="notice ok">Nada que mostrar con este filtro. <a href="/alerts">Ver todas las pendientes</a>.</div>
+{% else %}
+<div class="notice ok"><strong>Nada pendiente.</strong> Pulsa <strong>Recalcular</strong> tras importar movimientos nuevos.</div>
+{% endif %}
 {% endblock %}
