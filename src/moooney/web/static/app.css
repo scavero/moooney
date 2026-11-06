@@ -125,7 +125,7 @@ tr.saved td { background: var(--dominant-soft); }
 .filters form { display: contents; }
 .pager { display: flex; gap: var(--s2); align-items: center; justify-content: flex-end; margin-top: var(--s2); color: var(--ink-2); font-size: 14px; }
 .inline-form { display: inline-flex; gap: 6px; align-items: center; }
-.inline-form select, .inline-form input { min-height: 32px; padding: 0 8px; font-size: 14px; max-width: 170px; }
+.inline-form select, .inline-form input { min-height: 36px; padding: 0 8px; font-size: 14px; max-width: 170px; }
 .actions { display: flex; gap: var(--s1); flex-wrap: wrap; align-items: center; }
 details summary { cursor: pointer; color: var(--dominant); }
 .concept { color: var(--ink-3); font-size: 13px; font-weight: 400; }
@@ -254,8 +254,8 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .tx-table .name { font-weight: 500; }
 .tx-table .raw { color: var(--ink-3); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
 /* marca de categoría dudosa: punto ámbar (o coral si la confianza es < 0,5) y texto de aviso */
-.doubt { color: var(--warn-ink); font-weight: 700; font-size: 13px; }
-.doubt::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 6px; vertical-align: middle; }
+.doubt, .flag { color: var(--warn-ink); font-weight: 700; font-size: 13px; }
+.doubt::before, .flag::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 6px; vertical-align: middle; }
 .doubt.low::before { background: var(--accent); }
 .tx-table .raw .doubt { font-size: inherit; }
 .tx-table .inline-tags { color: var(--dominant); font-weight: 700; }
@@ -310,12 +310,21 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .bar .today { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
 .bar.thin { height: 4px; margin-top: 6px; min-width: 0; }
 
-/* ---------- recurrentes: calendario ---------- */
-.calendar .row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
-  padding: 10px 0; border-bottom: 1px solid var(--hair); }
-.calendar .d { font-family: var(--font-display); font-weight: 800; font-size: 16px; white-space: nowrap; }
-.calendar .k { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.calendar .run { color: var(--ink-3); font-size: 13px; min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+/* ---------- recurrentes: tabla y calendario ---------- */
+.rec-table td { padding-top: 8px; padding-bottom: 8px; }
+.rec-table tr.inactive td, .rec-table tr.inactive a { color: var(--ink-3); }
+.cal-table td.day { font-weight: 700; white-space: nowrap; vertical-align: middle; }
+.cal-table td.k { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-table td.run { color: var(--ink-2); font-weight: 400; }
+.cal-table td.run.neg { color: var(--accent-ink); font-weight: 700; }
+
+/* ---------- presupuestos: seguimiento ---------- */
+.grid.budget { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1400px) { .grid.budget { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
+.budget-table td { padding-top: 8px; padding-bottom: 8px; }
+.budget-table .bar { min-width: 120px; }
+.budget-table .bar-text { display: flex; justify-content: space-between; gap: var(--s2); margin-top: 8px; font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+.budget-table input[type=number] { min-height: 36px; width: 84px; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* ---------- alertas por grupo ---------- */
 .alert-group { margin-bottom: var(--s4); }

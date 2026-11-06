@@ -1,16 +1,19 @@
+{% set over = r.pct >= 100 %}
 <tr class="{{ 'saved' if saved else '' }}">
-  <td style="white-space:nowrap">{{ r.category }}</td>
-  <td><div class="bar {{ 'crit' if r.pct >= 100 else 'warn' if r.pct >= 80 else '' }}"><span style="width:{{ [r.pct, 100]|min }}%"></span><i class="today" style="left:{{ today_pct|default(100) }}%"></i></div>
-    <span class="concept">{{ '%.0f'|format(r.pct) }} %</span></td>
-  <td class="num">{{ r.spent|eur }}</td>
+  <td style="white-space:nowrap;font-weight:500">{{ r.category }}</td>
+  <td>
+    <div class="bar {{ 'crit' if over else 'warn' if r.pct >= 80 else '' }}"><span style="width:{{ [r.pct, 100]|min }}%"></span><i class="today" style="left:{{ today_pct|default(100) }}%"></i></div>
+    <div class="bar-text"><span>{{ r.spent|eur }} de {{ r.limit|eur }}</span><span class="{{ 'flag' if over else '' }}">{{ '%.0f'|format(r.pct) }} %</span></div>
+  </td>
   <td class="num {{ 'neg' if r.remaining < 0 else '' }}">{{ r.remaining|eur }}</td>
   <td class="num {{ 'neg' if r.projected and r.projected > r.limit else 'muted' }}">{{ r.projected|eur if r.projected is not none else '—' }}</td>
   <td class="num">
     {# Se guarda al salir del campo o con Enter; sin botón. #}
     <form class="inline-form" hx-post="/budgets/{{ r.category|urlencode }}" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML">
       <input type="hidden" name="month" value="{{ month }}">
-      <input type="number" name="amount" value="{{ '%.0f'|format(r.limit) }}" min="0" step="5" style="width:84px;text-align:right" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-      {% if saved %}<span class="concept" style="color:var(--dominant);font-weight:800">✓</span>{% endif %}
+      <label for="lim-{{ r.category|replace(' ', '_') }}" style="position:absolute;left:-9999px">Límite de {{ r.category }}</label>
+      <input id="lim-{{ r.category|replace(' ', '_') }}" type="number" name="amount" value="{{ '%.0f'|format(r.limit) }}" min="0" step="5" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+      {% if saved %}<span style="color:var(--dominant);font-weight:800" title="guardado">✓</span>{% endif %}
     </form>
   </td>
 </tr>

@@ -1,50 +1,64 @@
 {% extends "base.html" %}
 {% block title %}Recurrentes{% endblock %}
 {% block content %}
+{% set n_active = rows|selectattr('active')|list|length %}
 <div class="topbar">
-  <div><h1>Recurrentes</h1><div class="subtitle">cargos e ingresos que se repiten con un periodo reconocible · datos hasta <span title="{{ as_of }}">{{ as_of|fecha }}</span></div></div>
-  <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);cursor:pointer"><input type="checkbox" {{ 'checked' if all else '' }} onchange="window.location='/recurring{{ '' if all else '?all=1' }}'">incluir inactivos</label>
+  <div><h1>Recurrentes</h1><div class="subtitle">Cargos e ingresos que se repiten con un periodo reconocible. Datos hasta <strong title="{{ as_of }}">{{ as_of|fecha }}</strong>.</div></div>
+  <div class="segmented" aria-label="Qué recurrentes ver">
+    <a class="{{ '' if all else 'on' }}" href="/recurring">Activos</a>
+    <a class="{{ 'on' if all else '' }}" href="/recurring?all=1">Con inactivos</a>
+  </div>
 </div>
+
 <div class="grid kpis section">
-  <div class="card kpi"><div class="label">Gasto fijo mensual</div><div class="value neg">{{ monthly_fixed|eur }}</div><div class="hint">{{ rows|selectattr('active')|list|length }} recurrentes activos, a 30 días</div></div>
+  <div class="card kpi"><div class="label">Gasto fijo mensual</div><div class="value neg">{{ monthly_fixed|eur }}</div><div class="hint">{{ n_active }} recurrentes activos, llevados a 30 días</div></div>
   <div class="card kpi"><div class="label">Próximos 30 días</div><div class="value neg">{{ charges_total|eur }}</div><div class="hint">{{ charges_n }} cargos previstos antes del <span title="{{ horizon }}">{{ horizon|fecha }}</span></div></div>
   <div class="card kpi"><div class="label">Saldo tras los cargos</div><div class="value {{ 'pos' if after >= 0 else 'neg' }}">{{ after|eur }}</div><div class="hint">saldo actual {{ balance|eur }}{% if next_income %} · sin contar el ingreso del <span title="{{ next_income }}">{{ next_income|fecha }}</span>{% endif %}</div></div>
 </div>
+
 <div class="grid three section">
   <div class="card">
-    <h2>Todos</h2>
+    <h2 style="margin-bottom:4px">{{ 'Todos los recurrentes' if all else 'Recurrentes activos' }}</h2>
+    <div class="concept" style="margin-bottom:8px">{{ rows|length }} en total. Pulsa una clave para ver sus movimientos.{% if price_up %} Los marcados en ámbar han subido de precio en el último cobro.{% endif %}</div>
     <div class="scroll-x">
-    <table>
-      <tr><th>Clave</th><th>Periodo</th><th class="num">Importe medio</th><th>Estabilidad</th><th>Último</th><th>Próximo</th></tr>
+    <table class="rec-table">
+      <tr><th>Clave</th><th>Periodo</th><th class="num">Importe</th><th class="num">Último</th><th class="num">Próximo</th></tr>
       {% for r in rows %}
-      <tr class="{{ '' if r.active else 'muted' }}">
-        <td><a href="/transactions?key={{ r.key|urlencode }}">{{ r.key }}</a><div class="concept">{{ r.category or '—' }}{% if not r.active %} · inactivo{% endif %}</div></td>
-        <td>{{ r.period_label }}</td>
+      <tr class="{{ '' if r.active else 'inactive' }}">
+        <td style="min-width:0">
+          <a class="name" href="/transactions?key={{ r.key|urlencode }}" style="font-weight:500">{{ r.key }}</a>
+          <div class="concept" style="margin-top:2px">{{ r.category or 'Sin categoría' }} · {{ 'importe fijo' if r.amount_cv <= 0.15 else 'importe variable' }}{% if not r.active %} · inactivo{% endif %}</div>
+        </td>
+        <td style="white-space:nowrap">{{ r.period_label }}</td>
         <td class="num {{ 'pos' if r.amount_avg > 0 else '' }}">{{ r.amount_avg|eur(2) }}
-          {% if r.key in price_up %}<div class="concept" style="color:#8a4b00;font-weight:800">sube: último {{ (r.amount_last|abs)|eur(2) }}</div>{% endif %}</td>
-        <td>{% if r.amount_cv <= 0.15 %}<span class="tag ok">fijo</span>{% else %}<span class="tag warn">varía</span>{% endif %}</td>
-        <td class="num muted" title="{{ r.last_seen }}">{{ r.last_seen|fecha }}</td>
+          {% if r.key in price_up %}<div class="flag" style="margin-top:2px">Sube: último {{ (r.amount_last|abs)|eur(2) }}</div>{% endif %}</td>
+        <td class="num" style="color:var(--ink-2);font-weight:400" title="{{ r.last_seen }}">{{ r.last_seen|fecha }}</td>
         <td class="num" title="{{ r.next_expected }}">{{ r.next_expected|fecha }}</td>
       </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Todavía no hay recurrentes detectados.</td></tr>
       {% endfor %}
     </table>
     </div>
   </div>
   <div class="card">
     <h2 style="margin-bottom:4px">Calendario de cargos</h2>
-    <div class="concept" style="margin-bottom:12px">próximos 30 días con el saldo que iría quedando</div>
-    <div class="calendar">
+    <div class="concept" style="margin-bottom:8px">Próximos 30 días, con el saldo que iría quedando tras cada cargo.</div>
+    {% if calendar %}
+    <table class="cal-table">
+      <tr><th>Día</th><th>Cargo</th><th class="num">Importe</th><th class="num">Queda</th></tr>
       {% for r, running in calendar %}
-      <div class="row">
-        <span class="d" title="{{ r.next_expected }}">{{ r.next_expected|fecha }}</span>
-        <span class="k {{ 'pos' if r.flow_type == 'income' else '' }}">{{ r.key }}</span>
-        <span class="num {{ 'pos' if r.amount_avg > 0 else '' }}">{{ '%+.2f'|format(r.amount_avg)|replace('.', ',') if r.amount_avg > 0 else r.amount_avg|eur(2) }}{% if r.amount_avg > 0 %} €{% endif %}</span>
-        <span class="run">{{ running|eur }}</span>
-      </div>
-      {% else %}
-      <p class="muted">Nada previsto en los próximos 30 días.</p>
+      <tr>
+        <td class="day" title="{{ r.next_expected }}">{{ r.next_expected|fecha }}</td>
+        <td class="k"><a href="/transactions?key={{ r.key|urlencode }}" style="font-weight:500">{{ r.key }}</a></td>
+        <td class="num {{ 'inc' if r.amount_avg > 0 else 'exp' }}">{{ r.amount_avg|eur(2) }}</td>
+        <td class="num run {{ 'neg' if running < 0 else '' }}">{{ running|eur }}</td>
+      </tr>
       {% endfor %}
-    </div>
+    </table>
+    {% else %}
+    <p class="muted">Nada previsto en los próximos 30 días.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

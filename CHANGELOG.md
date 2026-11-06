@@ -1,5 +1,13 @@
 # Cambios
 
+## Sin publicar (tras 1.1.1)
+
+- **Recurrentes y Presupuestos** con el mismo criterio de legibilidad: en Recurrentes, control «Activos / Con
+  inactivos», tabla de cinco columnas con categoría y estabilidad bajo la clave, subida de precio marcada en ámbar
+  y el calendario como tabla con cabecera y saldo restante. En Presupuestos, mes y día en el subtítulo, navegación
+  de mes como en Resumen, seguimiento en cinco columnas con «gastado de límite» bajo la barra, campos con
+  etiqueta y la página a una columna por debajo de 1400 px para que la tabla no se corte.
+
 ## 1.1.1 · 2026-11-06
 
 - **Comercios y Tendencias** con el mismo criterio de legibilidad: en Comercios, barra de progreso de la cola,
