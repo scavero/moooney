@@ -164,6 +164,24 @@ class LLMClient:
         except (KeyError, TypeError) as exc:
             raise LLMError("respuesta de embeddings sin data[].embedding") from exc
 
+    def list_models(self) -> list[str]:
+        """Identificadores de modelo que el proxy ofrece a esta clave. Sirve de prueba de conexión."""
+        if offline_enabled():
+            raise LLMError(f"modo offline ({OFFLINE_ENV}=1): no se permite red")
+        headers = {"Authorization": f"Bearer {self._api_key()}"}
+        try:
+            resp = self._http().get("/models", headers=headers)
+        except httpx.HTTPError as exc:
+            raise LLMError(f"sin conexión con el proxy: {exc}") from exc
+        if resp.status_code in (401, 403):
+            raise LLMError(f"el proxy rechaza la clave ({resp.status_code})")
+        if resp.status_code >= 400:
+            raise LLMError(f"el proxy responde {resp.status_code}")
+        try:
+            return [str(m["id"]) for m in resp.json().get("data", [])]
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise LLMError("respuesta de /models malformada") from exc
+
     # ---- interno ----
 
     def _http(self) -> httpx.Client:

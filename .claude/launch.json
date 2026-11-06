@@ -10,7 +10,7 @@
     {
       "name": "moooney-demo",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "moooney", "demo", "--serve", "--no-open", "--port", "8766"],
+      "runtimeArgs": ["run", "--no-sync", "moooney", "demo", "--serve", "--no-open", "--port", "8766"],
       "port": 8766
     }
   ]

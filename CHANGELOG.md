@@ -14,6 +14,9 @@
 - **Varias cuentas**: saldo = suma del último saldo de cada cuenta; filtro y columna de cuenta en Movimientos.
 - **Etiquetas** libres en movimientos sueltos, con filtro, totales, CSV y comando `tag`.
 - **Exportar CSV** desde Movimientos y comando `export`; tarea programada documentada; licencia MIT; CI.
+- **Ajustes** en la web: la clave del proxy (y Google Places) se pega en la página y se guarda en `data/.env`,
+  con prueba de conexión (`GET /models`) e interruptor de modo offline. La CLI y la web leen `data/.env` y
+  `./.env` sin depender de variables del sistema; el entorno del proceso, si existe, sigue mandando.
 - Revisión UX de toda la interfaz: etiquetas humanas, fechas cortas, chips, totales del filtro, calendario
   de cargos, marca «hoy» en presupuestos, alertas por grupo, stepper en Pipeline.
 

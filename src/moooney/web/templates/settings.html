@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Ajustes{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Ajustes</h1><div class="subtitle">claves del proxy y modo offline · se guardan en <code>{{ env_path }}</code>, nunca en git ni en la imagen</div></div>
+</div>
+
+{% if notice %}<div class="notice {{ notice_kind or 'ok' }}">{{ notice }}</div>{% endif %}
+{% if offline %}<div class="notice warn">Modo offline: no se llama a ningún modelo ni proveedor externo. La pipeline sigue con reglas y memoria; el informe usa la versión sin modelo.</div>{% endif %}
+
+<div class="grid two section">
+  <div class="card">
+    <h2 style="margin-bottom:4px">Clave del proxy de modelos</h2>
+    <div class="concept" style="margin-bottom:12px">La única credencial que necesita moooney. Con ella se categoriza con el modelo de decisión, se buscan parecidos y se redacta el informe.</div>
+    {% set k = keys.LITELLM_API_KEY %}
+    <dl class="kv" style="margin-bottom:16px">
+      <dt>estado</dt><dd>{% if k.set %}<span class="tag ok">configurada</span> <span class="muted">{{ k.hint }}</span>{% else %}<span class="tag warn">sin configurar</span>{% endif %}</dd>
+      <dt>origen</dt><dd class="muted">{{ k.source_label }}</dd>
+      <dt>proxy</dt><dd>{% if llm %}{{ llm.base_url }}{% else %}<span class="muted">sin config/llm.yaml</span>{% endif %}</dd>
+    </dl>
+    <form method="post" action="/settings/key" class="actions" style="align-items:center">
+      <input type="hidden" name="name" value="LITELLM_API_KEY">
+      <input type="password" name="value" placeholder="{{ 'sustituir la clave' if k.set else 'pega aquí la clave' }}" autocomplete="off" spellcheck="false" style="min-width:280px">
+      <button class="btn {{ '' if k.set else 'primary' }}" type="submit">Guardar</button>
+    </form>
+    <div class="actions" style="margin-top:12px">
+      <button class="btn {{ 'primary' if k.set else '' }}" hx-post="/settings/test" hx-target="#llm-test" hx-swap="innerHTML" {% if not k.set %}disabled{% endif %}>Probar conexión</button>
+      {% if k.set and k.removable %}
+      <form method="post" action="/settings/key/remove" style="display:inline"><input type="hidden" name="name" value="LITELLM_API_KEY"><button class="btn danger" type="submit">Quitar</button></form>
+      {% endif %}
+    </div>
+    <div id="llm-test" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:4px">Modo offline</h2>
+    <div class="concept" style="margin-bottom:12px">Bloquea toda llamada a modelos y a Internet. Útil para probar o si el proxy no está a mano.</div>
+    <dl class="kv" style="margin-bottom:16px">
+      <dt>estado</dt><dd>{% if offline %}<span class="tag warn">activado</span>{% else %}<span class="tag ok">desactivado</span>{% endif %}</dd>
+      <dt>origen</dt><dd class="muted">{{ offline_source_label }}</dd>
+    </dl>
+    <form method="post" action="/settings/offline" class="actions">
+      <input type="hidden" name="enabled" value="{{ 0 if offline else 1 }}">
+      <button class="btn {{ 'primary' if offline else '' }}" type="submit">{{ 'Volver a usar los modelos' if offline else 'Activar modo offline' }}</button>
+    </form>
+
+    <h2 style="margin:32px 0 4px">Google Places <span class="muted" style="font-weight:300;font-size:13px">opcional</span></h2>
+    <div class="concept" style="margin-bottom:12px">Solo para el enriquecimiento web, si lo activas en Pipeline con Google como proveedor.</div>
+    {% set g = keys.GOOGLE_PLACES_API_KEY %}
+    <dl class="kv" style="margin-bottom:12px">
+      <dt>estado</dt><dd>{% if g.set %}<span class="tag ok">configurada</span> <span class="muted">{{ g.hint }}</span> <span class="muted">· {{ g.source_label }}</span>{% else %}<span class="tag">sin configurar</span>{% endif %}</dd>
+    </dl>
+    <form method="post" action="/settings/key" class="actions" style="align-items:center">
+      <input type="hidden" name="name" value="GOOGLE_PLACES_API_KEY">
+      <input type="password" name="value" placeholder="clave de Google Places" autocomplete="off" spellcheck="false" style="min-width:220px">
+      <button class="btn" type="submit">Guardar</button>
+      {% if g.set and g.removable %}</form><form method="post" action="/settings/key/remove" style="display:inline"><input type="hidden" name="name" value="GOOGLE_PLACES_API_KEY"><button class="btn danger" type="submit">Quitar</button>{% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="section">
+  <h2 style="margin-bottom:8px">Dónde se guarda y qué manda</h2>
+  <div class="concept" style="max-width:720px">
+    Lo que guardas aquí va a <code>{{ env_path }}</code> (carpeta de datos, fuera de git y de la imagen Docker).
+    Si la misma variable ya existe en el entorno del proceso (variable de usuario de Windows, <code>.env</code> de docker compose),
+    esa manda y aquí aparece como «variable de entorno»: para cambiarla hay que tocarla donde está. Un <code>.env</code> en la
+    raíz del proyecto también se lee, por detrás de los dos anteriores. Los valores nunca se enseñan enteros ni se escriben en
+    el registro de llamadas.
+  </div>
+</div>
+{% endblock %}

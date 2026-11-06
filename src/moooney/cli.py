@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from moooney import envfile
 from moooney.analytics import alerts as alerts_mod
 from moooney.analytics import budgets as budgets_mod
 from moooney.analytics import periods
@@ -48,10 +49,13 @@ CONFIG_OPTION = typer.Option(None, "--config", help="Ruta a settings.yaml.")
 
 def _settings(config: Path | None) -> Settings:
     try:
-        return load_settings(config)
+        settings = load_settings(config)
     except FileNotFoundError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(code=1) from None
+    # Claves: variable de entorno > data/.env (guardado desde la web) > ./.env
+    envfile.load_env_files(settings.paths.db_path.parent)
+    return settings
 
 
 @app.command()

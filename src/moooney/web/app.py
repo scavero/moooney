@@ -6,6 +6,7 @@ en segundo plano (ver jobs.py) y las ediciones (categoría, presupuesto, alerta
 vista) responden con fragmentos HTML que HTMX intercambia en la página.
 """
 
+import os
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from moooney import envfile
 from moooney.analytics import alerts as alerts_mod
 from moooney.analytics import budgets as budgets_mod
 from moooney.analytics import forecast as forecast_mod
@@ -69,6 +71,7 @@ class AppState:
     paths: Paths
     jobs: JobRegistry
     force_demo: bool = False
+    env_sources: dict[str, str] | None = None  # de dónde salió cada clave (entorno o fichero)
 
 
 @dataclass
@@ -147,7 +150,11 @@ def build_verdict(summary, insights, *, day: int | None = None) -> str:
 def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> FastAPI:
     settings = load_settings(config_path)
     config_dir = config_path.parent if config_path else Path("config")
-    state = AppState(settings=settings, paths=Paths(config_dir), jobs=JobRegistry(), force_demo=force_demo)
+    # Claves: variable de entorno > data/.env (lo que se guarda en Ajustes) > ./.env
+    env_path = envfile.data_env_path(settings.paths.db_path.parent)
+    env_sources = envfile.load_env_files(settings.paths.db_path.parent)
+    state = AppState(settings=settings, paths=Paths(config_dir), jobs=JobRegistry(), force_demo=force_demo,
+                     env_sources=env_sources)
 
     app = FastAPI(title="moooney", docs_url=None, redoc_url=None)
     app.state.moooney = state
@@ -653,6 +660,72 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
     def enrichment_toggle(enabled: Annotated[int, Form()] = 0):
         service.set_enrichment_enabled(active().paths, bool(enabled))
         return RedirectResponse("/pipeline", status_code=303)
+
+    # ---------- ajustes (claves y modo offline) ----------
+
+    def source_label(name: str) -> str:
+        src = (state.env_sources or {}).get(name)
+        if src is None:
+            return "—"
+        if src == envfile.SOURCE_ENV:
+            return "variable de entorno (Windows o docker compose): se cambia donde está definida"
+        return f"fichero {src}"
+
+    def key_info(name: str) -> dict:
+        value = os.environ.get(name)
+        src = (state.env_sources or {}).get(name)
+        return {"set": bool(value), "hint": envfile.hint(value), "source_label": source_label(name),
+                "removable": src is not None and src != envfile.SOURCE_ENV}
+
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings_page(request: Request, conn: DB, notice: str | None = None, kind: str | None = None):
+        return render(
+            request, conn, "settings.html",
+            llm=service.llm_settings_or_none(state.paths), env_path=env_path,
+            keys={n: key_info(n) for n in envfile.SECRET_NAMES},
+            offline_source_label=source_label("MOOONEY_OFFLINE"),
+            notice=notice, notice_kind=kind,
+        )
+
+    @app.post("/settings/key")
+    def settings_key_save(name: Annotated[str, Form()], value: Annotated[str, Form()] = ""):
+        if name not in envfile.SECRET_NAMES:
+            raise HTTPException(status_code=404)
+        value = value.strip()
+        if not value:
+            return RedirectResponse("/settings?notice=La+clave+estaba+vacía&kind=warn", status_code=303)
+        envfile.save_env_value(env_path, name, value)
+        if (state.env_sources or {}).get(name) == envfile.SOURCE_ENV:
+            # La variable del sistema seguirá mandando en el próximo arranque; se avisa.
+            return RedirectResponse(
+                "/settings?notice=Guardada+en+el+fichero,+pero+la+variable+de+entorno+sigue+mandando&kind=warn",
+                status_code=303)
+        os.environ[name] = value
+        state.env_sources = {**(state.env_sources or {}), name: str(env_path)}
+        return RedirectResponse("/settings?notice=Clave+guardada", status_code=303)
+
+    @app.post("/settings/key/remove")
+    def settings_key_remove(name: Annotated[str, Form()]):
+        if name not in envfile.SECRET_NAMES:
+            raise HTTPException(status_code=404)
+        envfile.remove_env_value(env_path, name)
+        if (state.env_sources or {}).get(name) != envfile.SOURCE_ENV:
+            os.environ.pop(name, None)
+            state.env_sources = {k: v for k, v in (state.env_sources or {}).items() if k != name}
+        return RedirectResponse("/settings?notice=Clave+quitada", status_code=303)
+
+    @app.post("/settings/offline")
+    def settings_offline(enabled: Annotated[int, Form()] = 0):
+        valor = "1" if enabled else "0"
+        envfile.save_env_value(env_path, "MOOONEY_OFFLINE", valor)
+        os.environ["MOOONEY_OFFLINE"] = valor
+        state.env_sources = {**(state.env_sources or {}), "MOOONEY_OFFLINE": str(env_path)}
+        return RedirectResponse("/settings", status_code=303)
+
+    @app.post("/settings/test", response_class=HTMLResponse)
+    def settings_test(request: Request):
+        result = service.test_llm_connection(state.paths)
+        return templates.TemplateResponse(request, "partials/llm_test.html", {"request": request, "result": result})
 
     return app
 

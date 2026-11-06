@@ -3,7 +3,7 @@
 #
 # - ./data    tus Excel (data/excel), la base SQLite y la demo. Nunca entra en la imagen.
 # - ./config  taxonomía, reglas, modelos, enriquecimiento y tus presupuestos.
-# - .env      LITELLM_API_KEY (y opcionalmente LITELLM_BASE_URL, GOOGLE_PLACES_API_KEY).
+# - .env      opcional: LITELLM_API_KEY (o pégala en Ajustes: queda en data/.env), MOOONEY_OFFLINE=1.
 #
 # El puerto se publica SOLO en 127.0.0.1: nadie más en tu red puede abrir la web.
 
@@ -17,8 +17,6 @@ services:
     env_file:
       - path: .env
         required: false
-    environment:
-      - MOOONEY_OFFLINE=${MOOONEY_OFFLINE:-0}
     volumes:
       - ./data:/app/data
       - ./config:/app/config

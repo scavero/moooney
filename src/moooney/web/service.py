@@ -77,6 +77,24 @@ def enrichment_settings_or_none(paths: Paths) -> EnrichmentSettings | None:
         return None
 
 
+def test_llm_connection(paths: Paths, *, transport=None) -> dict:
+    """Comprueba clave y proxy con GET /models. Nunca registra ni devuelve la clave."""
+    if offline_enabled():
+        return {"ok": False, "message": "Modo offline: desactívalo en esta página para probar."}
+    llm = llm_settings_or_none(paths)
+    if llm is None:
+        return {"ok": False, "message": "Falta config/llm.yaml."}
+    try:
+        modelos = LLMClient(llm, transport=transport).list_models()
+    except LLMError as e:
+        return {"ok": False, "message": f"No funciona: {e}"}
+    usados = set(llm.models.values())
+    faltan = sorted(usados - set(modelos))
+    if faltan:
+        return {"ok": False, "message": f"Conecta, pero el proxy no ofrece: {', '.join(faltan)}."}
+    return {"ok": True, "message": f"Conexión correcta: {len(modelos)} modelos disponibles, los {len(usados)} que usa moooney incluidos."}
+
+
 # ---------- ediciones directas (rápidas, en la petición) ----------
 
 

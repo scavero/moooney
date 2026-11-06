@@ -235,3 +235,57 @@ def test_sin_datos_reales_se_sirve_la_demo_y_desaparece_al_importar(tmp_path, mo
     app = create_app(cfg / "settings.yaml", force_demo=True)
     with TestClient(app) as c:
         assert "Datos de demostración" in c.get("/").text
+
+
+def test_ajustes_guardar_probar_y_quitar_clave(client, monkeypatch):
+    monkeypatch.delenv("LITELLM_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_PLACES_API_KEY", raising=False)
+    client.app.state.moooney.env_sources = {"MOOONEY_OFFLINE": "entorno"}
+    r = client.get("/settings")
+    assert r.status_code == 200 and "sin configurar" in r.text and "Ajustes" in r.text
+
+    r = client.post("/settings/key", data={"name": "LITELLM_API_KEY", "value": " sk-prueba-1234wxyz "}, follow_redirects=True)
+    assert r.status_code == 200 and "Clave guardada" in r.text and "configurada" in r.text
+    assert "…wxyz" in r.text and "sk-prueba-1234wxyz" not in r.text  # nunca la clave entera
+    env_path = client.app.state.moooney.settings.paths.db_path.parent / ".env"
+    assert "LITELLM_API_KEY=sk-prueba-1234wxyz" in env_path.read_text(encoding="utf-8")
+
+    # offline forzado en el fixture: la prueba de conexión lo dice sin salir a la red
+    r = client.post("/settings/test")
+    assert r.status_code == 200 and "offline" in r.text.lower()
+
+    r = client.post("/settings/key", data={"name": "LITELLM_API_KEY", "value": "  "}, follow_redirects=True)
+    assert "vacía" in r.text
+    r = client.post("/settings/key", data={"name": "OTRA_COSA", "value": "x"})
+    assert r.status_code == 404
+
+    r = client.post("/settings/key/remove", data={"name": "LITELLM_API_KEY"}, follow_redirects=True)
+    assert "Clave quitada" in r.text and "sin configurar" in r.text
+    assert "LITELLM_API_KEY=" not in env_path.read_text(encoding="utf-8")
+
+
+def test_ajustes_interruptor_offline(client):
+    import os
+
+    r = client.post("/settings/offline", data={"enabled": "0"}, follow_redirects=True)
+    assert r.status_code == 200 and os.environ["MOOONEY_OFFLINE"] == "0" and "desactivado" in r.text
+    r = client.post("/settings/offline", data={"enabled": "1"}, follow_redirects=True)
+    assert os.environ["MOOONEY_OFFLINE"] == "1" and "activado" in r.text
+
+
+def test_prueba_de_conexion_con_transporte_simulado(tmp_path, monkeypatch):
+    import httpx
+
+    from moooney.web import service
+
+    monkeypatch.delenv("MOOONEY_OFFLINE", raising=False)
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-x")
+    ok = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": [
+        {"id": m} for m in ("clef-flash", "qwen3.8-flash-next-fp8", "bge-m3", "gemma-4-e2b", "otro")]}))
+    res = service.test_llm_connection(service.Paths(REPO_CONFIG), transport=ok)
+    assert res["ok"] and "Conexión correcta" in res["message"]
+    corto = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": [{"id": "clef-flash"}]}))
+    res = service.test_llm_connection(service.Paths(REPO_CONFIG), transport=corto)
+    assert not res["ok"] and "no ofrece" in res["message"]
+    res = service.test_llm_connection(service.Paths(REPO_CONFIG), transport=httpx.MockTransport(lambda r: httpx.Response(401)))
+    assert not res["ok"] and "401" in res["message"]

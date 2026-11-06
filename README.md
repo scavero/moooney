@@ -32,8 +32,10 @@ Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.12 solo). O Docke
    - **Santander**: Cuentas → Movimientos → filtro de fechas amplio → Descargar → Excel.
    - **BBVA**: Cuentas → Movimientos → Exportar → Excel («Últimos movimientos»).
    Se detecta el banco por la cabecera del fichero; puedes mezclar bancos en la misma carpeta.
-2. **Clave del modelo**: copia `.env.example` a `.env` y pon `LITELLM_API_KEY`. Vale cualquier servidor
-   compatible con la API de OpenAI (LiteLLM, vLLM, Ollama…); los modelos se configuran en `config/llm.yaml`.
+2. **Clave del modelo**: pégala en la página *Ajustes* de la web (se guarda en `data/.env`) o copia
+   `.env.example` a `.env` y pon `LITELLM_API_KEY`. Una variable de entorno del sistema, si existe, manda
+   sobre ambos. *Ajustes* tiene un botón para probar la conexión. Vale cualquier servidor compatible con la
+   API de OpenAI (LiteLLM, vLLM, Ollama…); los modelos se configuran en `config/llm.yaml`.
    Sin clave también funciona: categoriza por reglas y memoria, y el informe sale sin modelo.
 3. **Arranca** la web y usa la página *Pipeline*:
 
@@ -77,6 +79,8 @@ uv run moooney web
   priorizadas por impacto. Sin modelo, el informe sale de los hallazgos deterministas.
 - **Pipeline**: todos los pasos con un botón, vista previa y activación del enriquecimiento, auditoría de
   lo que ha salido a modelos e Internet, historial de importaciones y trabajos.
+- **Ajustes**: la clave del proxy (y la de Google Places, opcional) sin tocar ficheros, con prueba de
+  conexión, y el interruptor de modo offline. Las claves nunca se muestran enteras.
 
 ## Cómo funciona
 
@@ -108,6 +112,7 @@ Diagramas en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md); diseño y decisiones 
 ## Privacidad
 
 - `data/`, `reports/`, `config/budgets.yaml` y `.env` están ignorados por git y fuera de la imagen Docker.
+  La clave guardada desde *Ajustes* vive en `data/.env`, con permisos solo del usuario en Linux.
 - A los modelos van claves de comercio limpias (sin IBAN, saldos, nombres de personas ni referencias) o
   agregados mensuales. Una barrera (`llm/anonymize.py`) rechaza cualquier texto con forma de IBAN, tarjeta o
   referencia larga antes de enviarlo. Todo queda en `llm_calls` y `web_calls`, visibles en *Pipeline*.
@@ -119,8 +124,7 @@ Diagramas en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md); diseño y decisiones 
 ## Docker
 
 ```powershell
-cp .env.example .env     # y pon tu LITELLM_API_KEY
-docker compose up -d     # http://127.0.0.1:8765
+docker compose up -d     # http://127.0.0.1:8765 → Ajustes → pegar la clave (o cp .env.example .env antes)
 ```
 
 `./data`, `./config` y `./reports` se montan como volúmenes: la imagen no contiene datos. Para que la pipeline
@@ -176,6 +180,7 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `config/llm.yaml` | Proxy, clave (nombre de la variable de entorno) y qué modelo hace cada cosa |
 | `config/enrichment.yaml` | Enriquecimiento: activado, disparador, vetos, proveedores, tope de consultas |
 | `config/budgets.yaml` | Tus límites mensuales (ignorado por git; `budget init` lo crea) |
+| `data/.env` | Claves guardadas desde *Ajustes* (ignorado; manda sobre `./.env`, no sobre el entorno) |
 
 Para otro banco se añade un perfil en `settings.yaml` bajo `banks:` (alias de columnas, etiqueta de cuenta)
 y, si su concepto no lleva el tipo de operación delante como el del Santander, un constructor de concepto en
@@ -184,7 +189,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 156 tests, todos con datos sintéticos
+uv run pytest        # 165 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```
