@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.0.0)
+## 1.1.0 · 2026-11-06
 
 - **Legibilidad**: pesos 400/500/700 en vez de 300/200 (las fuentes vendorizadas ya eran variables), grises y
   coral de texto que cumplen contraste 4,5:1, texto base de 16 px, controles de 40 px. Resumen con el mes como
