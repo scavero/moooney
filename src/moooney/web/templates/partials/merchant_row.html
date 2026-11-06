@@ -1,25 +1,32 @@
+{% set mconf = m.confidence if m.confidence is not none else 1 %}
+{% set mdoubt = m.source != 'user' and mconf < 0.7 %}
 <tr id="m-{{ m.key|replace(' ', '_') }}" class="{{ 'saved' if saved else '' }}">
-  <td>
-    <a href="/transactions?key={{ m.key|urlencode }}">{{ m.key }}</a>
-    {% if m.web_summary %}<div class="concept">web ({{ m.web_provider }}): {{ m.web_summary }}</div>{% endif %}
+  <td style="min-width:0">
+    <a class="name" href="/transactions?key={{ m.key|urlencode }}" style="font-weight:500">{{ m.key }}</a>
+    <div class="concept" style="margin-top:2px">
+      {% if saved %}<span style="color:var(--dominant);font-weight:800">✓ corregido por ti · {{ saved }} mov.</span>
+      {% elif mdoubt %}<span class="doubt {{ 'low' if mconf < 0.5 else '' }}">Dudosa ({{ SOURCE_LABEL.get(m.source, m.source) }}, {{ '%.2f'|format(mconf)|replace('.', ',') }})</span>
+      {% else %}{{ SOURCE_LABEL.get(m.source, m.source) }}{% endif %}
+      · último <span title="{{ m.last_date }}">{{ m.last_date|fecha if m.last_date else '—' }}</span>
+      {% if m.web_summary %} · web ({{ m.web_provider }}): {{ m.web_summary }}{% endif %}
+    </div>
   </td>
   <td class="num">{{ m.n }}</td>
   <td class="num {{ 'pos' if m.total > 0 else '' }}">{{ m.total|eur(2) }}</td>
-  <td class="num muted" title="{{ m.last_date }}">{{ m.last_date|fecha if m.last_date else '—' }}</td>
-  <td><span class="conf {{ 'low' if (m.confidence or 1) < 0.5 else 'mid' if (m.confidence or 1) < 0.7 else '' }}" title="{{ SOURCE_LABEL.get(m.source, m.source) }} · confianza {{ '%.2f'|format(m.confidence or 1) }}"><i><b style="width:{{ ((m.confidence or 1) * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(m.source, m.source) }}</span></td>
   <td>
     {# El select guarda al cambiar: una corrección = un clic. El flujo va aparte y normalmente lo decide la categoría. #}
-    <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML">
-      <select name="category">
+    <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML" style="display:block">
+      <label for="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" style="position:absolute;left:-9999px">Categoría de {{ m.key }}</label>
+      <select id="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="category" class="quiet {{ 'doubt' if mdoubt and not saved else '' }}" style="width:100%;max-width:none">
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == m.category else '' }}>{{ c }}</option>{% endfor %}
       </select>
-      {% if saved %}<span class="concept" style="color:var(--dominant);font-weight:800">✓ {{ saved }} mov.</span>{% endif %}
     </form>
   </td>
   <td>
-    <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML">
+    <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML" style="display:block">
       <input type="hidden" name="category" value="{{ m.category }}">
-      <select name="flow_type" class="quiet muted" title="normalmente lo decide la categoría">
+      <label for="mf-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" style="position:absolute;left:-9999px">Flujo de {{ m.key }}</label>
+      <select id="mf-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="flow_type" class="quiet muted" title="normalmente lo decide la categoría" style="width:100%;max-width:none">
         {% for f in taxonomy.flow_types %}<option value="{{ f }}" {{ 'selected' if f == m.flow_type else '' }}>{{ FLOW_LABEL.get(f, f) }}</option>{% endfor %}
       </select>
     </form>

@@ -253,9 +253,11 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .tx-table td.col-balance { color: var(--ink-3); font-size: 13px; }
 .tx-table .name { font-weight: 500; }
 .tx-table .raw { color: var(--ink-3); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
-.tx-table .raw .doubt { color: var(--warn-ink); font-weight: 700; }
-.tx-table .raw .doubt::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 6px; vertical-align: middle; }
-.tx-table .raw .doubt.low::before { background: var(--accent); }
+/* marca de categoría dudosa: punto ámbar (o coral si la confianza es < 0,5) y texto de aviso */
+.doubt { color: var(--warn-ink); font-weight: 700; font-size: 13px; }
+.doubt::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 6px; vertical-align: middle; }
+.doubt.low::before { background: var(--accent); }
+.tx-table .raw .doubt { font-size: inherit; }
 .tx-table .inline-tags { color: var(--dominant); font-weight: 700; }
 .tx-table .more { font: inherit; width: 40px; height: 40px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .tx-table .more:hover { background: var(--dominant-soft); color: var(--dominant); }
@@ -276,7 +278,14 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 
 /* ---------- cola de revisión: la cola es la página ---------- */
 .queue { padding: var(--s3) 0 var(--s4); border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); margin-bottom: var(--s6); }
-.queue-progress { font-size: 14px; color: var(--ink-2); margin-bottom: var(--s1); }
+.queue-head { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+.queue-progress { font-size: 14px; color: var(--ink-2); white-space: nowrap; }
+.progress { flex: 0 1 240px; height: 6px; background: var(--dominant-soft); border-radius: 3px; overflow: hidden; }
+.progress > i { display: block; height: 100%; background: var(--dominant); }
+.keys-table td { padding-top: 8px; padding-bottom: 8px; }
+.keys-table .concept { max-width: 640px; }
+.heat-table { font-size: 14px; }
+.heat-table th { white-space: nowrap; }
 .queue .key { font-family: var(--font-display); font-weight: 800; font-size: 44px; letter-spacing: -.02em; line-height: 1.05; margin-bottom: var(--s4); }
 .queue-evidence { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--s6); align-items: start; margin-bottom: var(--s4); }
 .queue-evidence h3 { margin-top: 0; }

@@ -1,5 +1,12 @@
 # Cambios
 
+## Sin publicar (tras 1.1.0)
+
+- **Comercios y Tendencias** con el mismo criterio de legibilidad: en Comercios, barra de progreso de la cola,
+  la dudosa marcada en ámbar junto a la categoría actual y la tabla de claves en cinco columnas (origen, última
+  fecha y resumen web bajo la clave). En Tendencias, cabeceras en las tablas, el porcentaje junto a la categoría
+  y notas al pie como texto secundario legible.
+
 ## 1.1.0 · 2026-11-06
 
 - **Legibilidad**: pesos 400/500/700 en vez de 300/200 (las fuentes vendorizadas ya eran variables), grises y

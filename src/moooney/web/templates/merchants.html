@@ -2,29 +2,33 @@
 {% block title %}Comercios{% endblock %}
 {% block content %}
 <div class="topbar">
-  <div><h1>Comercios</h1><div class="subtitle">{{ summary.total }} claves · <strong>{{ summary.dudosas }} dudosas</strong> · {{ summary.otros }} en Otros · {{ summary.user }} corregidas por ti. Una corrección se aplica a todos los movimientos del comercio y no se vuelve a tocar.</div></div>
+  <div><h1>Comercios</h1><div class="subtitle">{{ summary.total }} claves · <strong>{{ summary.dudosas }} dudosas</strong> · {{ summary.otros }} en Otros · {{ summary.user }} corregidas por ti</div></div>
 </div>
 
 {% if queue_current %}
 {% set qc = queue_current %}
+{% set qconf = qc.confidence or 0 %}
 <div class="queue" id="queue">
-  <div class="queue-progress">Revisar dudosas · <strong>{{ queue_pos }} de {{ queue_total }}</strong>{% if queue_mode != 'all' and tail_n %} · las que importan · <span class="muted">{{ tail_total|eur }} en {{ tail_n }} claves pequeñas fuera de la cola</span>{% endif %}</div>
+  <div class="queue-head">
+    <div class="queue-progress">Revisar dudosas · <strong>{{ queue_pos }} de {{ queue_total }}</strong>{% if queue_mode != 'all' and tail_n %} · las que importan{% endif %}</div>
+    <div class="progress" aria-hidden="true"><i style="width:{{ ((queue_pos - 1) * 100 / queue_total)|round|int if queue_total else 0 }}%"></i></div>
+  </div>
   <div class="key">{{ qc.key }}</div>
   <div class="queue-evidence">
     <div>
       <h3>Últimos movimientos</h3>
       <table>
         {% for t in recent %}
-        <tr><td class="num muted" style="width:64px" title="{{ t.date }}">{{ t.date|fecha }}</td><td class="concept" style="font-size:13px">{{ t.concept }}</td><td class="num {{ 'inc' if t.amount > 0 else 'exp' }}" style="width:96px">{{ t.amount|eur(2) }}</td></tr>
+        <tr><td class="muted" style="width:72px;white-space:nowrap" title="{{ t.date }}">{{ t.date|fecha }}</td><td class="concept" style="font-size:14px">{{ t.concept }}</td><td class="num {{ 'inc' if t.amount > 0 else 'exp' }}" style="width:110px">{{ t.amount|eur(2) }}</td></tr>
         {% endfor %}
       </table>
-      <a class="concept" href="/transactions?key={{ qc.key|urlencode }}" style="text-decoration:underline">ver los {{ qc.n }} movimientos · {{ qc.total|eur(2) }} en total →</a>
+      <a href="/transactions?key={{ qc.key|urlencode }}" style="display:inline-block;margin-top:8px;font-size:14px;font-weight:700">Ver los {{ qc.n }} movimientos · {{ qc.total|eur(2) }} en total →</a>
     </div>
     <div>
       <h3>Categoría actual</h3>
       <div class="queue-cat">{{ qc.category }}</div>
-      <span class="conf {{ 'low' if (qc.confidence or 1) < 0.5 else 'mid' if (qc.confidence or 1) < 0.7 else '' }}" title="{{ SOURCE_LABEL.get(qc.source, qc.source) }} · confianza {{ '%.2f'|format(qc.confidence or 0) }}"><i><b style="width:{{ ((qc.confidence or 0) * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(qc.source, qc.source) }} · {{ '%.2f'|format(qc.confidence or 0) }}</span>
-      {% if qc.web_summary %}<div class="concept" style="margin-top:12px">la web dice:<br><em style="color:var(--ink)">{{ qc.web_summary }}</em></div>{% endif %}
+      <div class="doubt {{ 'low' if qconf < 0.5 else '' }}">Dudosa: {{ SOURCE_LABEL.get(qc.source, qc.source) }}, confianza {{ '%.2f'|format(qconf)|replace('.', ',') }}</div>
+      {% if qc.web_summary %}<div class="concept" style="margin-top:12px">La web dice:<br><em style="color:var(--ink);font-size:14px">{{ qc.web_summary }}</em></div>{% endif %}
     </div>
   </div>
   <form id="queue-form" class="queue-decide" method="post" action="/merchants/{{ qc.key|urlencode }}/category"
@@ -35,14 +39,16 @@
     {% for c in queue_suggestions %}
     <button class="btn sug {{ 'on' if c == qc.category else '' }}" type="submit" name="category" value="{{ c }}" accesskey="{{ loop.index }}"><kbd>{{ loop.index }}</kbd>{{ c }}</button>
     {% endfor %}
-    <select onchange="this.form.querySelector('input[type=hidden][name=category]').value = this.value; this.form.requestSubmit()">
-      <option value="">otra categoría…</option>
+    <label for="queue-other" style="position:absolute;left:-9999px">Otra categoría</label>
+    <select id="queue-other" onchange="this.form.querySelector('input[type=hidden][name=category]').value = this.value; this.form.requestSubmit()">
+      <option value="">Otra categoría…</option>
       {% for c in taxonomy.categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
     </select>
     <span class="spacer"></span>
     <a class="btn ghost skip" href="/merchants?mode={{ mode }}&queue={{ queue_mode }}&skip={{ (skip ~ '|' ~ qc.key)|urlencode }}" accesskey="s">Saltar <kbd>S</kbd></a>
     <button class="btn primary confirm" type="submit" name="category" value="{{ qc.category }}" title="Enter">Confirmar {{ qc.category }} <kbd>↵</kbd></button>
   </form>
+  <div class="concept" style="margin-top:12px">Una corrección se aplica a todos los movimientos del comercio y no se vuelve a tocar.</div>
 </div>
 <script>
   // Teclado en la cola: 1-3 eligen una sugerencia, Enter confirma, S salta.
@@ -66,22 +72,25 @@
 <div class="card">
   <div class="filters">
     <div class="segmented">
-      <a class="{{ 'on' if mode == 'dudosas' else '' }}" href="/merchants?mode=dudosas">dudosas <span>{{ summary.dudosas }}</span></a>
-      <a class="{{ 'on' if mode == 'otros' else '' }}" href="/merchants?mode=otros">en Otros <span>{{ summary.otros }}</span></a>
-      <a class="{{ 'on' if mode == 'user' else '' }}" href="/merchants?mode=user">corregidas <span>{{ summary.user }}</span></a>
-      <a class="{{ 'on' if mode == 'all' else '' }}" href="/merchants?mode=all">todas <span>{{ summary.total }}</span></a>
+      <a class="{{ 'on' if mode == 'dudosas' else '' }}" href="/merchants?mode=dudosas">Dudosas <span>{{ summary.dudosas }}</span></a>
+      <a class="{{ 'on' if mode == 'otros' else '' }}" href="/merchants?mode=otros">En Otros <span>{{ summary.otros }}</span></a>
+      <a class="{{ 'on' if mode == 'user' else '' }}" href="/merchants?mode=user">Corregidas <span>{{ summary.user }}</span></a>
+      <a class="{{ 'on' if mode == 'all' else '' }}" href="/merchants?mode=all">Todas <span>{{ summary.total }}</span></a>
     </div>
     <form method="get" action="/merchants" hx-get="/merchants" hx-trigger="change, keyup[key=='Enter'] from:find input[type=search]" hx-target="body" hx-push-url="true">
       <input type="hidden" name="mode" value="{{ mode }}">
-      <select name="category"><option value="">todas las categorías</option>
+      <label for="m-cat" style="position:absolute;left:-9999px">Categoría</label>
+      <select id="m-cat" name="category"><option value="">Todas las categorías</option>
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}</select>
-      <input type="search" name="q" value="{{ q }}" placeholder="buscar clave">
+      <label for="m-q" style="position:absolute;left:-9999px">Buscar clave</label>
+      <input id="m-q" type="search" name="q" value="{{ q }}" placeholder="Buscar clave">
     </form>
-    <span class="muted" style="margin-left:auto;font-size:13px">{{ page.total }} claves · ordenadas por euros</span>
+    <span class="muted" style="margin-left:auto;font-size:14px">{{ page.total }} claves, ordenadas por euros</span>
   </div>
+  <div class="concept" style="margin-bottom:8px">Cambiar la categoría guarda al momento y corrige todos los movimientos de la clave. El flujo lo decide la categoría; cámbialo solo si no encaja.</div>
   <div class="scroll-x">
-  <table>
-    <tr><th>Clave</th><th class="num">Mov.</th><th class="num">Total</th><th>Último</th><th>Confianza</th><th>Categoría</th><th>Flujo</th></tr>
+  <table class="keys-table">
+    <tr><th>Clave</th><th class="num">Mov.</th><th class="num">Total</th><th style="width:220px">Categoría</th><th style="width:140px">Flujo</th></tr>
     {% for m in page.rows %}
       {% include "partials/merchant_row.html" %}
     {% endfor %}
@@ -89,9 +98,9 @@
   </div>
   <div class="pager">
     {% set base = '/merchants?mode=' ~ mode ~ '&category=' ~ (category|urlencode) ~ '&q=' ~ (q|urlencode) %}
-    {% if page.has_prev %}<a class="btn small" href="{{ base }}&page={{ page.page - 1 }}">‹ anterior</a>{% endif %}
-    <span>página {{ page.page }} de {{ page.pages }}</span>
-    {% if page.has_next %}<a class="btn small" href="{{ base }}&page={{ page.page + 1 }}">siguiente ›</a>{% endif %}
+    <span>Página {{ page.page }} de {{ page.pages }}</span>
+    {% if page.has_prev %}<a class="btn ghost" href="{{ base }}&page={{ page.page - 1 }}">‹ Anterior</a>{% endif %}
+    {% if page.has_next %}<a class="btn ghost" href="{{ base }}&page={{ page.page + 1 }}">Siguiente ›</a>{% endif %}
   </div>
 </div>
 </details>
