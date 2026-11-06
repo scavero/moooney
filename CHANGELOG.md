@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.1.2)
+## 1.1.3 · 2026-11-06
 
 - **Alertas** con el mismo criterio de legibilidad: filtros de nivel y «Pendientes / Con las vistas» como
   controles segmentados (los chips salían todos en verde desde el cambio de Movimientos), cada grupo como tabla
