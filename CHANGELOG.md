@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.1.5 · 2026-11-07
+
+- **Móvil y barra lateral**, a partir de una crítica de diseño del Resumen: por debajo de 1000 px el diagnóstico va a
+  una columna con el impacto bajo el texto (antes la cifra reservaba 150 px y el título caía palabra por palabra),
+  y la cabecera es una fila compacta con marca y navegación desplazable, sin el pie. En la barra lateral, el pie
+  «local» y el contador de alertas cumplen 4,5:1 (antes 2,2:1 y 3,1:1).
+
 ## 1.1.4 · 2026-11-06
 
 - **Informe, Pipeline y Ajustes** con el mismo criterio de legibilidad: subtítulos y notas como frases, navegación
