@@ -122,6 +122,28 @@ def fecha(value: str | None) -> str:
     return f"{int(value[8:10])} {MESES[int(value[5:7]) - 1][:3]}"
 
 
+DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+
+
+def fecha_larga(value: str | None) -> str:
+    """'2026-10-10' → 'viernes 10 de octubre'. Cabecera de día en la tabla de movimientos."""
+    if not value or len(value) < 10:
+        return value or "—"
+    d = date.fromisoformat(value[:10])
+    return f"{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]}"
+
+
+def group_by_day(rows: list) -> list[dict]:
+    """Agrupa filas ya ordenadas por fecha en bloques {date, rows, total} para la cabecera de día."""
+    groups: list[dict] = []
+    for t in rows:
+        if not groups or groups[-1]["date"] != t["date"]:
+            groups.append({"date": t["date"], "rows": [], "total": 0.0})
+        groups[-1]["rows"].append(t)
+        groups[-1]["total"] += float(t["amount"] or 0)
+    return groups
+
+
 def mes(value: str | None, short: bool = False) -> str:
     """'2026-10' → 'octubre 2026' (o 'oct 26')."""
     if not value or len(value) < 7:
@@ -163,6 +185,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
     templates.env.filters["eur"] = eur
     templates.env.filters["pct"] = pct
     templates.env.filters["fecha"] = fecha
+    templates.env.filters["fecha_larga"] = fecha_larga
     templates.env.filters["mes"] = mes
     templates.env.globals.update(
         FLOW_LABEL=FLOW_LABEL, SOURCE_LABEL=SOURCE_LABEL, SEVERITY_LABEL=SEVERITY_LABEL,
@@ -319,6 +342,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
             totals=queries.transactions_totals(conn, **filters), taxonomy=taxonomy(),
             accounts=repo.accounts(conn), tags=repo.tags_summary(conn),
             tags_by_id=repo.tags_for(conn, [int(t["id"]) for t in pg.rows]),
+            day_groups=group_by_day(pg.rows),
         )
 
     def _tags_cell(request: Request, conn: sqlite3.Connection, tx_id: int):

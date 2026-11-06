@@ -196,7 +196,7 @@ uv run moooney web --reload
 
 La integración continua (`.github/workflows/ci.yml`) corre ruff y los tests en cada push y comprueba que la imagen
 Docker se construye y sirve la demo. Cambios por versión en [CHANGELOG.md](CHANGELOG.md). El sistema visual
-(Fraunces + Work Sans, un dominante y un acento, ritmo de 8 px) está en `static/app.css` y documentado en
+(Fraunces + Work Sans variables, pesos 400/500/700, contraste mínimo 4,5:1, un dominante y un acento, ritmo de 8 px) está en `static/app.css` y documentado en
 `docs/DESIGN.md`; las dos pantallas principales se rediseñaron con [Superdesign](https://superdesign.dev) a
 partir de las plantillas, nunca de datos.
 

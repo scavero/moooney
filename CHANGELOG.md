@@ -2,6 +2,10 @@
 
 ## Sin publicar (tras 1.0.0)
 
+- **Legibilidad**: pesos 400/500/700 en vez de 300/200 (las fuentes vendorizadas ya eran variables), grises y
+  coral de texto que cumplen contraste 4,5:1, texto base de 16 px, controles de 40 px. Resumen con el mes como
+  título, pendientes como botones y diagnóstico plegado a cinco puntos. Movimientos en cuatro columnas,
+  agrupados por día con total, y un desplegable «···» con flujo, origen, etiquetas y cuenta.
 - **Dudosas sin revisar a mano**: tipo de operación en lo que ve el modelo, `categorize --retry-dudosas`
   (el decider vuelve a preguntar con el tipo de operación y el resumen web) y `categorize --second-opinion`
   (el modelo de texto revisa por lotes; sustituye solo con confianza ≥ 0,7). Botones en *Pipeline*.

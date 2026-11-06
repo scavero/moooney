@@ -289,3 +289,24 @@ def test_prueba_de_conexion_con_transporte_simulado(tmp_path, monkeypatch):
     assert not res["ok"] and "no ofrece" in res["message"]
     res = service.test_llm_connection(service.Paths(REPO_CONFIG), transport=httpx.MockTransport(lambda r: httpx.Response(401)))
     assert not res["ok"] and "401" in res["message"]
+
+
+def test_movimientos_agrupados_por_dia_con_desplegable(client):
+    r = client.get("/transactions?month=2026-09")
+    assert r.status_code == 200
+    # cabecera de día en castellano con el total del día, y una fila plegada por movimiento
+    assert 'class="day-row"' in r.text and " de septiembre" in r.text
+    n_rows = r.text.count('class="tx-more"')
+    assert n_rows > 0 and r.text.count('class="more"') == n_rows
+    # flujo y origen viven en el desplegable, no en la fila
+    assert "<dt>Flujo</dt>" in r.text and "<dt>Origen</dt>" in r.text
+
+
+def test_agrupar_por_dia_suma_importes():
+    from moooney.web.app import fecha_larga, group_by_day
+
+    rows = [{"date": "2026-09-02", "amount": -5.0}, {"date": "2026-09-02", "amount": 20.0}, {"date": "2026-09-01", "amount": -1.5}]
+    g = group_by_day(rows)
+    assert [x["date"] for x in g] == ["2026-09-02", "2026-09-01"]
+    assert g[0]["total"] == 15.0 and len(g[0]["rows"]) == 2 and g[1]["total"] == -1.5
+    assert fecha_larga("2026-09-02") == "miércoles 2 de septiembre"

@@ -4,31 +4,31 @@
 {% set s = report.summary %}
 <div class="topbar">
   <div>
-    <h1>¿A dónde se va el dinero?</h1>
-    <div class="subtitle" style="text-transform:capitalize">{{ month|mes }}<span style="text-transform:none">{% if not s.full_month %} · <span class="tag warn">día {{ day }} de {{ days_in_month }}</span>{% endif %} · {{ s.n_tx }} movimientos</span></div>
+    <h1 style="text-transform:capitalize">{{ month|mes }}</h1>
+    <div class="subtitle">{% if not s.full_month %}A día <strong>{{ day }} de {{ days_in_month }}</strong> · {% else %}Mes cerrado · {% endif %}{{ s.n_tx }} movimientos · ¿a dónde se va el dinero?</div>
   </div>
   <div class="month-nav">
-    <a class="btn" href="/?month={{ prev_month }}" title="mes anterior">‹</a>
-    <select onchange="window.location='/?month='+this.value">
+    <a class="btn ghost" href="/?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>
+    <label for="month-select" style="position:absolute;left:-9999px">Mes</label>
+    <select id="month-select" onchange="window.location='/?month='+this.value">
       {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}
     </select>
-    <a class="btn" href="/?month={{ next_month }}" title="mes siguiente">›</a>
+    <a class="btn ghost" href="/?month={{ next_month }}" aria-label="mes siguiente" title="mes siguiente">›</a>
   </div>
 </div>
 
 <div class="verdict section">
-  <div class="verdict-links">
-    <a href="/merchants?mode=dudosas"><strong class="{{ 'warn' if merchants_counts.dudosas else 'ok' }}">{{ merchants_counts.dudosas }}</strong> comercios por revisar</a>
-    <span class="muted">·</span>
-    <a href="/alerts"><strong class="{{ 'crit' if alerts_counts.critical else 'ok' }}">{{ alerts_counts.total }}</strong> alertas pendientes</a>
-    {% if fme %}<span class="muted">·</span><a href="/trends">previsión a fin de mes <strong class="{{ 'ok' if fme.net >= 0 else 'crit' }}">{{ fme.net|eur }}</strong></a>{% endif %}
-  </div>
   <div class="verdict-main">
     <div class="verdict-figure {{ 'pos' if s.net >= 0 else 'neg' }}">{{ ('+' if s.net > 0 else '') ~ (s.net|eur) }}</div>
-    <div class="verdict-text">{{ verdict }}</div>
+    <p class="verdict-text">{{ verdict }}</p>
+  </div>
+  <div class="verdict-actions">
+    <a class="btn {{ 'warn' if merchants_counts.dudosas else 'ghost' }}" href="/merchants?mode=dudosas"><strong>{{ merchants_counts.dudosas }}</strong> comercios por revisar</a>
+    <a class="btn {{ 'crit' if alerts_counts.critical else 'ghost' }}" href="/alerts"><strong>{{ alerts_counts.total }}</strong> alertas pendientes</a>
+    {% if fme %}<a class="btn ghost" href="/trends">Previsión a fin de mes <strong class="{{ 'pos' if fme.net >= 0 else 'neg' }}">{{ fme.net|eur }}</strong></a>{% endif %}
   </div>
   <div class="kpi-row">
-    <div><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div></div>
+    <div><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div><div class="hint">nómina y otros ingresos</div></div>
     <div><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div><div class="hint">fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}</div></div>
     <div><div class="label">Ahorro neto</div><div class="value">{{ s.net|eur }}</div><div class="hint">tasa {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
     <div><div class="label">Saldo</div><div class="value">{{ balance|eur }}</div>{% if accounts|length > 1 %}<div class="hint">{% for a in accounts %}{{ a.account }} {{ a.last_balance|eur }}{{ ' · ' if not loop.last else '' }}{% endfor %}</div>{% endif %}</div>
@@ -39,18 +39,27 @@
 <div class="card section">
   <div class="topbar" style="margin-bottom:12px;align-items:baseline">
     <h2 style="margin:0">Diagnóstico</h2>
-    <div class="potential">ahorro potencial identificado <strong class="impact">{{ potential|eur }}</strong> al mes · <a href="/trends">tendencias y previsión</a></div>
+    <div class="potential">Ahorro potencial <strong class="impact">{{ potential|eur }}</strong> al mes · <a href="/trends">tendencias y previsión</a></div>
   </div>
   {% if insights %}
-  <div class="diag-list">
-    {% for i in insights %}
+  {% macro diag_row(i) %}
     <div class="row">
-      <div class="impact-col">{% if i.impact > 0 %}<span class="impact">{{ i.impact|eur }}</span><div class="concept">al mes</div>{% else %}<span class="impact muted">—</span>{% endif %}</div>
-      <span class="tag {{ i.tone }}">{{ {'ok': 'bien', 'info': 'dato', 'warn': 'ojo', 'crit': 'mal'}[i.tone] }}</span>
-      <div><strong>{{ i.title }}</strong><div class="concept">{{ i.detail }}
-        {% if i.link %}<a href="{{ i.link }}"><strong>{{ 'ver tendencias' if i.link.startswith('/trends') else 'ver recurrentes' if i.link.startswith('/recurring') else 'revisar comercios' if i.link.startswith('/merchants') else 'ver movimientos' }} →</strong></a>{% endif %}</div></div>
+      <div class="body">
+        <span class="tag {{ i.tone }}">{{ {'ok': 'Bien', 'info': 'Dato', 'warn': 'Ojo', 'crit': 'Mal'}[i.tone] }}</span>
+        <div><div class="title">{{ i.title }}</div><div class="detail">{{ i.detail }}
+          {% if i.link %}<br><a href="{{ i.link }}">{{ 'Ver tendencias' if i.link.startswith('/trends') else 'Ver recurrentes' if i.link.startswith('/recurring') else 'Revisar comercios' if i.link.startswith('/merchants') else 'Ver movimientos' }} →</a>{% endif %}</div></div>
+      </div>
+      <div class="impact-col">{% if i.impact > 0 %}<span class="impact">{{ i.impact|eur }}</span><div class="concept">al mes</div>{% endif %}</div>
     </div>
-    {% endfor %}
+  {% endmacro %}
+  <div class="diag-list">
+    {% for i in insights[:5] %}{{ diag_row(i) }}{% endfor %}
+    {% if insights|length > 5 %}
+    <details>
+      <summary>Ver los {{ insights|length - 5 }} puntos restantes ↓</summary>
+      {% for i in insights[5:] %}{{ diag_row(i) }}{% endfor %}
+    </details>
+    {% endif %}
   </div>
   {% else %}<p class="muted">Aún no hay meses completos suficientes para comparar.</p>{% endif %}
 </div>
@@ -58,16 +67,17 @@
 <div class="grid three section">
   <div class="card">
     <h2 style="margin-bottom:4px">Gasto por categoría, 12 meses</h2>
-    <div class="concept" style="margin-bottom:12px">clic en una barra para ver sus movimientos</div>
+    <div class="concept" style="margin-bottom:12px">Pulsa una barra para ver sus movimientos.</div>
     <div class="chart-box"><canvas id="chart-cats"></canvas></div>
   </div>
   <div class="card">
     <h2 style="margin-bottom:4px">Categorías del mes</h2>
-    <div class="concept" style="margin-bottom:12px">vs media de {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos · coral = más que antes</div>
+    <div class="concept" style="margin-bottom:12px">Frente a la media de {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos. En rojo, más que antes.</div>
     <table>
+      <tr><th></th><th class="num">este mes</th><th class="num">vs media</th></tr>
       {% for c in report.categories %}
       <tr>
-        <td style="width:40%"><a href="/transactions?month={{ month }}&category={{ c.category|urlencode }}">{{ c.category }}</a>
+        <td style="width:40%"><a href="/transactions?month={{ month }}&category={{ c.category|urlencode }}" style="font-weight:500">{{ c.category }}</a>
           {% if c.fixed_amount > 0 %}<span class="concept" style="margin-left:6px">fijo {{ c.fixed_amount|eur }}</span>{% endif %}
           <div class="bar thin"><span style="width:{{ c.pct }}%"></span></div></td>
         <td class="num">{{ c.amount|eur }}<div class="concept">{{ '%.0f'|format(c.pct) }} % del gasto</div></td>
@@ -99,7 +109,7 @@
 <div class="grid two">
   <div class="card">
     <h2 style="margin-bottom:4px">Presupuesto</h2>
-    <div class="concept" style="margin-bottom:12px">la marca indica dónde deberías estar hoy · <a href="/budgets?month={{ month }}">ver todo</a></div>
+    <div class="concept" style="margin-bottom:12px">La marca negra es donde deberías estar hoy. <a href="/budgets?month={{ month }}">Ver todo</a></div>
     {% if budget_rows %}
     <table>
       {% for r in budget_rows %}
@@ -116,7 +126,7 @@
   </div>
   <div class="card">
     <h2 style="margin-bottom:4px">Alertas pendientes</h2>
-    <div class="concept" style="margin-bottom:12px">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos · {{ alerts_counts.info }} datos · <a href="/alerts">ver todas</a></div>
+    <div class="concept" style="margin-bottom:12px">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos · {{ alerts_counts.info }} datos. <a href="/alerts">Ver todas</a></div>
     {% if pending %}
     <div class="alert-group">
       {% for a in pending %}
@@ -126,7 +136,7 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}<p class="muted">Nada pendiente.</p>{% endif %}
+    {% else %}<div class="notice ok" style="margin:0"><strong>Nada pendiente.</strong> Las alertas de presupuesto y de cargos nuevos aparecerán aquí.</div>{% endif %}
   </div>
 </div>
 
@@ -137,7 +147,7 @@ window.renderCharts = function () {
   const series = {{ chart_series|tojson }};
   const flows = {{ chart_flows|tojson }};
   const css = getComputedStyle(document.documentElement); const palette = [1,2,3,4,5,6,7,8,9].map(i => css.getPropertyValue('--chart-' + i).trim());
-  Chart.defaults.font = { ...Chart.defaults.font, family: 'Work Sans', weight: 300 }; Chart.defaults.color = '#4a5550';
+  Chart.defaults.font = { ...Chart.defaults.font, family: 'Work Sans', weight: 400, size: 13 }; Chart.defaults.color = '#4a5550';
   const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
   const grid = { color: 'rgba(14,59,46,.08)' };
   const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };

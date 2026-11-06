@@ -3,32 +3,32 @@
 {% block content %}
 <div class="topbar">
   <div><h1>Movimientos</h1><div class="subtitle">{{ totals.n }} movimientos · ingresos <strong class="pos">{{ totals.income|eur }}</strong> · gastos <strong class="neg">{{ totals.expenses|eur }}</strong> · neto <strong class="{{ 'pos' if totals.net >= 0 else 'neg' }}">{{ '%+.0f'|format(totals.net) }} €</strong></div></div>
+  {% set base = '/transactions?month=' ~ month ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) ~ '&account=' ~ (account|urlencode) ~ '&tag=' ~ (tag|urlencode) %}
+  <a class="btn ghost" href="{{ base|replace('/transactions?', '/transactions/export.csv?') }}" hx-boost="false" title="los {{ totals.n }} movimientos del filtro, para Excel">Exportar CSV</a>
 </div>
 <div class="card">
   <div class="filters">
     {# Los selects aplican al cambiar; el buscador al pulsar Enter o al salir del campo. #}
     <form method="get" action="/transactions" hx-get="/transactions" hx-trigger="change, keyup[key=='Enter'] from:find input[type=search]" hx-target="body" hx-push-url="true">
-      <select name="month"><option value="">todos los meses</option>{% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}</select>
-      <select name="category"><option value="">todas las categorías</option>
+      <label for="f-q" style="position:absolute;left:-9999px">Buscar concepto o comercio</label>
+      <input id="f-q" type="search" name="q" value="{{ q }}" placeholder="Buscar concepto o comercio" style="min-width:260px;flex:1 1 260px">
+      <label for="f-month" style="position:absolute;left:-9999px">Mes</label>
+      <select id="f-month" name="month"><option value="">Todos los meses</option>{% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}</select>
+      <label for="f-cat" style="position:absolute;left:-9999px">Categoría</label>
+      <select id="f-cat" name="category"><option value="">Todas las categorías</option>
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}
         <option value="(sin categoría)" {{ 'selected' if category == '(sin categoría)' else '' }}>(sin categoría)</option></select>
-      <select name="flow"><option value="">todos los flujos</option>
+      <label for="f-flow" style="position:absolute;left:-9999px">Flujo</label>
+      <select id="f-flow" name="flow"><option value="">Todos los flujos</option>
         {% for f in taxonomy.flow_types %}<option value="{{ f }}" {{ 'selected' if f == flow else '' }}>{{ FLOW_LABEL.get(f, f) }}</option>{% endfor %}</select>
-      {% if accounts|length > 1 %}<select name="account"><option value="">todas las cuentas</option>
+      {% if accounts|length > 1 %}<label for="f-acc" style="position:absolute;left:-9999px">Cuenta</label>
+      <select id="f-acc" name="account"><option value="">Todas las cuentas</option>
         {% for a in accounts %}<option value="{{ a.account }}" {{ 'selected' if a.account == account else '' }}>{{ a.account }}</option>{% endfor %}</select>{% endif %}
-      {% if tags %}<select name="tag"><option value="">todas las etiquetas</option>
+      {% if tags %}<label for="f-tag" style="position:absolute;left:-9999px">Etiqueta</label>
+      <select id="f-tag" name="tag"><option value="">Todas las etiquetas</option>
         {% for g in tags %}<option value="{{ g.tag }}" {{ 'selected' if g.tag == tag else '' }}>{{ g.tag }} ({{ g.n }})</option>{% endfor %}</select>{% endif %}
-      <input type="search" name="q" value="{{ q }}" placeholder="buscar concepto o comercio" style="min-width:220px">
       {% if key %}<input type="hidden" name="key" value="{{ key }}">{% endif %}
-      {% if month or category or flow or q or key or account or tag %}<a class="link-btn" href="/transactions">limpiar filtros</a>{% endif %}
     </form>
-    {% set base = '/transactions?month=' ~ month ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) ~ '&account=' ~ (account|urlencode) ~ '&tag=' ~ (tag|urlencode) %}
-    <div class="pager">
-      <a class="btn small" href="{{ base|replace('/transactions?', '/transactions/export.csv?') }}" hx-boost="false" title="los {{ totals.n }} movimientos del filtro, para Excel">Exportar CSV</a>
-      {% if page.has_prev %}<a class="btn small" href="{{ base }}&page={{ page.page - 1 }}">‹</a>{% endif %}
-      <span>página {{ page.page }} de {{ page.pages }}</span>
-      {% if page.has_next %}<a class="btn small" href="{{ base }}&page={{ page.page + 1 }}">›</a>{% endif %}
-    </div>
   </div>
   {% if month or category or flow or q or key or account or tag %}
   <div class="chips">
@@ -39,38 +39,61 @@
     {% if flow %}<a class="chip" href="{{ base|replace('flow=' ~ flow, 'flow=') }}" title="quitar filtro">{{ FLOW_LABEL.get(flow, flow) }} ×</a>{% endif %}
     {% if key %}<a class="chip" href="{{ base|replace('key=' ~ (key|urlencode), 'key=') }}" title="quitar filtro">comercio: {{ key }} ×</a>{% endif %}
     {% if q %}<a class="chip" href="{{ base|replace('q=' ~ (q|urlencode), 'q=') }}" title="quitar filtro">“{{ q }}” ×</a>{% endif %}
+    <a class="link-btn" href="/transactions">Limpiar filtros</a>
   </div>
   {% endif %}
+  <div class="concept" style="margin-bottom:8px">Cambiar la categoría de una fila corrige el comercio en todos sus movimientos. El botón «···» abre flujo, origen, etiquetas y cuenta.</div>
   <div class="scroll-x">
-  <table>
-    <tr><th style="width:1%">Fecha</th><th>Concepto</th><th>Categoría <span style="font-weight:300;text-transform:none;letter-spacing:0">(cambiarla corrige el comercio)</span></th><th>Flujo</th><th>Fuente</th><th>Etiquetas</th><th class="num">Importe</th><th class="num">Saldo</th>{% if accounts|length > 1 %}<th>Cuenta</th>{% endif %}</tr>
-    {% set ns = namespace(last=none) %}
-    {% for t in page.rows %}
-    <tr>
-      <td class="day" title="{{ t.date }}">{% if t.date != ns.last %}{{ t.date|fecha }}{% endif %}{% set ns.last = t.date %}</td>
-      <td><a href="/merchants?mode=all&q={{ t.concept_clean|urlencode }}" title="ver el comercio">{{ t.concept_clean }}</a><div class="concept">{{ t.concept }}</div></td>
+  <table class="tx-table">
+    <tr><th>Concepto</th><th style="width:220px">Categoría</th><th class="num">Importe</th><th class="num col-balance">Saldo</th><th style="width:40px"></th></tr>
+    {% for g in day_groups %}
+    <tr class="day-row"><td colspan="5"><span class="day-name" title="{{ g.date }}">{{ g.date|fecha_larga }}</span><span class="day-sum">{{ g.rows|length }} movimiento{{ 's' if g.rows|length != 1 else '' }} · {{ '%+.2f'|format(g.total)|replace('.', ',') }} €</span></td></tr>
+    {% for t in g.rows %}
+    {% set conf = t.confidence if t.confidence is not none else 1 %}
+    {% set doubt = t.source and conf < 0.7 %}
+    {% set row_tags = tags_by_id.get(t.id, []) %}
+    <tr id="tx-{{ t.id }}">
+      <td style="min-width:0">
+        <a class="name" href="/merchants?mode=all&q={{ t.concept_clean|urlencode }}" title="ver el comercio">{{ t.concept_clean }}</a>
+        <div class="raw" title="{{ t.concept }}">{% if doubt %}<span class="doubt {{ 'low' if conf < 0.5 else '' }}">Categoría dudosa ({{ SOURCE_LABEL.get(t.source, t.source) }}, {{ '%.2f'|format(conf)|replace('.', ',') }})</span> · {% endif %}{% if row_tags %}<span class="inline-tags">{% for x in row_tags %}<a href="/transactions?tag={{ x|urlencode }}">{{ x }}</a>{{ ', ' if not loop.last else '' }}{% endfor %}</span> · {% endif %}{{ t.concept }}</div>
+      </td>
       <td>
         {# Corrige la memoria del comercio para todos sus movimientos; la respuesta (fila de comercio) se descarta y se avisa con un toast. #}
         <form hx-post="/merchants/{{ t.concept_clean|urlencode }}/category" hx-trigger="change" hx-swap="none"
               hx-on::after-request="document.getElementById('toast').innerHTML='<div class=toast>{{ t.concept_clean }} corregido para todos sus movimientos</div>'; setTimeout(() => document.getElementById('toast').innerHTML = '', 2600)">
-          <select name="category" class="quiet">
+          <label for="cat-{{ t.id }}" style="position:absolute;left:-9999px">Categoría de {{ t.concept_clean }}</label>
+          <select id="cat-{{ t.id }}" name="category" class="quiet {{ 'doubt' if doubt else '' }}" style="width:100%">
             {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == t.category else '' }}>{{ c }}</option>{% endfor %}
           </select>
         </form>
       </td>
-      <td class="muted" style="white-space:nowrap">{{ FLOW_LABEL.get(t.flow_type, t.flow_type or '—') }}</td>
-      <td>{% if t.source %}<span class="conf {{ 'low' if (t.confidence or 1) < 0.5 else 'mid' if (t.confidence or 1) < 0.7 else '' }}" title="{{ SOURCE_LABEL.get(t.source, t.source) }} · confianza {{ '%.2f'|format(t.confidence or 1) }}"><i><b style="width:{{ ((t.confidence or 1) * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(t.source, t.source) }}</span>{% endif %}</td>
-      <td>{% with tx_id=t.id, tags=tags_by_id.get(t.id, []) %}{% include "partials/tags_cell.html" %}{% endwith %}</td>
-      <td class="num {{ 'inc' if t.amount > 0 else 'exp' }}">{{ t.amount|eur(2) }}</td>
-      <td class="num muted">{{ t.balance|eur(2) if t.balance is not none else '—' }}</td>
-      {% if accounts|length > 1 %}<td class="muted" style="white-space:nowrap">{{ t.account }}</td>{% endif %}
+      <td class="num col-amount {{ 'inc' if t.amount > 0 else 'exp' }}">{{ t.amount|eur(2) }}</td>
+      <td class="num col-balance">{{ t.balance|eur(2) if t.balance is not none else '—' }}</td>
+      <td><button type="button" class="more" aria-label="Más opciones del movimiento" aria-expanded="false" aria-controls="more-{{ t.id }}"
+          onclick="const r=document.getElementById('more-{{ t.id }}'); const o=r.classList.toggle('open'); this.setAttribute('aria-expanded', o); this.closest('tr').classList.toggle('selected', o)">···</button></td>
     </tr>
+    <tr class="tx-more" id="more-{{ t.id }}">
+      <td colspan="5">
+        <dl class="kv">
+          <dt>Fecha</dt><dd>{{ t.date }}{% if accounts|length > 1 %} · cuenta {{ t.account }}{% endif %}</dd>
+          <dt>Flujo</dt><dd>{{ FLOW_LABEL.get(t.flow_type, t.flow_type or '—') }}</dd>
+          <dt>Origen</dt><dd>{% if t.source %}<span class="conf {{ 'low' if conf < 0.5 else 'mid' if conf < 0.7 else '' }}" title="confianza {{ '%.2f'|format(conf) }}"><i><b style="width:{{ (conf * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(t.source, t.source) }} · confianza {{ '%.2f'|format(conf)|replace('.', ',') }}</span>{% else %}sin categorizar{% endif %}</dd>
+          <dt>Etiquetas</dt><dd>{% with tx_id=t.id, tags=row_tags %}{% include "partials/tags_cell.html" %}{% endwith %}</dd>
+        </dl>
+      </td>
+    </tr>
+    {% endfor %}
     {% endfor %}
   </table>
   </div>
   <datalist id="tag-options">{% for g in tags %}<option value="{{ g.tag }}">{% endfor %}</datalist>
+  <div class="pager">
+    <span>Página {{ page.page }} de {{ page.pages }}</span>
+    {% if page.has_prev %}<a class="btn ghost" href="{{ base }}&page={{ page.page - 1 }}" aria-label="página anterior">‹ Anterior</a>{% endif %}
+    {% if page.has_next %}<a class="btn ghost" href="{{ base }}&page={{ page.page + 1 }}" aria-label="página siguiente">Siguiente ›</a>{% endif %}
+  </div>
   {% if tags and not tag %}
-  <div class="concept" style="margin-top:12px">Etiquetas: {% for g in tags %}<a class="chip small ghost" href="/transactions?tag={{ g.tag|urlencode }}">{{ g.tag }} · {{ g.n }} · {{ g.total|eur }}</a> {% endfor %}</div>
+  <div class="concept" style="margin-top:16px">Etiquetas: {% for g in tags %}<a class="chip small ghost" href="/transactions?tag={{ g.tag|urlencode }}">{{ g.tag }} · {{ g.n }} · {{ g.total|eur }}</a> {% endfor %}</div>
   {% endif %}
 </div>
 {% endblock %}
