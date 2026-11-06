@@ -9,7 +9,7 @@ Pipeline local de finanzas personales. El usuario exporta a mano extractos de su
 ## Reglas inviolables
 
 1. **Los datos reales se quedan en esta máquina y en la infraestructura de ClusterTIC.** Puedes abrir `data/excel/*`, `data/clean/*` y `data/moooney.db` para entender el formato y depurar el parser, porque los modelos que usas son autoalojados. Pero lee solo lo necesario (cabeceras, unas pocas filas, agregados), y nunca copies filas reales a commits, tests, fixtures, docstrings ni a `docs/`. Los ejemplos que escribas en código o documentación son siempre inventados.
-2. **Nunca subas datos ni secretos a git.** `data/`, `reports/` y los ficheros `.env` están en `.gitignore`. Comprueba con `git status` antes de cada commit que no aparece nada de esas carpetas. La clave del proxy vive en la variable de entorno `LITELLM_API_KEY` y jamás en código, config o commits.
+2. **Nunca subas datos ni secretos a git.** `data/`, `reports/` y los ficheros `.env` están en `.gitignore`. Comprueba con `git status` antes de cada commit que no aparece nada de esas carpetas. La clave del proxy vive en la variable de entorno `LITELLM_API_KEY` y jamás en código, config o commits. La URL real del proxy tampoco: va en `LITELLM_BASE_URL`. Las reglas con comercios o servicios propios del usuario van en `config/rules.local.yaml` (ignorado), no en `config/rules.yaml`.
 3. **Nunca envíes datos crudos a un modelo.** A los modelos solo van claves de comercio normalizadas (sin IBAN, sin saldos, sin nombres de personas, sin referencias numéricas largas) o agregados mensuales. Toda llamada pasa por la capa `src/moooney/llm/` y se registra en la tabla `llm_calls`. La única salida fuera de ClusterTIC es el enriquecimiento web de la fase 2.5: opcional, desactivado por defecto, solo claves de comercio, registrado en `web_calls`.
 4. **Determinista antes que IA.** Parseo, deduplicación, métricas, presupuestos y detección de alertas son código normal y testeable. El modelo solo interpreta texto libre (conceptos) o redacta (informes).
 5. **Idempotente.** Ejecutar la pipeline dos veces sobre el mismo Excel no duplica nada.
@@ -30,7 +30,7 @@ Pipeline local de finanzas personales. El usuario exporta a mano extractos de su
 
 ## Modelos disponibles (proxy LiteLLM de ClusterTIC)
 
-Base URL `https://litellm.clusterticgalicia.com/v1`, API compatible con OpenAI, clave en `LITELLM_API_KEY`. Todos autoalojados.
+Base URL en `LITELLM_BASE_URL` (entorno o `data/.env`; `config/llm.yaml` solo lleva un marcador, porque la URL real del proxy no se escribe en el repo), API compatible con OpenAI, clave en `LITELLM_API_KEY`. Todos autoalojados.
 
 | Modelo | Uso en este proyecto |
 |---|---|

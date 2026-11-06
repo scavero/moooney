@@ -26,7 +26,7 @@ providers:                  # en orden; se para en el primero con resultado úti
   - searxng                 # buscador propio si existe (url abajo); si no, se salta
   - duckduckgo              # buscador público sin clave
   # - google_places         # requiere clave y facturación; opcional
-searxng_url: null           # p. ej. https://searx.clusterticgalicia.com
+searxng_url: null           # p. ej. https://searx.example.org
 google_places_api_key_env: GOOGLE_PLACES_API_KEY
 region_hint: "Galicia, España"
 rate_limit_seconds: 1.5

@@ -10,7 +10,7 @@ Los valores no se registran ni se devuelven enteros a la interfaz; ver `hint`.
 import os
 from pathlib import Path
 
-MANAGED = ("LITELLM_API_KEY", "GOOGLE_PLACES_API_KEY", "MOOONEY_OFFLINE")
+MANAGED = ("LITELLM_API_KEY", "LITELLM_BASE_URL", "GOOGLE_PLACES_API_KEY", "MOOONEY_OFFLINE")
 # Las que se pueden guardar desde la web. MOOONEY_OFFLINE tiene su propio interruptor.
 SECRET_NAMES = ("LITELLM_API_KEY", "GOOGLE_PLACES_API_KEY")
 SOURCE_ENV = "entorno"

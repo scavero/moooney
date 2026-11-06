@@ -24,6 +24,9 @@ OFFLINE_ENV = "MOOONEY_OFFLINE"
 _RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
 
 
+BASE_URL_ENV = "LITELLM_BASE_URL"
+
+
 class LLMError(RuntimeError):
     """Fallo al hablar con el proxy (red, HTTP o respuesta malformada)."""
 
@@ -47,7 +50,11 @@ def load_llm_settings(path: Path | None = None) -> LLMSettings:
         path = Path("config/llm.yaml")
     if not path.exists():
         raise FileNotFoundError(f"no se encuentra la configuracion LLM: {path}")
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    # La URL real del proxy no vive en el repo: LITELLM_BASE_URL (entorno o data/.env) manda
+    # sobre base_url del YAML, que queda como marcador.
+    if os.environ.get(BASE_URL_ENV):
+        data["base_url"] = os.environ[BASE_URL_ENV]
     return LLMSettings.model_validate(data)
 
 

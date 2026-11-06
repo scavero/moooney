@@ -6,7 +6,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "ClusterTIC LiteLLM",
       "options": {
-        "baseURL": "https://litellm.clusterticgalicia.com/v1",
+        "baseURL": "{env:LITELLM_BASE_URL}",
         "apiKey": "{env:LITELLM_API_KEY}"
       },
       "models": {

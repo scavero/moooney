@@ -1,5 +1,13 @@
 # Cambios
 
+## Sin publicar (tras 1.1.5)
+
+- **Preparación para repo público**: la URL del proxy sale del repo (`LITELLM_BASE_URL` manda sobre `base_url`
+  de `config/llm.yaml`, que queda como marcador; también en `.env.example`, `opencode.json` y el script de prueba
+  de Clef). Nuevo `config/rules.local.yaml`, ignorado por git y cargado antes que `rules.yaml`, para las reglas
+  que retratan al usuario; las generales se quedan con marcas y cadenas. Las cifras reales de `docs/DESIGN.md`
+  pasan a proporciones.
+
 ## 1.1.5 · 2026-11-07
 
 - **Móvil y barra lateral**, a partir de una crítica de diseño del Resumen: por debajo de 1000 px el diagnóstico va a

@@ -11,11 +11,18 @@ if (-not $key) {
     exit 1
 }
 
+$base = $env:LITELLM_BASE_URL
+if (-not $base) { $base = [Environment]::GetEnvironmentVariable("LITELLM_BASE_URL", "User") }
+if (-not $base) {
+    Write-Error "Define primero LITELLM_BASE_URL con la URL del proxy (p. ej. https://tu-proxy.example.com/v1)."
+    exit 1
+}
+
 $body = Get-Content -Raw -Path (Join-Path $PSScriptRoot "clef_test.json")
 
 $response = Invoke-RestMethod `
     -Method Post `
-    -Uri "https://litellm.clusterticgalicia.com/v1/chat/completions" `
+    -Uri "$base/chat/completions" `
     -Headers @{ Authorization = "Bearer $key" } `
     -ContentType "application/json; charset=utf-8" `
     -Body ([System.Text.Encoding]::UTF8.GetBytes($body))

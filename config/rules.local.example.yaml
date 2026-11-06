@@ -1,0 +1,15 @@
+# Ejemplo de config/rules.local.yaml: reglas propias que no quieres en el repo
+# (comercios de tu barrio, tu gimnasio, servicios concretos que pagas).
+# Copia este fichero a config/rules.local.yaml (ignorado por git). Se carga antes que
+# config/rules.yaml, así que estas reglas mandan sobre las generales.
+# Misma forma: regex sobre la clave de comercio, categoría/subcategoría/flujo de categories.yaml.
+
+rules:
+  - pattern: 'GIMNASIO DEL BARRIO|PADEL CLUB EJEMPLO'
+    category: Ocio
+    subcategory: deporte
+    flow_type: expense
+  - pattern: 'AGUAS DE MI AYUNTAMIENTO'
+    category: Vivienda
+    subcategory: suministros
+    flow_type: expense

@@ -1,7 +1,9 @@
 # Configuración del acceso al proxy LiteLLM. La clave NUNCA vive aquí:
 # se lee de la variable de entorno indicada en api_key_env.
 
-base_url: https://litellm.clusterticgalicia.com/v1
+# URL del proxy. La real no va en el repo: ponla en LITELLM_BASE_URL (variable de entorno
+# o data/.env, junto a la clave) y manda sobre este valor.
+base_url: https://tu-proxy.example.com/v1
 api_key_env: LITELLM_API_KEY
 
 # Decider principal para categorizar: clef | qwen

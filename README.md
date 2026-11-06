@@ -35,7 +35,7 @@ Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.12 solo). O Docke
 2. **Clave del modelo**: pégala en la página *Ajustes* de la web (se guarda en `data/.env`) o copia
    `.env.example` a `.env` y pon `LITELLM_API_KEY`. Una variable de entorno del sistema, si existe, manda
    sobre ambos. *Ajustes* tiene un botón para probar la conexión. Vale cualquier servidor compatible con la
-   API de OpenAI (LiteLLM, vLLM, Ollama…); los modelos se configuran en `config/llm.yaml`.
+   API de OpenAI (LiteLLM, vLLM, Ollama…); los modelos se configuran en `config/llm.yaml`. La URL del proxy va en `LITELLM_BASE_URL`, en el mismo `.env`; si falta, se usa `base_url` del YAML, que en el repo es un marcador.
    Sin clave también funciona: categoriza por reglas y memoria, y el informe sale sin modelo.
 3. **Arranca** la web y usa la página *Pipeline*:
 
@@ -177,6 +177,7 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `config/settings.yaml` | Rutas, perfil del Santander y perfiles de otros bancos (`banks:`), alias de columnas |
 | `config/categories.yaml` | Taxonomía cerrada; las descripciones son lo que se le explica al modelo |
 | `config/rules.yaml` | Reglas regex → categoría, la primera que casa gana |
+| `config/rules.local.yaml` | Reglas propias (comercios de tu zona, servicios que usas); ignorado por git y con prioridad sobre `rules.yaml` |
 | `config/llm.yaml` | Proxy, clave (nombre de la variable de entorno) y qué modelo hace cada cosa |
 | `config/enrichment.yaml` | Enriquecimiento: activado, disparador, vetos, proveedores, tope de consultas |
 | `config/budgets.yaml` | Tus límites mensuales (ignorado por git; `budget init` lo crea) |

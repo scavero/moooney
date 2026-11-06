@@ -38,14 +38,23 @@ def _compiled(pattern: str) -> re.Pattern[str]:
     return _COMPILED[pattern]
 
 
+def _read_rules(path: Path) -> list[Rule]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return [Rule.model_validate(r) for r in data.get("rules", [])]
+
+
 def load_rules(path: Path | None = None, taxonomy: Taxonomy | None = None) -> list[Rule]:
     """Carga la lista ordenada de reglas y la valida contra la taxonomía."""
     if path is None:
         path = Path("config/rules.yaml")
     if not path.exists():
         raise FileNotFoundError(f"no se encuentra la configuracion de reglas: {path}")
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    rules = [Rule.model_validate(r) for r in data.get("rules", [])]
+    rules = _read_rules(path)
+    # Reglas propias del usuario (comercios de su zona, servicios que usa): fuera de git y con
+    # prioridad sobre las generales.
+    local = path.with_name("rules.local.yaml")
+    if local.is_file():
+        rules = _read_rules(local) + rules
     for rule in rules:
         _compiled(rule.pattern)
         if taxonomy is None:
