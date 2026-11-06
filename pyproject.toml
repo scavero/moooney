@@ -1,6 +1,6 @@
 [project]
 name = "moooney"
-version = "1.1.1"
+version = "1.1.2"
 description = "Pipeline local de finanzas personales sobre extractos del Santander"
 readme = "README.md"
 authors = [

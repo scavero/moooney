@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.1.1)
+## 1.1.2 · 2026-11-06
 
 - **Recurrentes y Presupuestos** con el mismo criterio de legibilidad: en Recurrentes, control «Activos / Con
   inactivos», tabla de cinco columnas con categoría y estabilidad bajo la clave, subida de precio marcada en ámbar
