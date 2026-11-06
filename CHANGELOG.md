@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.1.3)
+## 1.1.4 · 2026-11-06
 
 - **Informe, Pipeline y Ajustes** con el mismo criterio de legibilidad: subtítulos y notas como frases, navegación
   de mes de Informe como en Resumen, aviso de «no disponible» con la marca ámbar en vez de un color suelto, botones
