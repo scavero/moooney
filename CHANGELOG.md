@@ -1,5 +1,22 @@
 # Cambios
 
+## Sin publicar (tras 1.0.0)
+
+- **Dudosas sin revisar a mano**: tipo de operación en lo que ve el modelo, `categorize --retry-dudosas`
+  (el decider vuelve a preguntar con el tipo de operación y el resumen web) y `categorize --second-opinion`
+  (el modelo de texto revisa por lotes; sustituye solo con confianza ≥ 0,7). Botones en *Pipeline*.
+- **Comercios**: la cola de revisión es la página: clave como titular, evidencia (últimos movimientos,
+  categoría actual, resumen web), sugerencias con tecla, tabla completa plegada; por defecto solo las claves
+  que importan (≥ 2 movimientos o ≥ 30 €).
+- **Resumen**: cifra de ahorro neto y veredicto en una frase; KPIs en una línea con saldo y colchón;
+  diagnóstico con los euros primero.
+- **Multibanco**: perfiles en `settings.yaml` (`banks:`), cabecera detectada por columnas, Excel del BBVA.
+- **Varias cuentas**: saldo = suma del último saldo de cada cuenta; filtro y columna de cuenta en Movimientos.
+- **Etiquetas** libres en movimientos sueltos, con filtro, totales, CSV y comando `tag`.
+- **Exportar CSV** desde Movimientos y comando `export`; tarea programada documentada; licencia MIT; CI.
+- Revisión UX de toda la interfaz: etiquetas humanas, fechas cortas, chips, totales del filtro, calendario
+  de cargos, marca «hoy» en presupuestos, alertas por grupo, stepper en Pipeline.
+
 ## 1.0.0 · 2026-10-11
 
 Primera versión completa. Todo corre en local; a los modelos (autoalojados) solo van claves de

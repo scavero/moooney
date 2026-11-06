@@ -3,10 +3,11 @@
 [![ci](https://github.com/scavero/moooney/actions/workflows/ci.yml/badge.svg)](https://github.com/scavero/moooney/actions/workflows/ci.yml)
 [![licencia MIT](https://img.shields.io/badge/licencia-MIT-0e3b2e)](LICENSE)
 
-Finanzas personales con IA, en tu máquina. Exportas tus movimientos del banco a Excel, moooney los
-limpia, los categoriza con un modelo de decisión, detecta recurrentes, propone presupuestos, lanza
-alertas, te dice **a dónde se va el dinero cada mes** y qué harías para mejorar, y lo muestra todo en
-una web local. Ningún dato bancario sale de tu ordenador ni de la infraestructura que tú elijas.
+Finanzas personales con IA, en tu máquina. Exportas tus movimientos del banco a Excel (Santander o BBVA,
+otros por perfil), moooney los limpia, los categoriza con un modelo de decisión, detecta recurrentes, propone
+presupuestos, lanza alertas, te dice **a dónde se va el dinero cada mes** en una frase y qué harías para
+mejorar, y lo muestra todo en una web local. Ningún dato bancario sale de tu ordenador ni de la
+infraestructura que tú elijas.
 
 Está pensado para que cualquiera lo clone y vea lo mismo con sus datos.
 
@@ -40,29 +41,35 @@ Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.12 solo). O Docke
 uv run moooney web
 ```
 
-   Importar Excel → Categorizar pendientes → (revisar dudosas en *Comercios*) → Presupuestos → Alertas → Informe.
-   Cada paso tiene su botón, su registro en pantalla y su equivalente en la CLI.
+   Importar Excel → Categorizar pendientes → Reintentar dudosas / Segunda opinión → (revisar lo que quede en
+   *Comercios*) → Presupuestos → Alertas → Informe. Cada paso tiene su botón, su registro en pantalla y su
+   equivalente en la CLI; la página muestra de un vistazo qué paso pide acción.
 
 4. **Cada mes**: exporta el mes nuevo, déjalo en `data/excel/` y pulsa *Importar*. Nada se duplica. Si prefieres
    olvidarte, `uv run moooney watch` vigila la carpeta y corre la pipeline sola (o una tarea programada, más abajo).
 
 ## Qué verás
 
-- **Resumen**: ingresos, gastos fijos y variables, ahorro neto y tasa, inversión; **diagnóstico** del mes con
-  hallazgos ordenados por euros al mes (categorías que se disparan, comercio dominante, comer fuera,
-  comisiones, suscripciones, cargos pequeños que suman, tasa de ahorro, meses en rojo, colchón, previsión
-  a fin de mes); gasto por categoría de 12 meses con clic para bajar a los movimientos; reparto del mes;
-  comercios donde más se gasta; presupuesto y alertas.
+- **Resumen**: abre con la cifra de ahorro neto del mes y un **veredicto en una frase**, calculado sin modelo
+  («Has ahorrado el 30 % de lo que entró; alimentación se dispara»); debajo, ingresos, gastos fijos y
+  variables, ahorro neto, saldo (sumando todas las cuentas) y colchón en meses; **diagnóstico** con los euros
+  al mes en primera columna (categorías que se disparan, comercio dominante, comer fuera, comisiones,
+  suscripciones, cargos pequeños que suman, tasa de ahorro, meses en rojo, colchón, previsión a fin de mes);
+  gasto por categoría de 12 meses con clic para bajar a los movimientos; reparto del mes; comercios donde más
+  se gasta; presupuesto con la marca del día de hoy y alertas pendientes.
 - **Tendencias**: previsión a fin de mes y de los próximos tres, colchón en meses, saldo proyectado a un
   año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
 - **Movimientos**: filtros por mes, categoría, flujo, cuenta, etiqueta y texto, totales del filtro; la
   categoría se corrige en la propia fila; **etiquetas libres** en movimientos sueltos (viaje, reforma…) para
   agrupar gastos de distintas categorías y ver lo que suman; **Exportar CSV** descarga el filtro completo listo
   para Excel. Con varios bancos, el saldo del resumen es la suma del último saldo de cada cuenta.
-- **Comercios**: cola de revisión de dudosas (una clave cada vez, las que importan primero, con sugerencias y
-  teclado) y tabla de todas las claves con su fuente y confianza; corregir la categoría se aplica a todos sus
-  movimientos para siempre. Antes de revisar a mano, *Pipeline* ofrece **Reintentar dudosas** (el decider con el
-  tipo de operación y el resumen web) y **Segunda opinión** (el modelo de texto, por lotes).
+- **Comercios**: la **cola de revisión** es la página. Cada clave dudosa (las que importan primero: dos o más
+  movimientos o 30 € o más) aparece como titular con su evidencia (los últimos movimientos, la categoría actual
+  con su confianza y lo que dice la web), tres sugerencias con tecla (1-3), Enter para confirmar y S para
+  saltar. Una corrección se aplica a todos los movimientos del comercio para siempre. La tabla completa de
+  claves, con fuente, confianza y filtros, queda plegada debajo. Antes de revisar a mano, *Pipeline* ofrece
+  **Reintentar dudosas** (el decider vuelve a preguntar con el tipo de operación y el resumen web) y
+  **Segunda opinión** (el modelo de texto revisa por lotes y solo sustituye si está seguro).
 - **Recurrentes**, **Presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con
   proyección), **Alertas** (presupuesto al 80 / 100 %, importe anómalo, cargo duplicado, recurrente nuevo,
   subida de precio, ingreso que no llega, saldo proyectado negativo, comisiones).
@@ -84,7 +91,13 @@ Excel ──► ingesta ──► SQLite ──► categorización ──► (en
 - **Categorización en cascada por clave de comercio**, no por movimiento: reglas (`config/rules.yaml`),
   memoria (`merchants`), embeddings para variantes de un comercio conocido y, solo para lo nuevo,
   [Clef-Flash](https://huggingface.co/Cloudflare/clef-flash), un modelo de decisión que devuelve
-  probabilidades en lugar de texto. Tus correcciones mandan sobre todo lo demás.
+  probabilidades en lugar de texto. El modelo ve la clave limpia, el tipo de operación (recibo domiciliado,
+  compra con tarjeta, bizum…), el importe redondeado y la frecuencia. Lo que queda dudoso pasa por una
+  **segunda opinión** del modelo de texto, con los criterios de la taxonomía y el resumen web, que solo
+  sustituye con confianza alta. Tus correcciones mandan sobre todo lo demás.
+- **Varios bancos y cuentas**: cada banco es un perfil en `settings.yaml` (alias de columnas y, si hace falta,
+  un constructor que reescribe su concepto a la forma «COMPRA EN …», «RECIBO …» con la que está calibrado
+  todo lo demás). Las cuentas conviven en la misma base y el saldo es la suma del último saldo de cada una.
 - **Enriquecimiento externo (opcional, desactivado por defecto)**: para comercios que siguen dudosos
   consulta Nominatim, un SearXNG propio, DuckDuckGo o Google Places con la clave de comercio limpia, nunca
   importes ni fechas, y vuelve a preguntar a Clef. Es el único punto donde algo sale de tu infraestructura;
@@ -157,7 +170,7 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 
 | Fichero | Para qué |
 |---|---|
-| `config/settings.yaml` | Rutas y mapeo de columnas del Excel (alias por columna, sin tocar código) |
+| `config/settings.yaml` | Rutas, perfil del Santander y perfiles de otros bancos (`banks:`), alias de columnas |
 | `config/categories.yaml` | Taxonomía cerrada; las descripciones son lo que se le explica al modelo |
 | `config/rules.yaml` | Reglas regex → categoría, la primera que casa gana |
 | `config/llm.yaml` | Proxy, clave (nombre de la variable de entorno) y qué modelo hace cada cosa |
@@ -171,13 +184,16 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 140 tests, todos con datos sintéticos
+uv run pytest        # 156 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```
 
 La integración continua (`.github/workflows/ci.yml`) corre ruff y los tests en cada push y comprueba que la imagen
-Docker se construye y sirve la demo. Cambios por versión en [CHANGELOG.md](CHANGELOG.md).
+Docker se construye y sirve la demo. Cambios por versión en [CHANGELOG.md](CHANGELOG.md). El sistema visual
+(Fraunces + Work Sans, un dominante y un acento, ritmo de 8 px) está en `static/app.css` y documentado en
+`docs/DESIGN.md`; las dos pantallas principales se rediseñaron con [Superdesign](https://superdesign.dev) a
+partir de las plantillas, nunca de datos.
 
 Contexto para agentes de IA que trabajen en el repo: [AGENTS.md](AGENTS.md).
 
