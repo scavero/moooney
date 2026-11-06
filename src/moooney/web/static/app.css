@@ -159,6 +159,8 @@ details summary { cursor: pointer; color: var(--dominant); }
   .demo-bar { padding: var(--s1) var(--s2); }
   h1 { font-size: 30px; }
   .card.kpi .value { font-size: 32px; }
+  .verdict-figure { font-size: 48px; } .verdict-text { font-size: 18px; }
+  .queue .key { font-size: 28px; } .queue-evidence { grid-template-columns: 1fr; }
   .card > table, .card > div > table { display: block; overflow-x: auto; }
 }
 
@@ -174,19 +176,24 @@ details summary { cursor: pointer; color: var(--dominant); }
 .sidebar nav .group { color: #9fb8ac; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 14px 0 4px; }
 .pill.soft { background: rgba(255, 255, 255, .14); color: #fff; }
 
-/* ---------- resumen: franja «ahora mismo» ---------- */
-.now { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 var(--s5); padding: 20px 0;
-  border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); margin-bottom: var(--s5); }
-.now a { display: flex; gap: 14px; align-items: center; color: var(--ink); padding: 6px 0; }
-.now a:hover { text-decoration: none; color: var(--dominant); }
-.now .n { font-family: var(--font-display); font-weight: 200; font-size: 36px; line-height: 1; min-width: 44px; white-space: nowrap; flex-shrink: 0; }
-.now .n.warn { color: #e58a00; } .now .n.crit { color: var(--accent); } .now .n.ok { color: var(--dominant); }
-.now .l { min-width: 0; } .now .l b { display: block; font-size: 13px; } .now .l span { display: block; color: var(--ink-2); font-size: 12px; }
-.now .cta { color: var(--dominant); font-weight: 800; }
+/* ---------- resumen: primero la respuesta ---------- */
+.verdict-links { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--s2); font-size: 13px; margin-bottom: var(--s2); }
+.verdict-links a { color: var(--ink); }
+.verdict-links strong { font-weight: 800; }
+.verdict-links strong.ok { color: var(--dominant); } .verdict-links strong.warn { color: #e58a00; } .verdict-links strong.crit { color: var(--accent); }
+.verdict-main { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4); }
+.verdict-figure { font-family: var(--font-display); font-weight: 200; font-size: 80px; line-height: 1; letter-spacing: -.03em; white-space: nowrap; }
+.verdict-text { font-size: 24px; font-weight: 300; line-height: 1.3; max-width: 640px; text-wrap: balance; }
+.kpi-row { display: flex; gap: var(--s6); flex-wrap: wrap; padding: var(--s2) 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+.kpi-row .label { color: var(--ink-3); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 800; }
+.kpi-row .value { font-family: var(--font-display); font-weight: 200; font-size: 24px; letter-spacing: -.02em; line-height: 1.1; margin-top: 4px; }
+.kpi-row .hint { color: var(--ink-2); font-size: 12px; margin-top: 4px; font-weight: 300; }
 
-/* ---------- diagnóstico como lista ---------- */
-.diag-list .row { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: var(--s2); align-items: center;
+/* ---------- diagnóstico como lista: los euros primero ---------- */
+.diag-list .row { display: grid; grid-template-columns: 96px 56px minmax(0, 1fr); gap: var(--s2); align-items: center;
   padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.diag-list .impact-col { text-align: right; }
+.diag-list .impact-col .impact { font-size: 28px; }
 .diag-list .row:hover { background: rgba(14, 59, 46, 0.03); }
 .diag-list .tag { text-align: center; }
 .potential { color: var(--ink-2); font-size: 13px; }
@@ -223,15 +230,27 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .segmented a.on { background: var(--dominant); color: #fff; }
 .segmented a span { opacity: .6; }
 
-/* ---------- cola de revisión de dudosas ---------- */
-.queue { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3) var(--s5); align-items: start;
-  padding: var(--s3) 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); margin-bottom: var(--s5); }
-.queue .key { font-family: var(--font-display); font-weight: 800; font-size: 28px; letter-spacing: -.01em; line-height: 1.1; }
-.queue .meta { color: var(--ink-2); font-size: 13px; margin-top: 6px; }
-.queue .side { display: flex; flex-direction: column; gap: var(--s1); align-items: flex-end; }
-.queue .sug { font-size: 13px; padding: 8px 14px; }
-.queue .sug span { opacity: .6; margin-right: 6px; }
-.queue .sug.on { background: var(--dominant); color: #fff; }
+/* ---------- cola de revisión: la cola es la página ---------- */
+.queue { padding: var(--s3) 0 var(--s4); border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); margin-bottom: var(--s6); }
+.queue-progress { font-size: 13px; color: var(--ink-2); margin-bottom: var(--s1); }
+.queue .key { font-family: var(--font-display); font-weight: 800; font-size: 44px; letter-spacing: -.02em; line-height: 1.05; margin-bottom: var(--s4); }
+.queue-evidence { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--s6); align-items: start; margin-bottom: var(--s4); }
+.queue-evidence h3 { margin-top: 0; }
+.queue-evidence table { font-size: 14px; margin-bottom: var(--s1); }
+.queue-cat { font-family: var(--font-display); font-weight: 800; font-size: 22px; margin-bottom: 6px; }
+.queue-decide { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; border-top: 1px solid var(--hair); padding-top: var(--s3); }
+.queue-decide .spacer { flex: 1; }
+.queue-decide .btn { font-size: 15px; padding: 10px 16px; }
+.queue-decide .sug.on { background: var(--dominant); color: #fff; }
+.queue-decide .ghost { border-color: transparent; }
+.queue-decide select { padding: 10px 12px; font-size: 15px; }
+.queue-decide kbd { font: inherit; font-size: 11px; font-weight: 300; border: 1px solid currentColor; border-radius: 2px; padding: 0 5px; margin-right: 8px; opacity: .7; line-height: 1.4; }
+.queue-decide .confirm kbd, .queue-decide .skip kbd { margin: 0 0 0 8px; }
+.all-keys summary { display: flex; align-items: baseline; gap: var(--s2); list-style: none; cursor: pointer; margin-bottom: var(--s3); }
+.all-keys summary::-webkit-details-marker { display: none; }
+.all-keys summary h2 { margin: 0; }
+.all-keys summary::after { content: "↓"; color: var(--ink-3); }
+.all-keys[open] summary::after { content: "↑"; }
 
 /* ---------- presupuestos: marca «hoy» ---------- */
 .bar { position: relative; overflow: visible; }

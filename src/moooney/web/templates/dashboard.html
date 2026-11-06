@@ -16,21 +16,24 @@
   </div>
 </div>
 
-<div class="now">
-  <a href="/merchants?mode=dudosas"><span class="n {{ 'warn' if merchants_counts.dudosas else 'ok' }}">{{ merchants_counts.dudosas }}</span><span class="l"><b>comercios por revisar</b><span>el modelo no está seguro de su categoría. <span class="cta">Revisar →</span></span></span></a>
-  <a href="/alerts"><span class="n {{ 'crit' if alerts_counts.critical else 'ok' }}">{{ alerts_counts.total }}</span><span class="l"><b>alertas pendientes</b><span>{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos. <span class="cta">Ver →</span></span></span></a>
-  {% if fme %}<a href="/trends"><span class="n {{ 'ok' if fme.net >= 0 else 'crit' }}">{{ fme.net|eur }}</span><span class="l"><b>ahorro previsto a fin de mes</b><span>gasto previsto {{ fme.expenses|eur }} al ritmo actual. <span class="cta">Previsión →</span></span></span></a>{% endif %}
-</div>
-
-<div class="grid kpis section" style="border:0;padding:0">
-  <div class="card kpi"><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div></div>
-  <div class="card kpi"><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div>
-    <div class="hint">fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}</div></div>
-  <div class="card kpi"><div class="label">Ahorro neto</div>
-    <div class="value {{ 'pos' if s.net >= 0 else 'neg' }}">{{ s.net|eur }}</div>
-    <div class="hint">tasa de ahorro {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
-  <div class="card kpi"><div class="label">Saldo</div><div class="value">{{ balance|eur }}</div>
-    <div class="hint">{% if accounts|length > 1 %}{% for a in accounts %}{{ a.account }} {{ a.last_balance|eur }}{{ ' · ' if not loop.last else '' }}{% endfor %} · {% endif %}{% if runway is not none %}colchón de {{ '%.1f'|format(runway) }} meses de gasto{% else %}sin histórico suficiente{% endif %}</div></div>
+<div class="verdict section">
+  <div class="verdict-links">
+    <a href="/merchants?mode=dudosas"><strong class="{{ 'warn' if merchants_counts.dudosas else 'ok' }}">{{ merchants_counts.dudosas }}</strong> comercios por revisar</a>
+    <span class="muted">·</span>
+    <a href="/alerts"><strong class="{{ 'crit' if alerts_counts.critical else 'ok' }}">{{ alerts_counts.total }}</strong> alertas pendientes</a>
+    {% if fme %}<span class="muted">·</span><a href="/trends">previsión a fin de mes <strong class="{{ 'ok' if fme.net >= 0 else 'crit' }}">{{ fme.net|eur }}</strong></a>{% endif %}
+  </div>
+  <div class="verdict-main">
+    <div class="verdict-figure {{ 'pos' if s.net >= 0 else 'neg' }}">{{ ('+' if s.net > 0 else '') ~ (s.net|eur) }}</div>
+    <div class="verdict-text">{{ verdict }}</div>
+  </div>
+  <div class="kpi-row">
+    <div><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div></div>
+    <div><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div><div class="hint">fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}</div></div>
+    <div><div class="label">Ahorro neto</div><div class="value">{{ s.net|eur }}</div><div class="hint">tasa {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
+    <div><div class="label">Saldo</div><div class="value">{{ balance|eur }}</div>{% if accounts|length > 1 %}<div class="hint">{% for a in accounts %}{{ a.account }} {{ a.last_balance|eur }}{{ ' · ' if not loop.last else '' }}{% endfor %}</div>{% endif %}</div>
+    <div><div class="label">Colchón</div><div class="value">{% if runway is not none %}{{ '%.1f'|format(runway) }} meses{% else %}—{% endif %}</div><div class="hint">de gasto medio, sin ingresos</div></div>
+  </div>
 </div>
 
 <div class="card section">
@@ -42,10 +45,10 @@
   <div class="diag-list">
     {% for i in insights %}
     <div class="row">
+      <div class="impact-col">{% if i.impact > 0 %}<span class="impact">{{ i.impact|eur }}</span><div class="concept">al mes</div>{% else %}<span class="impact muted">—</span>{% endif %}</div>
       <span class="tag {{ i.tone }}">{{ {'ok': 'bien', 'info': 'dato', 'warn': 'ojo', 'crit': 'mal'}[i.tone] }}</span>
       <div><strong>{{ i.title }}</strong><div class="concept">{{ i.detail }}
         {% if i.link %}<a href="{{ i.link }}"><strong>{{ 'ver tendencias' if i.link.startswith('/trends') else 'ver recurrentes' if i.link.startswith('/recurring') else 'revisar comercios' if i.link.startswith('/merchants') else 'ver movimientos' }} →</strong></a>{% endif %}</div></div>
-      <div class="num">{% if i.impact > 0 %}<span class="impact">{{ i.impact|eur }}</span><div class="concept">al mes</div>{% endif %}</div>
     </div>
     {% endfor %}
   </div>

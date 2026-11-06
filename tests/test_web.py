@@ -43,6 +43,7 @@ def test_paginas_principales_responden(client):
         assert "moooney" in r.text
     r = client.get("/?month=2026-09")
     assert r.status_code == 200 and "2026-09" in r.text and "Diagnóstico" in r.text
+    assert 'class="verdict-figure' in r.text and ("has ahorrado" in r.text or "Has ahorrado" in r.text or "gastado" in r.text)
     r = client.get("/trends")
     assert "Gasto previsto fin de mes" in r.text and "Dónde se ha ido el dinero" in r.text
     r = client.get("/transactions?month=2026-09&category=Alimentacion&q=MERCADONA")
@@ -85,7 +86,9 @@ def test_alertas_recalcular_y_marcar_vistas(client):
 
 def test_cola_de_dudosas_y_saltar(client):
     r = client.get("/merchants")
-    assert r.status_code == 200 and "Revisar dudosas" in r.text
+    assert r.status_code == 200 and "Revisar dudosas" in r.text and "Últimos movimientos" in r.text
+    assert "<details class=\"all-keys\" >" in r.text  # la tabla, plegada
+    assert "<details class=\"all-keys\" open>" in client.get("/merchants?mode=all").text
     first = r.text.split('<div class="key">')[1].split("</div>")[0]
     r = client.get(f"/merchants?skip={first}")
     assert r.status_code == 200 and "2 de" in r.text

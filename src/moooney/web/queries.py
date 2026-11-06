@@ -171,6 +171,14 @@ def split_queue(rows: list[sqlite3.Row]) -> tuple[list[sqlite3.Row], list[sqlite
     return importantes, resto
 
 
+def recent_for_key(conn: sqlite3.Connection, key: str, *, limit: int = 3) -> list[sqlite3.Row]:
+    """Últimos movimientos de una clave (evidencia en la cola de revisión)."""
+    return conn.execute(
+        "SELECT date, concept, amount FROM transactions WHERE concept_clean = ? ORDER BY date DESC, id DESC LIMIT ?",
+        (key, limit),
+    ).fetchall()
+
+
 def merchant_row(conn: sqlite3.Connection, key: str) -> sqlite3.Row | None:
     return conn.execute(
         """

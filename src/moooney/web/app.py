@@ -127,6 +127,23 @@ def mes(value: str | None, short: bool = False) -> str:
     return f"{name[:3]} {value[2:4]}" if short else f"{name} {value[:4]}"
 
 
+def build_verdict(summary, insights, *, day: int | None = None) -> str:
+    """Una frase en castellano que responde a la pregunta del mes. Determinista."""
+    prefix = f"A día {day}, " if day and not summary.full_month else ""
+    if summary.income > 0 and summary.net >= 0:
+        base = f"has ahorrado el {summary.savings_rate * 100:.0f} % de lo que entró"
+    elif summary.income > 0:
+        base = f"has gastado {eur(-summary.net)} más de lo que entró"
+    else:
+        base = f"sin ingresos, has gastado {eur(summary.expenses)}"
+    frase = (prefix + base) if prefix else base[0].upper() + base[1:]
+    aviso = next((i for i in insights if i.severity in ("warn", "bad") and i.impact > 0), None)
+    if aviso is not None:
+        titulo = aviso.title.split(":")[0].rstrip(".")  # sin las cifras del detalle: frase corta
+        frase += f"; {titulo[0].lower() + titulo[1:]}"
+    return frase + "."
+
+
 def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> FastAPI:
     settings = load_settings(config_path)
     config_dir = config_path.parent if config_path else Path("config")
@@ -235,6 +252,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
             fme=fme, balance=forecast_mod.last_balance(conn),
             runway=forecast_mod.runway_months(conn, report.as_of, first=first),
             accounts=repo.accounts(conn),
+            verdict=build_verdict(report.summary, insights, day=int(report.as_of[8:10])),
             day=int(report.as_of[8:10]), days_in_month=periods.days_in_month(m),
         )
 
@@ -354,6 +372,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
         return render(
             request, conn, "merchants.html", page=pg, mode=mode, q=q or "", category=category or "",
             summary=queries.merchants_summary(conn), taxonomy=tx,
+            recent=queries.recent_for_key(conn, current["key"], limit=3) if current else [],
+            open_table=bool(mode != "dudosas" or q or category or page > 1 or current is None),
             queue_current=current, queue_pos=len(queue_rows) - len(pending) + 1, queue_total=len(queue_rows),
             queue_suggestions=suggestions, skip=skip, queue_mode=queue,
             tail_n=len(cola_larga), tail_total=sum(abs(float(r["total"])) for r in cola_larga),

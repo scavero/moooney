@@ -8,30 +8,41 @@
 {% if queue_current %}
 {% set qc = queue_current %}
 <div class="queue" id="queue">
-  <div>
-    <h3 style="margin:0 0 8px">Revisar dudosas · {{ queue_pos }} de {{ queue_total }}{% if queue_mode != 'all' and tail_n %} <span style="font-weight:300;text-transform:none;letter-spacing:0">· las que importan</span>{% endif %}</h3>
-    <div class="key">{{ qc.key }}</div>
-    <div class="meta">{{ qc.n }} movimientos · {{ qc.total|eur(2) }} · último <span title="{{ qc.last_date }}">{{ qc.last_date|fecha }}</span> · ahora en <strong>{{ qc.category }}</strong> con confianza {{ '%.2f'|format(qc.confidence or 0) }} ({{ SOURCE_LABEL.get(qc.source, qc.source) }})
-      {% if qc.web_summary %}<br>la web dice: <em>{{ qc.web_summary }}</em>{% endif %}</div>
-    <form id="queue-form" class="actions" style="margin-top:16px" method="post" action="/merchants/{{ qc.key|urlencode }}/category"
-          hx-post="/merchants/{{ qc.key|urlencode }}/category" hx-swap="none"
-          hx-on::after-request="if (event.detail.successful) window.location = '/merchants?mode={{ mode }}&queue={{ queue_mode }}&skip={{ skip|urlencode }}'">
-      {# hidden primero: el botón pulsado (o el select) va después y es el valor que se queda #}
-      <input type="hidden" name="category" value="">
-      {% for c in queue_suggestions %}
-      <button class="btn sug {{ 'on' if c == qc.category else '' }}" type="submit" name="category" value="{{ c }}" accesskey="{{ loop.index }}"><span>{{ loop.index }}</span>{{ c }}</button>
-      {% endfor %}
-      <select onchange="this.form.querySelector('input[type=hidden][name=category]').value = this.value; this.form.requestSubmit()">
-        <option value="">otra categoría…</option>
-        {% for c in taxonomy.categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
-      </select>
-    </form>
+  <div class="queue-progress">Revisar dudosas · <strong>{{ queue_pos }} de {{ queue_total }}</strong>{% if queue_mode != 'all' and tail_n %} · las que importan · <span class="muted">{{ tail_total|eur }} en {{ tail_n }} claves pequeñas fuera de la cola</span>{% endif %}</div>
+  <div class="key">{{ qc.key }}</div>
+  <div class="queue-evidence">
+    <div>
+      <h3>Últimos movimientos</h3>
+      <table>
+        {% for t in recent %}
+        <tr><td class="num muted" style="width:64px" title="{{ t.date }}">{{ t.date|fecha }}</td><td class="concept" style="font-size:13px">{{ t.concept }}</td><td class="num {{ 'inc' if t.amount > 0 else 'exp' }}" style="width:96px">{{ t.amount|eur(2) }}</td></tr>
+        {% endfor %}
+      </table>
+      <a class="concept" href="/transactions?key={{ qc.key|urlencode }}" style="text-decoration:underline">ver los {{ qc.n }} movimientos · {{ qc.total|eur(2) }} en total →</a>
+    </div>
+    <div>
+      <h3>Categoría actual</h3>
+      <div class="queue-cat">{{ qc.category }}</div>
+      <span class="conf {{ 'low' if (qc.confidence or 1) < 0.5 else 'mid' if (qc.confidence or 1) < 0.7 else '' }}" title="{{ SOURCE_LABEL.get(qc.source, qc.source) }} · confianza {{ '%.2f'|format(qc.confidence or 0) }}"><i><b style="width:{{ ((qc.confidence or 0) * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(qc.source, qc.source) }} · {{ '%.2f'|format(qc.confidence or 0) }}</span>
+      {% if qc.web_summary %}<div class="concept" style="margin-top:12px">la web dice:<br><em style="color:var(--ink)">{{ qc.web_summary }}</em></div>{% endif %}
+    </div>
   </div>
-  <div class="side">
-    <button class="btn primary" type="submit" form="queue-form" name="category" value="{{ qc.category }}" title="Enter">Confirmar {{ qc.category }} ↵</button>
-    <a class="btn" href="/merchants?mode={{ mode }}&queue={{ queue_mode }}&skip={{ (skip ~ '|' ~ qc.key)|urlencode }}" accesskey="s">Saltar</a>
-    <a class="concept" href="/transactions?key={{ qc.key|urlencode }}">ver sus movimientos</a>
-  </div>
+  <form id="queue-form" class="queue-decide" method="post" action="/merchants/{{ qc.key|urlencode }}/category"
+        hx-post="/merchants/{{ qc.key|urlencode }}/category" hx-swap="none"
+        hx-on::after-request="if (event.detail.successful) window.location = '/merchants?mode={{ mode }}&queue={{ queue_mode }}&skip={{ skip|urlencode }}'">
+    {# hidden primero: el botón pulsado (o el select) va después y es el valor que se queda #}
+    <input type="hidden" name="category" value="">
+    {% for c in queue_suggestions %}
+    <button class="btn sug {{ 'on' if c == qc.category else '' }}" type="submit" name="category" value="{{ c }}" accesskey="{{ loop.index }}"><kbd>{{ loop.index }}</kbd>{{ c }}</button>
+    {% endfor %}
+    <select onchange="this.form.querySelector('input[type=hidden][name=category]').value = this.value; this.form.requestSubmit()">
+      <option value="">otra categoría…</option>
+      {% for c in taxonomy.categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select>
+    <span class="spacer"></span>
+    <a class="btn ghost skip" href="/merchants?mode={{ mode }}&queue={{ queue_mode }}&skip={{ (skip ~ '|' ~ qc.key)|urlencode }}" accesskey="s">Saltar <kbd>S</kbd></a>
+    <button class="btn primary confirm" type="submit" name="category" value="{{ qc.category }}" title="Enter">Confirmar {{ qc.category }} <kbd>↵</kbd></button>
+  </form>
 </div>
 <script>
   // Teclado en la cola: 1-3 eligen una sugerencia, Enter confirma, S salta.
@@ -39,8 +50,8 @@
     const tag = (e.target.tagName || '').toLowerCase(); if (['input', 'select', 'textarea'].includes(tag)) return;
     const form = document.getElementById('queue-form'); if (!form) return;
     if (['1', '2', '3'].includes(e.key)) { const b = form.querySelectorAll('button.sug')[+e.key - 1]; if (b) b.click(); }
-    else if (e.key === 'Enter') { document.querySelector('#queue .side .primary').click(); }
-    else if (e.key.toLowerCase() === 's') { document.querySelector('#queue .side a.btn').click(); }
+    else if (e.key === 'Enter') { form.querySelector('.confirm').click(); }
+    else if (e.key.toLowerCase() === 's') { form.querySelector('.skip').click(); }
   });
 </script>
 {% elif queue_total == 0 and not tail_n %}
@@ -50,6 +61,8 @@
 <div class="notice" style="margin-top:-16px">{{ 'Quedan' if queue_total == 0 else 'Fuera de la cola:' }} <strong>{{ tail_n }} claves pequeñas</strong> (un solo movimiento y menos de 30 €) que suman {{ tail_total|eur }} en total. No merecen revisión una a una; si quieres, <a href="/merchants?mode={{ mode }}&queue=all">inclúyelas en la cola</a>. Para bajar las dudosas sin revisar a mano: <a href="/pipeline">Pipeline → Reintentar dudosas / Segunda opinión</a>.</div>
 {% endif %}
 
+<details class="all-keys" {% if open_table %}open{% endif %}>
+  <summary><h2>Todas las claves</h2><span class="muted">{{ summary.total }} en total</span></summary>
 <div class="card">
   <div class="filters">
     <div class="segmented">
@@ -81,4 +94,5 @@
     {% if page.has_next %}<a class="btn small" href="{{ base }}&page={{ page.page + 1 }}">siguiente ›</a>{% endif %}
   </div>
 </div>
+</details>
 {% endblock %}
