@@ -7,18 +7,22 @@
 <div class="card">
   <div class="filters">
     {# Los selects aplican al cambiar; el buscador al pulsar Enter o al salir del campo. #}
-    <form method="get" action="/transactions" hx-get="/transactions" hx-trigger="change, keyup[key=='Enter'] from:input" hx-target="body" hx-push-url="true">
+    <form method="get" action="/transactions" hx-get="/transactions" hx-trigger="change, keyup[key=='Enter'] from:find input[type=search]" hx-target="body" hx-push-url="true">
       <select name="month"><option value="">todos los meses</option>{% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}</select>
       <select name="category"><option value="">todas las categorías</option>
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}
         <option value="(sin categoría)" {{ 'selected' if category == '(sin categoría)' else '' }}>(sin categoría)</option></select>
       <select name="flow"><option value="">todos los flujos</option>
         {% for f in taxonomy.flow_types %}<option value="{{ f }}" {{ 'selected' if f == flow else '' }}>{{ FLOW_LABEL.get(f, f) }}</option>{% endfor %}</select>
+      {% if accounts|length > 1 %}<select name="account"><option value="">todas las cuentas</option>
+        {% for a in accounts %}<option value="{{ a.account }}" {{ 'selected' if a.account == account else '' }}>{{ a.account }}</option>{% endfor %}</select>{% endif %}
+      {% if tags %}<select name="tag"><option value="">todas las etiquetas</option>
+        {% for g in tags %}<option value="{{ g.tag }}" {{ 'selected' if g.tag == tag else '' }}>{{ g.tag }} ({{ g.n }})</option>{% endfor %}</select>{% endif %}
       <input type="search" name="q" value="{{ q }}" placeholder="buscar concepto o comercio" style="min-width:220px">
       {% if key %}<input type="hidden" name="key" value="{{ key }}">{% endif %}
-      {% if month or category or flow or q or key %}<a class="link-btn" href="/transactions">limpiar filtros</a>{% endif %}
+      {% if month or category or flow or q or key or account or tag %}<a class="link-btn" href="/transactions">limpiar filtros</a>{% endif %}
     </form>
-    {% set base = '/transactions?month=' ~ month ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) %}
+    {% set base = '/transactions?month=' ~ month ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) ~ '&account=' ~ (account|urlencode) ~ '&tag=' ~ (tag|urlencode) %}
     <div class="pager">
       <a class="btn small" href="{{ base|replace('/transactions?', '/transactions/export.csv?') }}" hx-boost="false" title="los {{ totals.n }} movimientos del filtro, para Excel">Exportar CSV</a>
       {% if page.has_prev %}<a class="btn small" href="{{ base }}&page={{ page.page - 1 }}">‹</a>{% endif %}
@@ -26,8 +30,10 @@
       {% if page.has_next %}<a class="btn small" href="{{ base }}&page={{ page.page + 1 }}">›</a>{% endif %}
     </div>
   </div>
-  {% if month or category or flow or q or key %}
+  {% if month or category or flow or q or key or account or tag %}
   <div class="chips">
+    {% if account %}<a class="chip" href="{{ base|replace('account=' ~ (account|urlencode), 'account=') }}" title="quitar filtro">cuenta {{ account }} ×</a>{% endif %}
+    {% if tag %}<a class="chip" href="{{ base|replace('tag=' ~ (tag|urlencode), 'tag=') }}" title="quitar filtro">etiqueta «{{ tag }}» ×</a>{% endif %}
     {% if month %}<a class="chip" href="{{ base|replace('month=' ~ month, 'month=') }}" title="quitar filtro" style="text-transform:capitalize">{{ month|mes }} ×</a>{% endif %}
     {% if category %}<a class="chip" href="{{ base|replace('category=' ~ (category|urlencode), 'category=') }}" title="quitar filtro">{{ category }} ×</a>{% endif %}
     {% if flow %}<a class="chip" href="{{ base|replace('flow=' ~ flow, 'flow=') }}" title="quitar filtro">{{ FLOW_LABEL.get(flow, flow) }} ×</a>{% endif %}
@@ -37,7 +43,7 @@
   {% endif %}
   <div class="scroll-x">
   <table>
-    <tr><th style="width:1%">Fecha</th><th>Concepto</th><th>Categoría <span style="font-weight:300;text-transform:none;letter-spacing:0">(cambiarla corrige el comercio)</span></th><th>Flujo</th><th>Fuente</th><th class="num">Importe</th><th class="num">Saldo</th></tr>
+    <tr><th style="width:1%">Fecha</th><th>Concepto</th><th>Categoría <span style="font-weight:300;text-transform:none;letter-spacing:0">(cambiarla corrige el comercio)</span></th><th>Flujo</th><th>Fuente</th><th>Etiquetas</th><th class="num">Importe</th><th class="num">Saldo</th>{% if accounts|length > 1 %}<th>Cuenta</th>{% endif %}</tr>
     {% set ns = namespace(last=none) %}
     {% for t in page.rows %}
     <tr>
@@ -54,11 +60,17 @@
       </td>
       <td class="muted" style="white-space:nowrap">{{ FLOW_LABEL.get(t.flow_type, t.flow_type or '—') }}</td>
       <td>{% if t.source %}<span class="conf {{ 'low' if (t.confidence or 1) < 0.5 else 'mid' if (t.confidence or 1) < 0.7 else '' }}" title="{{ SOURCE_LABEL.get(t.source, t.source) }} · confianza {{ '%.2f'|format(t.confidence or 1) }}"><i><b style="width:{{ ((t.confidence or 1) * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(t.source, t.source) }}</span>{% endif %}</td>
+      <td>{% with tx_id=t.id, tags=tags_by_id.get(t.id, []) %}{% include "partials/tags_cell.html" %}{% endwith %}</td>
       <td class="num {{ 'inc' if t.amount > 0 else 'exp' }}">{{ t.amount|eur(2) }}</td>
       <td class="num muted">{{ t.balance|eur(2) if t.balance is not none else '—' }}</td>
+      {% if accounts|length > 1 %}<td class="muted" style="white-space:nowrap">{{ t.account }}</td>{% endif %}
     </tr>
     {% endfor %}
   </table>
   </div>
+  <datalist id="tag-options">{% for g in tags %}<option value="{{ g.tag }}">{% endfor %}</datalist>
+  {% if tags and not tag %}
+  <div class="concept" style="margin-top:12px">Etiquetas: {% for g in tags %}<a class="chip small ghost" href="/transactions?tag={{ g.tag|urlencode }}">{{ g.tag }} · {{ g.n }} · {{ g.total|eur }}</a> {% endfor %}</div>
+  {% endif %}
 </div>
 {% endblock %}

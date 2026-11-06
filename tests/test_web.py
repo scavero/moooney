@@ -132,6 +132,23 @@ def test_exportar_csv_respeta_el_filtro(client, tmp_path):
     assert n_fich == int(n) and (tmp_path / "out" / "m.csv").read_bytes().startswith(b"\xef\xbb\xbf")
 
 
+def test_etiquetas_en_movimientos(client):
+    r = client.get("/transactions?month=2026-09")
+    tx_id = int(r.text.split('hx-post="/transactions/')[1].split("/")[0])
+    r = client.post(f"/transactions/{tx_id}/tags", data={"tag": "  Viaje   China "})
+    assert r.status_code == 200 and ">viaje china<" in r.text
+    r = client.post(f"/transactions/{tx_id}/tags", data={"tag": "viaje china"})  # repetir no duplica
+    assert r.text.count(">viaje china<") == 1
+    r = client.get("/transactions?tag=viaje%20china")
+    assert "1 movimientos" in r.text and "etiqueta «viaje china»" in r.text
+    r = client.get("/transactions/export.csv?tag=viaje%20china")
+    lineas = r.text.lstrip("\ufeff").splitlines()
+    assert len(lineas) == 2 and ";viaje china;" in lineas[1] and "cuenta;etiquetas" in lineas[0]
+    r = client.post(f"/transactions/{tx_id}/tags/remove", data={"tag": "viaje china"})
+    assert r.status_code == 200 and "viaje china" not in r.text
+    assert client.post("/transactions/999999/tags", data={"tag": "x"}).status_code == 404
+
+
 def test_pipeline_trabajos_en_segundo_plano(client):
     r = client.post("/pipeline/jobs/ingest")
     assert r.status_code == 200 and "Importar Excel nuevos" in r.text

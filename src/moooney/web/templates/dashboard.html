@@ -30,7 +30,7 @@
     <div class="value {{ 'pos' if s.net >= 0 else 'neg' }}">{{ s.net|eur }}</div>
     <div class="hint">tasa de ahorro {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
   <div class="card kpi"><div class="label">Saldo</div><div class="value">{{ balance|eur }}</div>
-    <div class="hint">{% if runway is not none %}colchón de {{ '%.1f'|format(runway) }} meses de gasto{% else %}sin histórico suficiente{% endif %}</div></div>
+    <div class="hint">{% if accounts|length > 1 %}{% for a in accounts %}{{ a.account }} {{ a.last_balance|eur }}{{ ' · ' if not loop.last else '' }}{% endfor %} · {% endif %}{% if runway is not none %}colchón de {{ '%.1f'|format(runway) }} meses de gasto{% else %}sin histórico suficiente{% endif %}</div></div>
 </div>
 
 <div class="card section">

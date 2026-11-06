@@ -187,6 +187,7 @@ flowchart TB
         T9[(budgets)]
         T10[(alerts)]
         T11[(reports)]
+        T12[(transaction_tags)]
     end
 
     subgraph cfg["config/*.yaml"]

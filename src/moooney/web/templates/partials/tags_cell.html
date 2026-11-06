@@ -1,0 +1,11 @@
+<div class="tags" id="tags-{{ tx_id }}">
+  {% for t in tags %}
+  <form hx-post="/transactions/{{ tx_id }}/tags/remove" hx-target="#tags-{{ tx_id }}" hx-swap="outerHTML" style="display:inline">
+    <input type="hidden" name="tag" value="{{ t }}">
+    <a class="chip small" href="/transactions?tag={{ t|urlencode }}" title="ver todo lo etiquetado «{{ t }}»">{{ t }}</a><button class="chip-x" type="submit" title="quitar etiqueta">×</button>
+  </form>
+  {% endfor %}
+  <form hx-post="/transactions/{{ tx_id }}/tags" hx-target="#tags-{{ tx_id }}" hx-swap="outerHTML" style="display:inline" hx-on::after-request="this.reset()">
+    <input type="text" name="tag" class="tag-input" placeholder="+ etiqueta" maxlength="40" list="tag-options" aria-label="añadir etiqueta">
+  </form>
+</div>

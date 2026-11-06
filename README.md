@@ -55,8 +55,10 @@ uv run moooney web
   comercios donde más se gasta; presupuesto y alertas.
 - **Tendencias**: previsión a fin de mes y de los próximos tres, colchón en meses, saldo proyectado a un
   año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
-- **Movimientos**: filtros por mes, categoría, flujo y texto, totales del filtro; la categoría se corrige en la
-  propia fila; **Exportar CSV** descarga el filtro completo listo para Excel.
+- **Movimientos**: filtros por mes, categoría, flujo, cuenta, etiqueta y texto, totales del filtro; la
+  categoría se corrige en la propia fila; **etiquetas libres** en movimientos sueltos (viaje, reforma…) para
+  agrupar gastos de distintas categorías y ver lo que suman; **Exportar CSV** descarga el filtro completo listo
+  para Excel. Con varios bancos, el saldo del resumen es la suma del último saldo de cada cuenta.
 - **Comercios**: cola de revisión de dudosas (una clave cada vez, las que importan primero, con sugerencias y
   teclado) y tabla de todas las claves con su fuente y confianza; corregir la categoría se aplica a todos sus
   movimientos para siempre. Antes de revisar a mano, *Pipeline* ofrece **Reintentar dudosas** (el decider con el
@@ -147,6 +149,7 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `report` | Informe mensual con consejos (`--no-model` para la versión determinista) |
 | `watch` | Vigila `data/excel/` y corre la pipeline; `--once` para tareas programadas |
 | `export` | Movimientos categorizados a CSV; `--month`, `--category`, `--out` |
+| `tag` | Etiqueta un movimiento (`tag ID "viaje china"`, `--remove`); sin argumentos lista las etiquetas |
 | `web` | Interfaz web local |
 | `demo` | Base sintética para probar sin datos reales |
 

@@ -132,3 +132,13 @@ CREATE TABLE IF NOT EXISTS reports (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_reports_month ON reports(month);
+
+-- Etiquetas libres en movimientos sueltos (viaje, reforma, boda…): agrupan gastos de
+-- distintas categorías sin tocar la memoria de comercios. Minúsculas, hasta 40 caracteres.
+CREATE TABLE IF NOT EXISTS transaction_tags (
+    transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    tag            TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    PRIMARY KEY (transaction_id, tag)
+);
+CREATE INDEX IF NOT EXISTS idx_transaction_tags_tag ON transaction_tags(tag);

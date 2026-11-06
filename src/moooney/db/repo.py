@@ -250,6 +250,78 @@ def insert_llm_call(
 # ---------- status ----------
 
 
+MAX_TAG_CHARS = 40
+
+
+def normalize_tag(tag: str) -> str:
+    """'  Viaje  China ' → 'viaje china'. Vacía si no queda nada útil."""
+    s = " ".join(str(tag or "").strip().lower().split())
+    return s[:MAX_TAG_CHARS].strip(" ,;|")
+
+
+def add_tag(conn: sqlite3.Connection, transaction_id: int, tag: str, *, now: str) -> str | None:
+    """Añade una etiqueta a un movimiento. Devuelve la etiqueta normalizada o None si no vale."""
+    t = normalize_tag(tag)
+    if not t:
+        return None
+    exists = conn.execute("SELECT 1 FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
+    if exists is None:
+        return None
+    with conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO transaction_tags (transaction_id, tag, created_at) VALUES (?, ?, ?)",
+            (transaction_id, t, now),
+        )
+    return t
+
+
+def remove_tag(conn: sqlite3.Connection, transaction_id: int, tag: str) -> bool:
+    with conn:
+        cur = conn.execute(
+            "DELETE FROM transaction_tags WHERE transaction_id = ? AND tag = ?",
+            (transaction_id, normalize_tag(tag)),
+        )
+    return cur.rowcount > 0
+
+
+def tags_for(conn: sqlite3.Connection, transaction_ids: list[int]) -> dict[int, list[str]]:
+    """{id: [etiquetas]} para un conjunto de movimientos (una consulta)."""
+    out: dict[int, list[str]] = {}
+    if not transaction_ids:
+        return out
+    ph = ",".join("?" for _ in transaction_ids)
+    rows = conn.execute(
+        f"SELECT transaction_id, tag FROM transaction_tags WHERE transaction_id IN ({ph}) ORDER BY tag",
+        list(transaction_ids),
+    ).fetchall()
+    for r in rows:
+        out.setdefault(int(r["transaction_id"]), []).append(r["tag"])
+    return out
+
+
+def tags_summary(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Cada etiqueta con cuántos movimientos agrupa y su suma neta."""
+    return conn.execute(
+        """
+        SELECT g.tag, COUNT(*) AS n, COALESCE(SUM(t.amount), 0) AS total, MAX(t.date) AS last_date
+        FROM transaction_tags g JOIN transactions t ON t.id = g.transaction_id
+        GROUP BY g.tag ORDER BY MAX(t.date) DESC, g.tag
+        """
+    ).fetchall()
+
+
+def accounts(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Cuentas presentes, con movimientos, rango y último saldo conocido de cada una."""
+    return conn.execute(
+        """
+        SELECT t.account, COUNT(*) AS n, MIN(t.date) AS first_date, MAX(t.date) AS last_date,
+               (SELECT balance FROM transactions b WHERE b.account = t.account AND b.balance IS NOT NULL
+                ORDER BY b.date DESC, b.id DESC LIMIT 1) AS last_balance
+        FROM transactions t GROUP BY t.account ORDER BY n DESC
+        """
+    ).fetchall()
+
+
 def get_status(conn: sqlite3.Connection) -> dict:
     """Solo agregados; nunca filas individuales."""
     tx = conn.execute(

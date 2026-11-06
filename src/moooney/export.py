@@ -9,11 +9,12 @@ import io
 import sqlite3
 from pathlib import Path
 
+from moooney.db import repo
 from moooney.web.queries import transactions_all
 
 COLUMNAS = [
     "fecha", "concepto", "comercio", "categoria", "subcategoria", "flujo",
-    "importe", "saldo", "fuente", "confianza",
+    "importe", "saldo", "cuenta", "etiquetas", "fuente", "confianza",
 ]
 
 
@@ -24,9 +25,12 @@ def _num(v: float | None) -> str:
 def transactions_csv(
     conn: sqlite3.Connection, *, month: str | None = None, category: str | None = None,
     flow: str | None = None, key: str | None = None, q: str | None = None,
+    account: str | None = None, tag: str | None = None,
 ) -> tuple[str, int]:
     """Devuelve (texto CSV, número de filas) de los movimientos que cumplen el filtro."""
-    rows = transactions_all(conn, month=month, category=category, flow=flow, key=key, q=q)
+    rows = transactions_all(conn, month=month, category=category, flow=flow, key=key, q=q,
+                            account=account, tag=tag)
+    etiquetas = repo.tags_for(conn, [int(t["id"]) for t in rows])
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";", lineterminator="\n")
     w.writerow(COLUMNAS)
@@ -34,6 +38,7 @@ def transactions_csv(
         w.writerow([
             t["date"], t["concept"], t["concept_clean"] or "", t["category"] or "",
             t["subcategory"] or "", t["flow_type"] or "", _num(t["amount"]), _num(t["balance"]),
+            t["account"] or "", "|".join(etiquetas.get(int(t["id"]), [])),
             t["source"] or "", _num(t["confidence"]),
         ])
     return buf.getvalue(), len(rows)

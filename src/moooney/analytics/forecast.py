@@ -133,10 +133,16 @@ def forecast_next_months(conn: sqlite3.Connection, as_of: str, n: int = 3, *,
 
 
 def last_balance(conn: sqlite3.Connection) -> float | None:
-    row = conn.execute(
-        "SELECT balance FROM transactions WHERE balance IS NOT NULL ORDER BY date DESC, id DESC LIMIT 1"
-    ).fetchone()
-    return float(row["balance"]) if row else None
+    """Saldo actual: suma del último saldo conocido de cada cuenta (varios bancos)."""
+    rows = conn.execute(
+        """
+        SELECT (SELECT balance FROM transactions b WHERE b.account = t.account AND b.balance IS NOT NULL
+                ORDER BY b.date DESC, b.id DESC LIMIT 1) AS balance
+        FROM transactions t GROUP BY t.account
+        """
+    ).fetchall()
+    saldos = [float(r["balance"]) for r in rows if r["balance"] is not None]
+    return sum(saldos) if saldos else None
 
 
 def runway_months(conn: sqlite3.Connection, as_of: str, *, first: str | None = None) -> float | None:

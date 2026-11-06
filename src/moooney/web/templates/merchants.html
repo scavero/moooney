@@ -58,7 +58,7 @@
       <a class="{{ 'on' if mode == 'user' else '' }}" href="/merchants?mode=user">corregidas <span>{{ summary.user }}</span></a>
       <a class="{{ 'on' if mode == 'all' else '' }}" href="/merchants?mode=all">todas <span>{{ summary.total }}</span></a>
     </div>
-    <form method="get" action="/merchants" hx-get="/merchants" hx-trigger="change, keyup[key=='Enter'] from:input" hx-target="body" hx-push-url="true">
+    <form method="get" action="/merchants" hx-get="/merchants" hx-trigger="change, keyup[key=='Enter'] from:find input[type=search]" hx-target="body" hx-push-url="true">
       <input type="hidden" name="mode" value="{{ mode }}">
       <select name="category"><option value="">todas las categorías</option>
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}</select>

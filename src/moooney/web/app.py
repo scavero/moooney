@@ -9,7 +9,7 @@ vista) responden con fragmentos HTML que HTMX intercambia en la página.
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -234,6 +234,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
             potential=sum(i.impact for i in insights if i.impact > 0),
             fme=fme, balance=forecast_mod.last_balance(conn),
             runway=forecast_mod.runway_months(conn, report.as_of, first=first),
+            accounts=repo.accounts(conn),
             day=int(report.as_of[8:10]), days_in_month=periods.days_in_month(m),
         )
 
@@ -282,23 +283,45 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
 
     @app.get("/transactions", response_class=HTMLResponse)
     def transactions(request: Request, conn: DB, month: str | None = None, category: str | None = None,
-                     flow: str | None = None, key: str | None = None, q: str | None = None, page: int = 1):
+                     flow: str | None = None, key: str | None = None, q: str | None = None,
+                     account: str | None = None, tag: str | None = None, page: int = 1):
         filters = {"month": month or None, "category": category or None, "flow": flow or None,
-                   "key": key or None, "q": q or None}
+                   "key": key or None, "q": q or None, "account": account or None, "tag": tag or None}
         pg = queries.transactions_page(conn, page=page, **filters)
         return render(
             request, conn, "transactions.html", page=pg, month=month or "", category=category or "",
-            flow=flow or "", key=key or "", q=q or "", totals=queries.transactions_totals(conn, **filters),
-            taxonomy=taxonomy(),
+            flow=flow or "", key=key or "", q=q or "", account=account or "", tag=tag or "",
+            totals=queries.transactions_totals(conn, **filters), taxonomy=taxonomy(),
+            accounts=repo.accounts(conn), tags=repo.tags_summary(conn),
+            tags_by_id=repo.tags_for(conn, [int(t["id"]) for t in pg.rows]),
         )
+
+    def _tags_cell(request: Request, conn: sqlite3.Connection, tx_id: int):
+        return templates.TemplateResponse(
+            request, "partials/tags_cell.html",
+            {"request": request, "tx_id": tx_id, "tags": repo.tags_for(conn, [tx_id]).get(tx_id, [])},
+        )
+
+    @app.post("/transactions/{tx_id}/tags", response_class=HTMLResponse)
+    def tag_add(request: Request, conn: DB, tx_id: int, tag: Annotated[str, Form()] = ""):
+        """Añade una etiqueta al movimiento y devuelve la celda de etiquetas."""
+        if repo.add_tag(conn, tx_id, tag, now=datetime.now().isoformat(timespec="seconds")) is None and tag.strip():
+            raise HTTPException(status_code=404, detail="movimiento no encontrado")
+        return _tags_cell(request, conn, tx_id)
+
+    @app.post("/transactions/{tx_id}/tags/remove", response_class=HTMLResponse)
+    def tag_remove(request: Request, conn: DB, tx_id: int, tag: Annotated[str, Form()] = ""):
+        repo.remove_tag(conn, tx_id, tag)
+        return _tags_cell(request, conn, tx_id)
 
     @app.get("/transactions/export.csv")
     def transactions_export(conn: DB, month: str | None = None, category: str | None = None,
-                            flow: str | None = None, key: str | None = None, q: str | None = None):
+                            flow: str | None = None, key: str | None = None, q: str | None = None,
+                            account: str | None = None, tag: str | None = None):
         """CSV de los movimientos del filtro actual (separador ;, UTF-8 con BOM para Excel)."""
         texto, _n = transactions_csv(
             conn, month=month or None, category=category or None, flow=flow or None,
-            key=key or None, q=q or None,
+            key=key or None, q=q or None, account=account or None, tag=tag or None,
         )
         nombre = export_filename(month=month or None, category=category or None)
         return Response(

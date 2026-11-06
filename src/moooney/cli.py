@@ -1088,5 +1088,36 @@ def export(
     console.print(f"[green]{n} movimientos[/green] exportados a {out}")
 
 
+@app.command()
+def tag(
+    movimiento: int | None = typer.Argument(None, help="Id del movimiento (lo ves en la web o en el CSV)."),
+    etiqueta: str | None = typer.Argument(None, help="Etiqueta libre: viaje china, reforma, boda…"),
+    remove: bool = typer.Option(False, "--remove", help="Quita la etiqueta en vez de ponerla."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Etiqueta movimientos sueltos para agruparlos (sin argumentos: lista las etiquetas)."""
+    settings = _settings(config)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        if movimiento is None or etiqueta is None:
+            table = Table(title="Etiquetas")
+            table.add_column("Etiqueta")
+            table.add_column("Mov.", justify="right")
+            table.add_column("Neto", justify="right")
+            table.add_column("Último")
+            for r in repo.tags_summary(conn):
+                table.add_row(r["tag"], str(r["n"]), _eur(float(r["total"])), r["last_date"] or "")
+            console.print(table)
+            return
+        if remove:
+            ok = repo.remove_tag(conn, movimiento, etiqueta)
+            console.print("[green]quitada[/green]" if ok else "[yellow]no tenía esa etiqueta[/yellow]")
+        else:
+            t = repo.add_tag(conn, movimiento, etiqueta, now=datetime.now().isoformat(timespec="seconds"))
+            console.print(f"[green]etiquetado[/green] como «{t}»" if t else "[red]movimiento o etiqueta no válidos[/red]")
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     app()
