@@ -4,7 +4,7 @@ version = "1.2.0"
 description = "Pipeline local de finanzas personales sobre extractos del Santander"
 readme = "README.md"
 authors = [
-    { name = "Santos Cavero", email = "santoscaveroperez@gmail.com" }
+    { name = "Santos Cavero", email = "180423992+scavero@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
