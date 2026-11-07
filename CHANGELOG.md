@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.1.5)
+## 1.2.0 · 2026-11-07
 
 - **Preparación para repo público**: la URL del proxy sale del repo (`LITELLM_BASE_URL` manda sobre `base_url`
   de `config/llm.yaml`, que queda como marcador; también en `.env.example`, `opencode.json` y el script de prueba
