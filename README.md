@@ -9,9 +9,13 @@ presupuestos, lanza alertas, te dice **a dónde se va el dinero cada mes** en un
 mejorar, y lo muestra todo en una web local. Ningún dato bancario sale de tu ordenador ni de la
 infraestructura que tú elijas.
 
-Está pensado para que cualquiera lo clone y vea lo mismo con sus datos.
+Está pensado para que cualquiera lo clone y vea lo mismo con sus datos. La interfaz, la taxonomía y los
+perfiles de banco están en castellano y pensados para cuentas españolas.
 
 ## En 5 minutos (sin tus datos)
+
+Necesitas [git](https://git-scm.com/) y [uv](https://docs.astral.sh/uv/), que instala Python 3.12 por su
+cuenta. Funciona en Windows, Linux y macOS; los comandos de este README valen igual en PowerShell y en bash.
 
 ```powershell
 git clone https://github.com/scavero/moooney.git
@@ -24,7 +28,7 @@ inventados y deterministas, marcada como tal en cada página: suficiente para ve
 tendencias, los comercios, los presupuestos, las alertas y el informe. En cuanto importas tu primer
 Excel, la demo desaparece sola. (`uv run moooney web --demo` la fuerza aunque tengas datos.)
 
-Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.12 solo). O Docker, más abajo.
+No hace falta ningún modelo para probarla. Si prefieres Docker, mira la sección del mismo nombre.
 
 ## Con tus datos
 
@@ -32,12 +36,13 @@ Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.12 solo). O Docke
    - **Santander**: Cuentas → Movimientos → filtro de fechas amplio → Descargar → Excel.
    - **BBVA**: Cuentas → Movimientos → Exportar → Excel («Últimos movimientos»).
    Se detecta el banco por la cabecera del fichero; puedes mezclar bancos en la misma carpeta.
-2. **Clave del modelo**: pégala en la página *Ajustes* de la web (se guarda en `data/.env`) o copia
-   `.env.example` a `.env` y pon `LITELLM_API_KEY`. Una variable de entorno del sistema, si existe, manda
-   sobre ambos. *Ajustes* tiene un botón para probar la conexión. Vale cualquier servidor compatible con la
-   API de OpenAI (LiteLLM, vLLM, Ollama…); los modelos se configuran en `config/llm.yaml`. La URL del proxy va en `LITELLM_BASE_URL`, en el mismo `.env`; si falta, se usa `base_url` del YAML, que en el repo es un marcador.
-   Sin clave también funciona: categoriza por reglas y memoria, y el informe sale sin modelo.
-3. **Arranca** la web y usa la página *Pipeline*:
+2. **Modelos (opcional)**: apunta moooney a tu servidor de modelos como se explica en
+   [Modelos](#modelos). Sin modelos también funciona: categoriza por reglas y memoria, y el informe sale de
+   los cálculos deterministas.
+3. **Reglas propias (opcional)**: copia `config/rules.local.example.yaml` a `config/rules.local.yaml` y añade
+   los comercios de tu zona o los servicios que pagas. Ese fichero no entra en git y manda sobre las reglas
+   generales.
+4. **Arranca** la web y usa la página *Pipeline*:
 
 ```powershell
 uv run moooney web
@@ -47,8 +52,33 @@ uv run moooney web
    *Comercios*) → Presupuestos → Alertas → Informe. Cada paso tiene su botón, su registro en pantalla y su
    equivalente en la CLI; la página muestra de un vistazo qué paso pide acción.
 
-4. **Cada mes**: exporta el mes nuevo, déjalo en `data/excel/` y pulsa *Importar*. Nada se duplica. Si prefieres
+5. **Cada mes**: exporta el mes nuevo, déjalo en `data/excel/` y pulsa *Importar*. Nada se duplica. Si prefieres
    olvidarte, `uv run moooney watch` vigila la carpeta y corre la pipeline sola (o una tarea programada, más abajo).
+
+## Modelos
+
+moooney habla con cualquier servidor compatible con la API de OpenAI: LiteLLM, vLLM, Ollama u otro. Hay
+tres papeles, y cada uno se asigna en `config/llm.yaml`:
+
+| Papel | Para qué | Por defecto |
+|---|---|---|
+| `clef` | Decidir la categoría de cada comercio nuevo | [Clef-Flash](https://huggingface.co/Cloudflare/clef-flash) |
+| `redaccion` | Informe mensual, segunda opinión y reserva para categorizar | `qwen3.8-flash-next-fp8` |
+| `embeddings` | Heredar la categoría entre variantes de un mismo comercio | `bge-m3` |
+
+Los nombres por defecto son los del servidor del autor; cámbialos por los que sirva el tuyo. Si no tienes
+Clef-Flash, pon `decider: qwen` y el modelo de redacción categoriza con salida JSON Schema.
+
+La URL y la clave nunca van en el YAML del repo, que solo lleva un marcador. Se ponen de una de estas formas,
+de mayor a menor prioridad:
+
+1. Variables de entorno del sistema `LITELLM_BASE_URL` y `LITELLM_API_KEY`.
+2. La página *Ajustes* de la web, que las guarda en `data/.env` y tiene un botón para probar la conexión.
+3. Un `.env` en la raíz, copiado de `.env.example`.
+
+Las variables se llaman `LITELLM_*` por el proxy original, pero valen para cualquier servidor. Con Ollama en
+local, por ejemplo, la URL es `http://localhost:11434/v1` y la clave puede ser cualquier texto. Si tu
+servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
 
 ## Qué verás
 
@@ -124,15 +154,19 @@ Diagramas en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md); diseño y decisiones 
 ## Docker
 
 ```powershell
-docker compose up -d     # http://127.0.0.1:8765 → Ajustes → pegar la clave (o cp .env.example .env antes)
+docker compose up -d
 ```
 
-`./data`, `./config` y `./reports` se montan como volúmenes: la imagen no contiene datos. Para que la pipeline
-corra sola cuando dejes un Excel nuevo en `data/excel/`:
+La primera vez construye la imagen. Después abre http://127.0.0.1:8765 y configura los modelos en *Ajustes*, o
+copia `.env.example` a `.env` antes de arrancar. `./data`, `./config` y `./reports` se montan como volúmenes:
+la imagen no contiene datos. Para que la pipeline corra sola cuando dejes un Excel nuevo en `data/excel/`:
 
 ```powershell
 docker compose --profile watch up -d
 ```
+
+El puerto solo se publica en `127.0.0.1` y la web no tiene usuarios ni contraseñas. Si la sirves a otros
+equipos, ponla detrás de un proxy inverso con autenticación: cualquiera que llegue a ella ve tus movimientos.
 
 ## Automatizar en Windows
 
@@ -190,7 +224,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 165 tests, todos con datos sintéticos
+uv run pytest        # 170 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```
@@ -201,7 +235,24 @@ Docker se construye y sirve la demo. Cambios por versión en [CHANGELOG.md](CHAN
 `docs/DESIGN.md`; las dos pantallas principales se rediseñaron con [Superdesign](https://superdesign.dev) a
 partir de las plantillas, nunca de datos.
 
-Contexto para agentes de IA que trabajen en el repo: [AGENTS.md](AGENTS.md).
+Contexto para agentes de IA que trabajen en el repo: [AGENTS.md](AGENTS.md). Sus reglas sobre la
+infraestructura de modelos son las del autor; las de privacidad valen para cualquiera.
+
+## Limitaciones
+
+- Solo hay perfiles probados para el Santander y el BBVA. Otro banco necesita su perfil en `settings.yaml`
+  y, a veces, un constructor de concepto.
+- La categorización está calibrada con conceptos en castellano. Con extractos en otro idioma, las reglas y
+  la normalización de comercios acertarán menos.
+- Es una herramienta personal de una sola persona y una sola máquina. No hay cuentas, permisos ni
+  sincronización.
+
+## Contribuir
+
+Los issues y pull requests son bienvenidos. Nunca adjuntes extractos, capturas ni filas reales: para
+reproducir un fallo usa `uv run moooney demo` o un Excel inventado. Los tests generan sus datos al vuelo y
+así debe seguir siendo. Antes de abrir un pull request, `uv run ruff check .` y `uv run pytest` tienen que
+pasar.
 
 ## Licencia
 

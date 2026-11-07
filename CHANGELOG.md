@@ -7,6 +7,9 @@
   de Clef). Nuevo `config/rules.local.yaml`, ignorado por git y cargado antes que `rules.yaml`, para las reglas
   que retratan al usuario; las generales se quedan con marcas y cadenas. Las cifras reales de `docs/DESIGN.md`
   pasan a proporciones.
+- **README para quien clona**: requisitos, sección *Modelos* (los tres papeles, cómo apuntar a otro servidor
+  como Ollama, `decider: qwen` sin Clef-Flash, prioridad de URL y clave), paso de reglas propias, aviso de
+  que la web no tiene autenticación, limitaciones y cómo contribuir sin datos reales.
 
 ## 1.1.5 · 2026-11-07
 
