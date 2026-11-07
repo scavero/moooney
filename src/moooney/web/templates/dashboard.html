@@ -10,7 +10,7 @@
   <div class="month-nav">
     <a class="btn ghost" href="/?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>
     <label for="month-select" style="position:absolute;left:-9999px">Mes</label>
-    <select id="month-select" onchange="window.location='/?month='+this.value">
+    <select id="month-select" onchange="go('/?month='+this.value)">
       {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}
     </select>
     <a class="btn ghost" href="/?month={{ next_month }}" aria-label="mes siguiente" title="mes siguiente">›</a>
@@ -155,7 +155,7 @@ window.renderCharts = function () {
     data: { labels, datasets: series.map((s, i) => ({ label: s.label, data: s.data, backgroundColor: palette[i % palette.length], stack: 'g' })) },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } },
       scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: v => eur(v) }, grid } },
-      onClick: (e, els) => { if (els.length) { const m = months[els[0].index]; const c = series[els[0].datasetIndex].label; if (c !== 'Resto') window.location = '/transactions?month=' + m + '&category=' + encodeURIComponent(c); } } } });
+      onClick: (e, els) => { if (els.length) { const m = months[els[0].index]; const c = series[els[0].datasetIndex].label; if (c !== 'Resto') go('/transactions?month=' + m + '&category=' + encodeURIComponent(c)); } } } });
   mk('chart-flows', { type: 'line',
     data: { labels, datasets: [
       { label: 'Ingresos', data: flows.ingresos, borderColor: palette[2], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5, pointRadius: 2 },

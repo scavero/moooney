@@ -82,3 +82,6 @@ desktop.ini
 # Superdesign: contexto de UI generado localmente y skill instalada por su CLI
 .superdesign/
 .claude/skills/superdesign/
+
+# web estática de la demo (moooney snapshot), se genera en CI
+site/

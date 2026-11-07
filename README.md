@@ -9,6 +9,9 @@ presupuestos, lanza alertas, te dice **a dónde se va el dinero cada mes** en un
 mejorar, y lo muestra todo en una web local. Ningún dato bancario sale de tu ordenador ni de la
 infraestructura que tú elijas.
 
+**[Pruébalo en el navegador →](https://scavero.github.io/moooney/)** Es la demo con 14 meses inventados, en
+solo lectura: puedes recorrer todas las páginas, cambiar de mes y filtrar, pero no guardar cambios.
+
 Está pensado para que cualquiera lo clone y vea lo mismo con sus datos. La interfaz, la taxonomía y los
 perfiles de banco están en castellano y pensados para cuentas españolas.
 
@@ -203,6 +206,7 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `tag` | Etiqueta un movimiento (`tag ID "viaje china"`, `--remove`); sin argumentos lista las etiquetas |
 | `web` | Interfaz web local |
 | `demo` | Base sintética para probar sin datos reales |
+| `snapshot` | Web estática de la demo en solo lectura, la que se publica en GitHub Pages |
 
 ## Configuración
 
@@ -224,13 +228,14 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 170 tests, todos con datos sintéticos
+uv run pytest        # 172 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```
 
 La integración continua (`.github/workflows/ci.yml`) corre ruff y los tests en cada push y comprueba que la imagen
-Docker se construye y sirve la demo. Cambios por versión en [CHANGELOG.md](CHANGELOG.md). El sistema visual
+Docker se construye y sirve la demo. Otro flujo (`.github/workflows/pages.yml`) genera con `moooney snapshot`
+la demo de solo lectura y la publica en GitHub Pages en cada push a main. Cambios por versión en [CHANGELOG.md](CHANGELOG.md). El sistema visual
 (Fraunces + Work Sans variables, pesos 400/500/700, contraste mínimo 4,5:1, un dominante y un acento, ritmo de 8 px) está en `static/app.css` y documentado en
 `docs/DESIGN.md`; las dos pantallas principales se rediseñaron con [Superdesign](https://superdesign.dev) a
 partir de las plantillas, nunca de datos.

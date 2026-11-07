@@ -8,8 +8,11 @@
   <link rel="stylesheet" href="/static/app.css?v=19">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
+  <script>window.go = function (url) { window.location = url; };</script>
+  {% if snapshot %}<script src="/static/pages.js"></script>
+  <script src="/static/snapshot.js" defer></script>{% endif %}
 </head>
-<body hx-boost="true">
+<body hx-boost="{{ 'false' if snapshot else 'true' }}">
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="/">moooney</a>
@@ -40,14 +43,16 @@
     <div class="sidebar-foot">
       {% if as_of %}<div>datos hasta <strong title="{{ as_of }}">{{ as_of|fecha }} {{ as_of[:4] }}</strong></div>{% endif %}
       <div style="display:flex;gap:6px;align-items:center">
-        {% if offline %}<span class="tag warn">offline</span>{% endif %}
+        {% if offline and not snapshot %}<span class="tag warn">offline</span>{% endif %}
         {% if demo_mode %}<span class="tag crit">demo</span>{% endif %}
-        <span class="muted">local · 127.0.0.1</span>
+        <span class="muted">{{ 'demo estática' if snapshot else 'local · 127.0.0.1' }}</span>
       </div>
     </div>
   </aside>
   <main class="content">
-    {% if demo_mode %}
+    {% if snapshot %}
+    <div class="demo-bar"><span><strong>Demo de solo lectura</strong> · 14 meses inventados · los cambios no se guardan</span><a href="https://github.com/scavero/moooney">Úsalo con tus datos →</a></div>
+    {% elif demo_mode %}
     <div class="demo-bar"><span><strong>Datos de demostración</strong> · 14 meses inventados · nada sale de tu equipo</span><a href="/pipeline">Importar mis movimientos →</a></div>
     {% endif %}
     <div class="page">
@@ -60,10 +65,12 @@
   document.body.addEventListener('htmx:afterSettle', () => { if (window.renderCharts) window.renderCharts(); });
   window.addEventListener('DOMContentLoaded', () => { if (window.renderCharts) window.renderCharts(); });
   // Toast de confirmación: cualquier respuesta HTMX con cabecera X-Toast la muestra 2,6 s.
-  document.body.addEventListener('htmx:afterRequest', (e) => {
-    const msg = e.detail.xhr && e.detail.xhr.getResponseHeader && e.detail.xhr.getResponseHeader('X-Toast');
+  window.showToast = function (msg, ms) {
     const el = document.getElementById('toast'); if (!msg || !el) return;
-    el.innerHTML = '<div class="toast">' + msg + '</div>'; clearTimeout(el._t); el._t = setTimeout(() => { el.innerHTML = ''; }, 2600);
+    el.innerHTML = '<div class="toast">' + msg + '</div>'; clearTimeout(el._t); el._t = setTimeout(() => { el.innerHTML = ''; }, ms || 2600);
+  };
+  document.body.addEventListener('htmx:afterRequest', (e) => {
+    window.showToast(e.detail.xhr && e.detail.xhr.getResponseHeader && e.detail.xhr.getResponseHeader('X-Toast'));
   });
 </script>
 </body>

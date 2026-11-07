@@ -54,7 +54,7 @@
       {% for c in categories[:8] %}<a class="chip {{ 'on' if c == category else 'ghost' }}" href="/trends?category={{ c|urlencode }}">{{ c }}</a>{% endfor %}
       {% if categories|length > 8 %}
       <label for="cat-more" style="position:absolute;left:-9999px">Más categorías</label>
-      <select id="cat-more" class="quiet" onchange="window.location='/trends?category='+encodeURIComponent(this.value)"><option value="">Más…</option>{% for c in categories[8:] %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}</select>
+      <select id="cat-more" class="quiet" onchange="go('/trends?category='+encodeURIComponent(this.value))"><option value="">Más…</option>{% for c in categories[8:] %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}</select>
       {% endif %}
     </div>
   </div>
@@ -96,7 +96,7 @@ window.renderCharts = function () {
       { type: 'bar', label: {{ category|tojson }}, data: cat, backgroundColor: palette[3] },
       { type: 'line', label: 'media móvil 3 meses', data: avg, borderColor: palette[5], tension: .3, pointRadius: 0, borderWidth: 2 } ] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
-      onClick: (e, els) => { if (els.length) window.location = '/transactions?month=' + months[els[0].index] + '&category=' + encodeURIComponent({{ category|tojson }}); } } });
+      onClick: (e, els) => { if (els.length) go('/transactions?month=' + months[els[0].index] + '&category=' + encodeURIComponent({{ category|tojson }})); } } });
   const proj = {{ projection|tojson }};
   mk('chart-proj', { type: 'line', data: { labels: proj.map(p => lbl(p[0])), datasets: [{ label: 'saldo proyectado', data: proj.map(p => p[1]), borderColor: palette[0], backgroundColor: palette[4] + '66', fill: true, tension: .3, borderWidth: 2, pointRadius: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } } } });

@@ -59,7 +59,7 @@ moooney/
     enrich/      settings.py  query.py  providers.py  runner.py
     analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py
     llm/         client.py  anonymize.py  prompts/
-    web/         app.py  queries.py  service.py  jobs.py  templates/  static/
+    web/         app.py  queries.py  service.py  jobs.py  snapshot.py  templates/  static/
     demo.py
     export.py
     report/      advice.py

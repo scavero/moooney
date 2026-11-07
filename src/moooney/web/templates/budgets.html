@@ -9,7 +9,7 @@
   <div class="month-nav">
     <a class="btn ghost" href="/budgets?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>
     <label for="month-select" style="position:absolute;left:-9999px">Mes</label>
-    <select id="month-select" onchange="window.location='/budgets?month='+this.value">
+    <select id="month-select" onchange="go('/budgets?month='+this.value)">
       {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}
     </select>
     <a class="btn ghost" href="/budgets?month={{ next_month }}" aria-label="mes siguiente" title="mes siguiente">›</a>

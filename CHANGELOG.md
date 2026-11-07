@@ -10,6 +10,11 @@
 - **README para quien clona**: requisitos, sección *Modelos* (los tres papeles, cómo apuntar a otro servidor
   como Ollama, `decider: qwen` sin Clef-Flash, prioridad de URL y clave), paso de reglas propias, aviso de
   que la web no tiene autenticación, limitaciones y cómo contribuir sin datos reales.
+- **Demo pública en GitHub Pages** (https://scavero.github.io/moooney/): nuevo comando `moooney snapshot` que
+  guarda la web de la demo como páginas estáticas de solo lectura. Meses, filtros generados, gráficos y CSV
+  funcionan; lo que escribe muestra un aviso. Se genera sin nada del entorno (ni claves, ni URL del proxy, ni
+  reglas locales) y la publica el flujo `pages.yml` en cada push a main. Las navegaciones por JavaScript de las
+  plantillas pasan por un `go()` común.
 
 ## 1.1.5 · 2026-11-07
 

@@ -1057,6 +1057,20 @@ def web(
 
 
 @app.command()
+def snapshot(
+    out: Path = typer.Option(Path("site"), "--out", help="Carpeta de salida (se vacía antes)."),
+    config: Path = typer.Option(Path("config"), "--config-dir", help="Configuración del repo a usar."),
+) -> None:
+    """Web estática de la demo (solo lectura) para GitHub Pages. Nunca usa datos reales."""
+    from moooney.web.snapshot import build_snapshot
+
+    r = build_snapshot(out, repo_config=config)
+    console.print(f"{r.pages} páginas y {r.assets} ficheros estáticos en {out} ({r.size_bytes / 1e6:.1f} MB)")
+    if r.missing:
+        console.print(f"{len(r.missing)} enlaces sin página: en la demo muestran un aviso")
+
+
+@app.command()
 def demo(
     target: Path = typer.Option(Path("data/demo"), "--target", help="Carpeta de la demo (ignorada por git)."),
     serve: bool = typer.Option(False, "--serve", help="Arranca la web sobre la demo tras generarla."),

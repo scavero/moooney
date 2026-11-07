@@ -155,6 +155,10 @@ Lo que **nunca** cruza ninguna frontera: el IBAN completo, saldos, importes exac
 movimientos individuales, conceptos crudos y nombres de personas. `MOOONEY_OFFLINE=1` bloquea
 las dos fronteras a la vez.
 
+La demo pública de GitHub Pages no cruza ninguna de estas fronteras: la genera `moooney snapshot` en
+GitHub Actions a partir de la base sintética de `demo.py`, con solo los YAML versionados y sin claves
+ni URL del proxy en el entorno. Ningún dato de esta máquina entra en ella.
+
 ## 4. Módulos y tablas
 
 ```mermaid

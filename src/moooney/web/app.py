@@ -169,7 +169,8 @@ def build_verdict(summary, insights, *, day: int | None = None) -> str:
     return frase + "."
 
 
-def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> FastAPI:
+def create_app(config_path: Path | None = None, *, force_demo: bool = False, snapshot: bool = False) -> FastAPI:
+    """App web. `snapshot` marca las páginas para la copia estática de la demo (ver web/snapshot.py)."""
     settings = load_settings(config_path)
     config_dir = config_path.parent if config_path else Path("config")
     # Claves: variable de entorno > data/.env (lo que se guarda en Ajustes) > ./.env
@@ -189,7 +190,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False) -> 
     templates.env.filters["mes"] = mes
     templates.env.globals.update(
         FLOW_LABEL=FLOW_LABEL, SOURCE_LABEL=SOURCE_LABEL, SEVERITY_LABEL=SEVERITY_LABEL,
-        ALERT_TYPE_LABEL=ALERT_TYPE_LABEL, ALERT_EXPLAIN=ALERT_EXPLAIN,
+        ALERT_TYPE_LABEL=ALERT_TYPE_LABEL, ALERT_EXPLAIN=ALERT_EXPLAIN, snapshot=snapshot,
     )
 
     _demo_cache: dict[str, Active] = {}

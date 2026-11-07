@@ -17,3 +17,6 @@ __pycache__/
 tests/
 docs/
 opencode.json
+
+# web estática de la demo (moooney snapshot), se genera en CI
+site/

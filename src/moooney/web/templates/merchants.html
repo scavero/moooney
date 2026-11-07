@@ -33,7 +33,7 @@
   </div>
   <form id="queue-form" class="queue-decide" method="post" action="/merchants/{{ qc.key|urlencode }}/category"
         hx-post="/merchants/{{ qc.key|urlencode }}/category" hx-swap="none"
-        hx-on::after-request="if (event.detail.successful) window.location = '/merchants?mode={{ mode }}&queue={{ queue_mode }}&skip={{ skip|urlencode }}'">
+        hx-on::after-request="if (event.detail.successful) go('/merchants?mode={{ mode }}&queue={{ queue_mode }}&skip={{ skip|urlencode }}')">
     {# hidden primero: el botón pulsado (o el select) va después y es el valor que se queda #}
     <input type="hidden" name="category" value="">
     {% for c in queue_suggestions %}
