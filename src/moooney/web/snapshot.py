@@ -34,6 +34,7 @@ SEED_PATHS = ("/", "/trends", "/transactions", "/merchants", "/recurring", "/bud
               "/report", "/pipeline", "/settings")
 PAGE_NAMES = {"/": "index.html"} | {p: p.strip("/") + ".html" for p in SEED_PATHS if p != "/"}
 LINK_ATTR = re.compile(r'(href|src)="(/[^"]*)"')
+CSS_URL = re.compile(r"""url\((["']?)/static/([^)"']+)\1\)""")
 MAX_PAGES = 3000
 
 
@@ -73,6 +74,14 @@ def _crawlable(key: str, months: set[str]) -> bool:
         return False
     month = dict(parse_qsl(query)).get("month")
     return month is None or month in months  # las flechas de mes siguen más allá de los datos
+
+
+def _relative_css(css: Path, static_root: Path) -> None:
+    """url(/static/...) en los CSS, relativo al propio CSS: en GitHub Pages la raíz es /moooney/."""
+    def rel(m: re.Match) -> str:
+        target = (static_root / m.group(2)).relative_to(css.parent, walk_up=True)
+        return f"url({m.group(1)}{target.as_posix()}{m.group(1)})"
+    css.write_text(CSS_URL.sub(rel, css.read_text(encoding="utf-8")), encoding="utf-8")
 
 
 def build_snapshot(out: Path, *, repo_config: Path = Path("config")) -> SnapshotResult:
@@ -152,6 +161,8 @@ def _crawl(client, out: Path) -> SnapshotResult:
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(HERE / "static", out / "static")
+    for css in (out / "static").rglob("*.css"):
+        _relative_css(css, out / "static")
     result.assets = sum(1 for p in (out / "static").rglob("*") if p.is_file())
     manifest = {k: file_for(k) for k in bodies}
 
