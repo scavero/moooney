@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.2.0)
+## 1.3.0 · 2026-11-07
 
 - **Modo oscuro**: botón en el pie de la barra lateral (icono en móvil) que alterna automático, oscuro y claro;
   automático sigue al sistema y la elección se guarda en el navegador. Todos los colores del CSS pasan a
