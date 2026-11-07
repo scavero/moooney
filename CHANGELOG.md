@@ -1,5 +1,13 @@
 # Cambios
 
+## Sin publicar (tras 1.2.0)
+
+- **Modo oscuro**: botón en el pie de la barra lateral (icono en móvil) que alterna automático, oscuro y claro;
+  automático sigue al sistema y la elección se guarda en el navegador. Todos los colores del CSS pasan a
+  variables, el tema oscuro las redefine con contraste ≥ 4,5:1 en todo el texto, y los gráficos leen texto,
+  rejilla y paleta del tema y se repintan al cambiarlo.
+- El autor del paquete usa el correo privado de GitHub.
+
 ## 1.2.0 · 2026-11-07
 
 - **Preparación para repo público**: la URL del proxy sale del repo (`LITELLM_BASE_URL` manda sobre `base_url`

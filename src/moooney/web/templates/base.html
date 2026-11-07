@@ -4,8 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}moooney{% endblock %} · moooney</title>
+  <script>
+    // Tema antes de pintar, para que no parpadee: preferencia guardada (auto, claro, oscuro) o la del sistema.
+    (function () {
+      var media = window.matchMedia('(prefers-color-scheme: dark)');
+      window.themePref = function () { try { return localStorage.getItem('moooney-theme') || 'auto'; } catch (e) { return 'auto'; } };
+      window.applyTheme = function () {
+        var p = window.themePref();
+        document.documentElement.dataset.theme = (p === 'dark' || (p === 'auto' && media.matches)) ? 'dark' : 'light';
+        var b = document.getElementById('theme-toggle');
+        if (b) { var t = { auto: ['◐', 'Tema automático'], dark: ['☾', 'Tema oscuro'], light: ['☀', 'Tema claro'] }[p];
+                 b.innerHTML = '<span aria-hidden="true">' + t[0] + '</span> <span class="tt-label">' + t[1] + '</span>';
+                 b.setAttribute('aria-label', t[1] + '. Cambiar tema'); b.title = 'Cambiar tema (automático sigue al sistema)'; }
+        if (window.renderCharts) window.renderCharts();
+      };
+      window.cycleTheme = function () {
+        var next = { auto: 'dark', dark: 'light', light: 'auto' }[window.themePref()];
+        try { localStorage.setItem('moooney-theme', next); } catch (e) {}
+        window.applyTheme();
+      };
+      media.addEventListener('change', window.applyTheme);
+      window.applyTheme();
+    })();
+  </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=19">
+  <link rel="stylesheet" href="/static/app.css?v=20">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script>window.go = function (url) { window.location = url; };</script>
@@ -42,11 +65,12 @@
     </nav>
     <div class="sidebar-foot">
       {% if as_of %}<div>datos hasta <strong title="{{ as_of }}">{{ as_of|fecha }} {{ as_of[:4] }}</strong></div>{% endif %}
-      <div style="display:flex;gap:6px;align-items:center">
+      <div class="foot-tags">
         {% if offline and not snapshot %}<span class="tag warn">offline</span>{% endif %}
         {% if demo_mode %}<span class="tag crit">demo</span>{% endif %}
         <span class="muted">{{ 'demo estática' if snapshot else 'local · 127.0.0.1' }}</span>
       </div>
+      <button type="button" id="theme-toggle" class="theme-toggle" onclick="cycleTheme()"><span aria-hidden="true">◐</span> <span class="tt-label">Tema automático</span></button>
     </div>
   </aside>
   <main class="content">
@@ -62,8 +86,8 @@
 </div>
 <div id="toast"></div>
 <script>
-  document.body.addEventListener('htmx:afterSettle', () => { if (window.renderCharts) window.renderCharts(); });
-  window.addEventListener('DOMContentLoaded', () => { if (window.renderCharts) window.renderCharts(); });
+  window.addEventListener('DOMContentLoaded', () => window.applyTheme());  // etiqueta del botón y gráficos
+  document.body.addEventListener('htmx:afterSettle', () => window.applyTheme());
   // Toast de confirmación: cualquier respuesta HTMX con cabecera X-Toast la muestra 2,6 s.
   window.showToast = function (msg, ms) {
     const el = document.getElementById('toast'); if (!msg || !el) return;

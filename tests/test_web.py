@@ -1,5 +1,6 @@
 """Fase 4: la web sobre la base de demostración (sintética). Sin red: offline forzado."""
 
+import re
 import time
 from pathlib import Path
 
@@ -310,3 +311,19 @@ def test_agrupar_por_dia_suma_importes():
     assert [x["date"] for x in g] == ["2026-09-02", "2026-09-01"]
     assert g[0]["total"] == 15.0 and len(g[0]["rows"]) == 2 and g[1]["total"] == -1.5
     assert fecha_larga("2026-09-02") == "miércoles 2 de septiembre"
+
+
+def test_modo_oscuro_selector_y_colores_en_variables(client):
+    r = client.get("/")
+    assert 'id="theme-toggle"' in r.text and "moooney-theme" in r.text
+    css = (Path(__file__).resolve().parents[1] / "src" / "moooney" / "web" / "static" / "app.css").read_text(encoding="utf-8")
+    claro = css[css.index(":root {"):css.index("}", css.index(":root {"))]
+    oscuro_ini = css.index(':root[data-theme="dark"] {')
+    oscuro = css[oscuro_ini:css.index("}", oscuro_ini)]
+    definidas = set(re.findall(r"(--[a-z0-9-]+):", claro))
+    redefinidas = set(re.findall(r"(--[a-z0-9-]+):", oscuro))
+    assert redefinidas and redefinidas <= definidas  # el oscuro solo cambia tokens que existen
+    # fuera de los dos bloques de tokens no hay colores fijos: el tema oscuro los alcanza todos
+    resto = css[:css.index(":root {")] + css[css.index("}", oscuro_ini):]
+    resto = re.sub(r"/\*.*?\*/", "", resto, flags=re.S)
+    assert not re.findall(r"#[0-9a-fA-F]{3,6}\b|rgba\(14", resto)

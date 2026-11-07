@@ -85,8 +85,8 @@ window.renderCharts = function () {
   const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
   const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };
   const css = getComputedStyle(document.documentElement); const palette = [1,2,3,4,5,6,7,8,9].map(i => css.getPropertyValue('--chart-' + i).trim());
-  Chart.defaults.font = { ...Chart.defaults.font, family: 'Work Sans', weight: 400, size: 13 }; Chart.defaults.color = '#4a5550';
-  const grid = { color: 'rgba(14,59,46,.08)' };
+  Chart.defaults.font = { ...Chart.defaults.font, family: 'Work Sans', weight: 400, size: 13 }; Chart.defaults.color = css.getPropertyValue('--chart-text').trim();
+  const grid = { color: css.getPropertyValue('--chart-grid').trim() };
   const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
   const lbl = m => MES[+m.slice(5, 7) - 1] + ' ' + m.slice(2, 4);
   const months = {{ months12|tojson }};
