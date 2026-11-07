@@ -103,7 +103,8 @@ def test_regex_invalida_rechazada(tmp_path):
         load_rules(path)
 
 
-def test_reglas_reales_estaciones_de_servicio_y_marcas_vistas():
+def test_reglas_reales_estaciones_de_servicio_y_marcas_vistas(tmp_path):
+    import shutil
     from pathlib import Path
 
     from moooney.categorize.rules import load_rules, match_rules
@@ -111,7 +112,9 @@ def test_reglas_reales_estaciones_de_servicio_y_marcas_vistas():
 
     raiz = Path(__file__).resolve().parent.parent
     taxonomy = load_taxonomy(raiz / "config" / "categories.yaml")
-    rules = load_rules(raiz / "config" / "rules.yaml", taxonomy=taxonomy)
+    # solo las reglas del repo, como en CI: el rules.local.yaml de quien ejecuta no cuenta
+    shutil.copy(raiz / "config" / "rules.yaml", tmp_path / "rules.yaml")
+    rules = load_rules(tmp_path / "rules.yaml", taxonomy=taxonomy)
     casos = {
         "E S FICTICIA": ("Transporte", "combustible"),
         "ES PUEBLO INVENTADO": ("Transporte", "combustible"),
@@ -120,12 +123,9 @@ def test_reglas_reales_estaciones_de_servicio_y_marcas_vistas():
         "FIVE GUYS SPAIN": ("Alimentacion", "restaurantes"),
         "OCINE PREMIUM": ("Ocio", "cultura"),
         "ENTRADAS EVENTO": ("Ocio", "cultura"),
-        "INTIM UOMO NERV": ("Compras", "ropa y calzado"),
         "ANA AEROPORTOS": ("Transporte", "transporte publico"),
-        "UKVI": ("Impuestos y tasas", "trafico"),
         "GA VI C C C": ("Alimentacion", "supermercado"),
         "ALIPAY TIENDA FICTICIA": ("Ocio", "viajes"),
-        "SOCIEDAD ESPANOLA DE ALGO": ("Educacion", "formacion"),
     }
     for clave, (cat, sub) in casos.items():
         m = match_rules(clave, rules)
