@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.5.0)
+## 1.5.1 · 2026-11-08
 
 - **Extractos de la tarjeta de crédito**: se reconoce el Excel de la tarjeta del Santander («Fecha
   operación», «Concepto», «Importe» como «-4,99€», «Divisa»; sin saldo). Las compras entran como
