@@ -16,6 +16,10 @@
   recuperar los movimientos que faltaban.
 - Un Excel que no se puede leer ya no bloquea la importación de los demás, y la subida desde la web
   rechaza en el acto un formato que no reconoce ningún perfil, sin dejarlo en la carpeta.
+- **La vigilancia de la carpeta (`moooney watch`) ya no se cae**: un Excel que no se puede leer se
+  aparta por su hash y no vuelve a lanzar la pipeline cada vuelta (vuelve a probarse si el fichero
+  cambia), y cualquier otro error de una vuelta se informa y se reintenta en la siguiente. Antes, en
+  el contenedor, un fichero ilegible dejaba el servicio `watch` reiniciándose en bucle.
 
 ## 1.5.0 · 2026-11-08
 

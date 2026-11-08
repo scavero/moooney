@@ -109,3 +109,50 @@ def test_watch_detecta_excel_nuevo_y_corre_la_pipeline(tmp_path, monkeypatch):
     assert watch(settings, settings_path.parent, lines.append, interval=5, sleeper=esperas.append,
                  max_iterations=2) == 0
     assert esperas == [5]  # dos comprobaciones, una espera entre ellas
+
+
+def _excel_ilegible(path: Path) -> Path:
+    """Excel sintético con una cabecera que no casa con ningún perfil de banco."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Columna A", "Columna B", "Columna C"])
+    ws.append(["x", "y", "z"])
+    wb.save(path)
+    return path
+
+
+def test_watch_aparta_un_excel_ilegible_sin_caerse_ni_repetir(tmp_path, monkeypatch):
+    monkeypatch.setenv("MOOONEY_OFFLINE", "1")
+    settings_path = build_demo(tmp_path / "demo", source_config=REPO_CONFIG, months=3)
+    settings = load_settings(settings_path)
+    _excel_ilegible(settings.paths.excel_dir / "raro.xlsx")
+    make_santander_xlsx(settings.paths.excel_dir / "bueno.xlsx")
+    lines: list[str] = []
+    esperas: list[float] = []
+    runs = watch(settings, settings_path.parent, lines.append, interval=5, sleeper=esperas.append,
+                 max_iterations=3)
+    texto = "\n".join(lines)
+    assert runs == 1  # el ilegible no relanza la pipeline en cada vuelta
+    assert "bueno.xlsx: 3 filas, 3 nuevas" in texto
+    assert "raro.xlsx: no se ha podido leer" in texto
+    assert texto.count("raro.xlsx: no se ha podido importar; se ignora") == 1
+    assert [p.name for p in pending_files(settings)] == ["raro.xlsx"]
+    assert esperas == [5, 5]
+
+
+def test_watch_no_se_cae_si_la_pipeline_falla(tmp_path, monkeypatch):
+    monkeypatch.setenv("MOOONEY_OFFLINE", "1")
+    settings_path = build_demo(tmp_path / "demo", source_config=REPO_CONFIG, months=3)
+    settings = load_settings(settings_path)
+    make_santander_xlsx(settings.paths.excel_dir / "nuevo.xlsx")
+
+    def revienta(*args, **kwargs):
+        raise RuntimeError("base de datos bloqueada")
+
+    monkeypatch.setattr("moooney.ingest.watch.run_pipeline_once", revienta)
+    lines: list[str] = []
+    assert watch(settings, settings_path.parent, lines.append, interval=5, sleeper=lambda s: None,
+                 max_iterations=2) == 0
+    assert sum("error en la vigilancia (RuntimeError: base de datos bloqueada)" in x for x in lines) == 2

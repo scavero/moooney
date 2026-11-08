@@ -45,18 +45,32 @@ def run_pipeline_once(settings: Settings, config_dir: Path, log: Logger, *, enri
 def watch(settings: Settings, config_dir: Path, log: Logger, *, interval: float = 60.0,
           once: bool = False, sleeper: Callable[[float], None] = time.sleep,
           max_iterations: int | None = None) -> int:
-    """Bucle de vigilancia. Devuelve cuántas veces corrió la pipeline."""
+    """Bucle de vigilancia. Devuelve cuántas veces corrió la pipeline.
+
+    Nunca se cae por un fichero o un error puntual: un Excel que la ingesta no sabe leer
+    se aparta (por su hash) y no vuelve a lanzar la pipeline hasta que el fichero cambie;
+    cualquier otro error se informa y se reintenta en la vuelta siguiente.
+    """
     runs = 0
     iterations = 0
+    ignorados: set[str] = set()  # hashes de Excel que no se han podido importar
     while True:
-        nuevos = pending_files(settings)
-        if nuevos:
-            log(f"{len(nuevos)} fichero(s) nuevo(s): " + ", ".join(p.name for p in nuevos))
-            run_pipeline_once(settings, config_dir, log)
-            runs += 1
-            log("pipeline completada")
-        elif once:
-            log("nada nuevo")
+        try:
+            nuevos = [p for p in pending_files(settings) if sha256_file(p) not in ignorados]
+            if nuevos:
+                log(f"{len(nuevos)} fichero(s) nuevo(s): " + ", ".join(p.name for p in nuevos))
+                run_pipeline_once(settings, config_dir, log)
+                runs += 1
+                log("pipeline completada")
+                for p in pending_files(settings):  # tras la ingesta, solo quedan los ilegibles
+                    h = sha256_file(p)
+                    if h not in ignorados:
+                        ignorados.add(h)
+                        log(f"{p.name}: no se ha podido importar; se ignora hasta que cambie el fichero")
+            elif once:
+                log("nada nuevo")
+        except Exception as e:  # la vigilancia sigue viva pase lo que pase en una vuelta
+            log(f"error en la vigilancia ({type(e).__name__}: {e}); se reintenta en la próxima vuelta")
         if once:
             return runs
         iterations += 1
