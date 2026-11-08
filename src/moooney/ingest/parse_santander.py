@@ -1,4 +1,4 @@
-"""Parser de extractos bancarios (.xlsx): Santander y, por perfiles, otros bancos.
+"""Parser de extractos bancarios (.xlsx y .xls): Santander y, por perfiles, otros bancos.
 
 Filas superiores con titular/IBAN/saldo o con el título del informe, luego una fila
 de cabecera y después los movimientos. La cabecera se localiza por sus columnas: la
@@ -216,12 +216,49 @@ def parse_date_value(value: object) -> str:
     raise ParseError("fecha con formato no reconocido")
 
 
+OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"  # .xls binario (Excel 97-2003)
+
+
+def _read_rows_xls(content: bytes, parser: ParserSettings) -> tuple[str, list[tuple]]:
+    """Filas de un .xls antiguo con xlrd. Las celdas de fecha pasan a datetime, como en openpyxl."""
+    import xlrd
+
+    try:
+        wb = xlrd.open_workbook(file_contents=content, on_demand=True)
+    except xlrd.XLRDError as e:
+        raise ParseError(f"el .xls no se puede leer: {e}") from None
+    try:
+        names = wb.sheet_names()
+        if parser.sheet and parser.sheet not in names:
+            raise ParseError(f"hoja no encontrada: {parser.sheet!r}")
+        sheet_name = parser.sheet or names[0]
+        ws = wb.sheet_by_name(sheet_name)
+
+        def valor(c):
+            if c.ctype == xlrd.XL_CELL_DATE:
+                return xlrd.xldate_as_datetime(c.value, wb.datemode)
+            if c.ctype in (xlrd.XL_CELL_EMPTY, xlrd.XL_CELL_BLANK):
+                return None
+            if c.ctype == xlrd.XL_CELL_ERROR:
+                return None
+            return c.value
+
+        rows = [tuple(valor(c) for c in ws.row(i)) for i in range(ws.nrows)]
+    finally:
+        wb.release_resources()
+    return sheet_name, rows
+
+
 def _read_rows(path: Path | bytes, parser: ParserSettings) -> tuple[str, list[tuple]]:
-    """Filas de la hoja. `path` puede ser el contenido del fichero (subidas desde la web)."""
-    if isinstance(path, bytes):
-        path = BytesIO(path)
-    elif path.suffix.lower() == ".xls":
-        raise ParseError("formato .xls no soportado; exporta el extracto a .xlsx")
+    """Filas de la hoja. `path` puede ser el contenido del fichero (subidas desde la web).
+
+    Se decide por el contenido, no por la extensión: un .xls de verdad (OLE) va por xlrd y un
+    .xlsx renombrado a .xls, por openpyxl.
+    """
+    content = path if isinstance(path, bytes) else path.read_bytes()
+    if content.startswith(OLE_MAGIC):
+        return _read_rows_xls(content, parser)
+    path = BytesIO(content)
     with warnings.catch_warnings():
         # Los Excel del banco vienen sin estilo por defecto y openpyxl avisa cada vez
         warnings.filterwarnings("ignore", message="Workbook contains no default style")

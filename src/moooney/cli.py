@@ -60,7 +60,7 @@ def _settings(config: Path | None) -> Settings:
 
 @app.command()
 def inspect(
-    ruta: Path = typer.Argument(..., help="Fichero .xlsx a comprobar."),
+    ruta: Path = typer.Argument(..., help="Fichero .xlsx o .xls a comprobar."),
     config: Path = CONFIG_OPTION,
 ) -> None:
     """Comprueba si el parser entiende un Excel. No muestra conceptos ni importes."""

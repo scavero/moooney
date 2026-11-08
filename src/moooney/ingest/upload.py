@@ -66,7 +66,7 @@ def save_upload(excel_dir: Path, filename: str, content: bytes, profiles: list |
         # Un fichero roto en la carpeta haría fallar todas las importaciones siguientes.
         return UploadResult(filename, message="el Excel está dañado o incompleto; descárgalo otra vez del banco")
 
-    if profiles is not None and suffix == ".xlsx":
+    if profiles is not None:
         # ¿Lo entiende algún perfil de banco? Se comprueba en memoria, antes de escribir nada: un
         # fichero ilegible en la carpeta se quedaría «pendiente» para siempre.
         from moooney.ingest.parse_santander import ParseError, inspect_file

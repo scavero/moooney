@@ -18,7 +18,7 @@ Pipeline local de finanzas personales. El usuario exporta a mano extractos de su
 ## Stack y convenciones
 
 - Python 3.12, gestionado con `uv`. Layout `src/moooney/`. Entrada por CLI con `typer`: `uv run moooney <comando>`.
-- Dependencias: `pandas`, `openpyxl`, `pydantic`, `pyyaml`, `typer`, `rich`, `httpx`. Dev: `pytest`, `ruff`. Sin LangChain ni frameworks de agentes.
+- Dependencias: `pandas`, `openpyxl`, `xlrd` (.xls antiguos), `pydantic`, `pyyaml`, `typer`, `rich`, `httpx`. Dev: `pytest`, `ruff`, `xlwt` (para generar .xls en los tests). Sin LangChain ni frameworks de agentes.
 - SQLite en `data/moooney.db`, esquema en `src/moooney/db/schema.sql`, acceso con `sqlite3` de la biblioteca estándar. Sin ORM.
 - Configuración en `config/*.yaml`. Rutas en `config/settings.yaml`.
 - Código, nombres de variables, commits y docstrings en español salvo identificadores técnicos habituales en inglés (`date`, `amount`, `flow_type`).
