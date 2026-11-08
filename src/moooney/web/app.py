@@ -31,6 +31,7 @@ from moooney.analytics.recurring import load_recurring
 from moooney.config import Settings, load_settings
 from moooney.db import repo
 from moooney.export import export_filename, transactions_csv
+from moooney.ingest.reset import CONFIRM_WORD
 from moooney.ingest.upload import MAX_BYTES, save_upload
 from moooney.llm.client import offline_enabled
 from moooney.report import advice
@@ -631,7 +632,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         return {
             "status": status, "files": files, "imports": queries.imports_history(conn), "merchants": merchants,
             "egress": queries.egress_stats(conn), "enrichment": enr, "llm": llm, "jobs": state.jobs.recent(),
-            "excel_dir": state.settings.paths.excel_dir, "demo": a.demo, "steps": steps,
+            "excel_dir": state.settings.paths.excel_dir, "demo": a.demo, "steps": steps, "reset_word": CONFIRM_WORD,
         }
 
     @app.get("/pipeline", response_class=HTMLResponse)
@@ -648,6 +649,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         "enrich": "Enriquecer dudosas por web",
         "alerts": "Recalcular recurrentes y alertas",
         "repair": "Revisar extractos solapados",
+        "reset": "Empezar de cero",
     }
 
     def job_panel(request: Request, job, *, started: bool = False) -> HTMLResponse:
@@ -678,7 +680,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             "enrich": lambda log: service.job_enrich(s, p, log),
             "alerts": lambda log: service.job_alerts(s, p, log),
             "repair": lambda log: service.job_repair(real, s, p, log),
+            "reset": lambda log: service.job_reset(real, log),
         }
+        if name == "reset" and request.headers.get("HX-Prompt", "").strip().upper() != CONFIRM_WORD:
+            # Borrado sin vuelta atrás: hay que escribir la palabra, no basta con un clic.
+            return HTMLResponse(f'<div class="notice warn">No se ha borrado nada: para confirmarlo hay que '
+                                f'escribir {CONFIRM_WORD}.</div>')
         try:
             job = state.jobs.start(JOB_NAMES[name], fns[name])
         except RuntimeError as e:

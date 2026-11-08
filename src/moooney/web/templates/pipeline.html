@@ -101,6 +101,14 @@
         <button class="btn ghost" hx-post="/pipeline/jobs/repair" hx-target="#job-panel" hx-swap="innerHTML"
                 hx-confirm="Se borrarán los movimientos que estén dos veces (se queda el primero cargado) y se añadirán los que falten. No se puede deshacer. ¿Seguir?">Revisar extractos solapados</button>
       </div>
+      {% if not demo or files %}
+      <h3 style="margin:24px 0 8px">Empezar de cero</h3>
+      <div class="concept" style="margin-bottom:8px">Borra {% if not demo %}los {{ status.transactions }} movimientos{% endif %}{% if not demo and files %}, {% endif %}{% if files %}{{ 'el Excel' if files|length == 1 else 'los ' ~ files|length ~ ' Excel' }} de la carpeta de entrada{% endif %} y lo calculado con ellos (alertas, recurrentes, informes, etiquetas). <strong style="color:var(--ink-2)">Se conservan</strong> la memoria de comercios con tus correcciones, los presupuestos, las claves y la configuración: lo que vuelvas a subir sale categorizado al instante. No se puede deshacer.</div>
+      <div class="actions">
+        <button class="btn danger" hx-post="/pipeline/jobs/reset" hx-target="#job-panel" hx-swap="innerHTML"
+                hx-prompt="Se borrarán todos los movimientos y los Excel de la carpeta. No se puede deshacer. Escribe {{ reset_word }} para confirmar.">Borrar movimientos y extractos</button>
+      </div>
+      {% endif %}
     </details>
     <dl class="kv" style="margin-top:16px;font-size:14px">
       <dt>Decisión</dt><dd>{{ llm.models[llm.decider if llm.decider in llm.models else 'clef'] if llm else 'sin config/llm.yaml' }}{% if llm %} <span class="muted">vía {{ llm.base_url|replace('https://', '') }}</span>{% endif %}</dd>

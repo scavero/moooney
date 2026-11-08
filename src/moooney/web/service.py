@@ -372,8 +372,8 @@ def job_report(settings: Settings, paths: Paths, log: Logger, *, month: str | No
             log(f"{motivo}: informe a partir de los hallazgos deterministas")
             content, model, kind = advice.fallback_report(payload), None, "reglas"
         advice.store_report(conn, month=m, kind=kind, model=model, content=content)
-        out_dir = Path("reports")
-        out_dir.mkdir(exist_ok=True)
+        out_dir = settings.paths.reports_dir
+        out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / f"{m}.md").write_text(content + "\n", encoding="utf-8")
         log(f"guardado en reports/{m}.md")
     finally:
@@ -430,3 +430,20 @@ def job_alerts(settings: Settings, paths: Paths, log: Logger) -> None:
         log(f"alertas detectadas: {found}, nuevas: {nuevas}")
     finally:
         conn.close()
+
+
+def job_reset(settings: Settings, log: Logger) -> None:
+    """Empezar de cero: borra movimientos y extractos y conserva memoria de comercios,
+    presupuestos y configuración (ver ingest/reset.py)."""
+    from moooney.ingest.reset import reset_data
+
+    stage(log, "Borrar movimientos")
+    conn = repo.connect(settings.paths.db_path, check_same_thread=False)
+    try:
+        report(log, "Borrando Excel, movimientos, alertas e informes")
+        r = reset_data(conn, settings)
+    finally:
+        conn.close()
+    log(f"borrados {r.movimientos} movimientos de {r.importaciones} importaciones")
+    log(f"borrados {r.excel} Excel de la carpeta de entrada, {r.csv} CSV limpios y {r.informes} informes")
+    log("se conservan la memoria de comercios, los presupuestos y la configuración")

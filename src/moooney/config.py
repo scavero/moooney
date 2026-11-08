@@ -15,6 +15,7 @@ class PathsSettings(BaseModel):
     excel_dir: Path = Path("data/excel")
     clean_dir: Path = Path("data/clean")
     db_path: Path = Path("data/moooney.db")
+    reports_dir: Path = Path("reports")  # informes en Markdown
 
 
 class ParserSettings(BaseModel):

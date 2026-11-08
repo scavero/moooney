@@ -127,6 +127,32 @@ def ingest(
 
 
 @app.command()
+def reset(
+    yes: bool = typer.Option(False, "--yes", help="Borrar de verdad; sin esto solo cuenta."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Empezar de cero: borra movimientos, importaciones y los Excel de la carpeta de entrada.
+
+    Conserva la memoria de comercios, los presupuestos y la configuración. No se puede deshacer.
+    """
+    from moooney.ingest.reset import reset_data, summary
+
+    settings = _settings(config)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        if not yes:
+            s = summary(conn, settings)
+            console.print(f"Se borrarían {s['movimientos']} movimientos de {s['importaciones']} importaciones "
+                          f"y {s['excel']} Excel de la carpeta de entrada. Con --yes se borran.")
+            return
+        r = reset_data(conn, settings)
+        console.print(f"Borrados {r.movimientos} movimientos, {r.importaciones} importaciones, {r.excel} Excel, "
+                      f"{r.csv} CSV limpios y {r.informes} informes. La memoria de comercios se conserva.")
+    finally:
+        conn.close()
+
+
+@app.command()
 def dedupe(
     apply: bool = typer.Option(False, "--apply", help="Borrar de verdad; sin esto solo cuenta."),
     config: Path = CONFIG_OPTION,

@@ -1,5 +1,15 @@
 # Cambios
 
+## Sin publicar (tras 1.5.2)
+
+- **Empezar de cero**: *Pipeline → Mantenimiento → Borrar movimientos y extractos* (o `moooney reset
+  --yes`) borra todos los movimientos, las importaciones, los Excel de la carpeta de entrada y lo
+  calculado con ellos (alertas, recurrentes, informes, etiquetas). Se conservan la memoria de
+  comercios con tus correcciones, los presupuestos, las claves y la configuración, así que lo que
+  vuelvas a subir sale categorizado al instante. Para confirmarlo hay que escribir BORRAR.
+- Nuevo ajuste `paths.reports_dir` (por defecto `reports`): los informes en Markdown ya no se escriben
+  en una ruta relativa fija, y la demo guarda los suyos en su propia carpeta.
+
 ## 1.5.2 · 2026-11-08
 
 - **Excel antiguos (.xls)**: se leen los extractos en formato Excel 97-2003 (algunos bancos y la
