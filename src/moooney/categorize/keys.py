@@ -6,7 +6,8 @@ from moooney.categorize.normalize import clean_concept
 
 
 def backfill_clean_keys(conn: sqlite3.Connection) -> int:
-    """Calcula concept_clean donde falte. Devuelve cuántas filas actualizó."""
+    """Calcula concept_clean donde falte y aplica la memoria de comercios a los movimientos
+    sin categoría. Devuelve cuántas claves calculó."""
     rows = conn.execute(
         "SELECT id, concept FROM transactions WHERE concept_clean IS NULL OR concept_clean = ''"
     ).fetchall()
@@ -15,7 +16,32 @@ def backfill_clean_keys(conn: sqlite3.Connection) -> int:
             "UPDATE transactions SET concept_clean = ? WHERE id = ?",
             [(clean_concept(c), i) for i, c in rows],
         )
+    apply_merchant_memory(conn)
     return len(rows)
+
+
+def apply_merchant_memory(conn: sqlite3.Connection) -> int:
+    """Un movimiento nuevo de un comercio ya conocido hereda su categoría de `merchants`.
+
+    La cascada solo pregunta por claves sin memoria; sin este paso, lo que se importa después de
+    categorizar un comercio se quedaba sin categoría para siempre. Devuelve filas actualizadas.
+    """
+    with conn:
+        cur = conn.execute(
+            """
+            UPDATE transactions SET
+                category = m.category, subcategory = m.subcategory,
+                flow_type = m.flow_type, confidence = m.confidence
+            FROM merchants m
+            WHERE m.key = transactions.concept_clean
+              AND transactions.category IS NULL AND m.category IS NOT NULL
+            """
+        )
+    if cur.rowcount:
+        from moooney.db import repo
+
+        repo.mark_card_settlements(conn)  # puede haber entrado una liquidación de tarjeta
+    return cur.rowcount
 
 
 def rebuild_clean_keys(conn: sqlite3.Connection) -> tuple[int, int]:

@@ -5,6 +5,9 @@
 - **Excel antiguos (.xls)**: se leen los extractos en formato Excel 97-2003 (algunos bancos y la
   exportación de la tarjeta los dan así), tanto copiados a la carpeta como subidos desde la web. Antes
   se rechazaban con «formato .xls no soportado».
+- **Movimientos nuevos de comercios ya conocidos**: heredan la categoría de la memoria de comercios al
+  importarse. Antes se quedaban sin categoría si el comercio se había categorizado en una importación
+  anterior (la cascada solo pregunta por comercios nuevos); basta con volver a importar o categorizar.
 
 ## 1.5.1 · 2026-11-08
 

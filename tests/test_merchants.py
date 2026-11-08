@@ -137,3 +137,20 @@ def test_rebuild_clean_keys_migra_la_memoria(tmp_path):
     assert rebuild_clean_keys(conn) == (0, 0)  # idempotente
     # la clave antigua ya no la usa nadie: desaparece de la memoria
     assert repo.get_merchant(conn, 'TRANSACCION CONTACTLESS EN TASCA DO RIO') is None
+
+
+def test_movimiento_nuevo_de_comercio_conocido_hereda_la_categoria(tmp_path):
+    from moooney.categorize.keys import backfill_clean_keys
+
+    conn = _db(tmp_path)
+    repo.upsert_merchant(conn, key="TIENDA PRUEBA", category="Compras", subcategory="online",
+                         flow_type="expense", source="rule", confidence=1.0, updated_at="t")
+    # llega otro extracto con una compra más en la misma tienda, aún sin clave ni categoría
+    with conn:
+        conn.execute(
+            "INSERT INTO transactions (fingerprint, date, concept, amount, account, created_at)"
+            " VALUES ('f2', '2025-02-05', 'TIENDA PRUEBA', -7, 'principal', 't')"
+        )
+    assert backfill_clean_keys(conn) == 1
+    row = conn.execute("SELECT concept_clean, category, flow_type FROM transactions WHERE fingerprint = 'f2'").fetchone()
+    assert (row["concept_clean"], row["category"], row["flow_type"]) == ("TIENDA PRUEBA", "Compras", "expense")
