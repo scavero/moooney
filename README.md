@@ -39,7 +39,11 @@ No hace falta ningún modelo para probarla. Si prefieres Docker, mira la secció
    *Pipeline* (arrastrar o elegir) o déjalos en `data/excel/`:
    - **Santander**: Cuentas → Movimientos → filtro de fechas amplio → Descargar → Excel.
    - **BBVA**: Cuentas → Movimientos → Exportar → Excel («Últimos movimientos»).
-   Se detecta el banco por la cabecera del fichero; puedes mezclar bancos en la misma carpeta.
+   - **Tarjeta de crédito del Santander**: sus movimientos en Excel («Fecha operación», «Concepto»,
+     «Importe», «Divisa»). Las compras cuentan una a una y la liquidación mensual de la cuenta deja de
+     contar como gasto en los meses que cubre, así que nada se cuenta dos veces.
+   Se detecta el banco por la cabecera del fichero; puedes mezclar bancos en la misma carpeta. Los
+   extractos pueden solaparse: un movimiento ya cargado no vuelve a entrar.
 2. **Modelos (opcional)**: apunta moooney a tu servidor de modelos como se explica en
    [Modelos](#modelos). Sin modelos también funciona: categoriza por reglas y memoria, y el informe sale de
    los cálculos deterministas.

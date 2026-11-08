@@ -93,3 +93,18 @@ def test_la_pagina_se_entera_sin_recargar(tmp_path, monkeypatch):
         assert "✓" in r.text and "every 2s" not in r.text
         r = c.get("/pipeline/jobs/current?was=running", headers={"HX-Current-URL": "http://x/pipeline"})
         assert "X-Toast" not in r.headers
+
+
+def test_revisar_extractos_solapados_desde_la_web(tmp_path, monkeypatch):
+    monkeypatch.setenv("MOOONEY_OFFLINE", "1")
+    settings_path = build_demo(tmp_path / "demo", source_config=REPO_CONFIG, months=3)
+    with TestClient(create_app(settings_path)) as c:
+        assert 'hx-post="/pipeline/jobs/repair"' in c.get("/pipeline").text
+        r = c.post("/pipeline/jobs/repair")
+        job_id = r.text.split('id="job-', 1)[1].split('"', 1)[0]
+        for _ in range(100):
+            r = c.get(f"/pipeline/jobs/{job_id}")
+            if 'data-job-status="running"' not in r.text:
+                break
+            time.sleep(0.05)
+        assert "terminado" in r.text and "ningún movimiento repetido" in r.text, r.text

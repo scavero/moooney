@@ -66,4 +66,18 @@ def bbva(concept: object, operation: object = None) -> str:
     return f"{c} {m}".strip()
 
 
-BUILDERS: dict[str, Callable[[object, object], str]] = {"plain": plain, "bbva": bbva}
+# Conceptos de tarjeta que ya dicen qué son; el resto es el nombre del comercio a secas.
+_CARD_OWN_PREFIXES = ("COMPRA", "PAGO", "DEVOLUCION", "ANULACION", "RETIRADA", "REINTEGRO", "DISPOSICION",
+                      "CUOTA", "COMISION", "INTERES", "TRASPASO", "TRANSFERENCIA", "LIQUIDACION", "ABONO")
+
+
+def tarjeta(concept: object, operation: object = None) -> str:
+    """Extracto de tarjeta de crédito: el concepto es solo el comercio ("WWW.AMAZON").
+    Se escribe como compra, igual que en la cuenta, para que normalización y reglas valgan."""
+    c = _sin_acentos(clean_concept(concept))
+    if not c or c.startswith(_CARD_OWN_PREFIXES):
+        return c
+    return f"COMPRA EN {c}"
+
+
+BUILDERS: dict[str, Callable[[object, object], str]] = {"plain": plain, "bbva": bbva, "tarjeta": tarjeta}

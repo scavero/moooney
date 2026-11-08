@@ -40,7 +40,7 @@ from moooney.llm.client import (
     offline_enabled,
 )
 from moooney.llm.decide import build_decider
-from moooney.web.jobs import Logger, report
+from moooney.web.jobs import Logger, report, stage
 
 
 def _now() -> str:
@@ -195,7 +195,9 @@ def job_ingest(settings: Settings, log: Logger) -> None:
         if not outcomes:
             log(f"no hay ficheros Excel en {settings.paths.excel_dir}")
         for o in outcomes:
-            if o.skipped:
+            if o.error:
+                log(f"{o.filename}: no se ha podido leer ({o.error}); los demás siguen")
+            elif o.skipped:
                 log(f"{o.filename}: ya importado, se omite")
             else:
                 log(f"{o.filename}: {o.rows_total} filas, {o.rows_new} nuevas ({o.date_min} … {o.date_max})")
@@ -273,6 +275,7 @@ def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: boo
                     ss = run_second_opinion(conn, cliente, llm, taxonomy, on_progress=lambda k, m: log(f"  {k}: {m}"))
                     log(f"segunda opinión: {ss.examined} dudosas, {ss.changed} cambian, {ss.confirmed} confirmadas, "
                         f"{ss.kept} se quedan, {ss.failed} fallidas")
+        repo.mark_card_settlements(conn)
         sin = conn.execute("SELECT COUNT(*) AS n FROM transactions WHERE category IS NULL").fetchone()["n"]
         log(f"movimientos sin categoría: {sin}")
     finally:
@@ -377,6 +380,43 @@ def job_report(settings: Settings, paths: Paths, log: Logger, *, month: str | No
         if recorder is not None:
             recorder.flush()
         conn.close()
+
+
+def job_repair_overlaps(settings: Settings, log: Logger) -> int:
+    """Arregla lo que cargaron las versiones anteriores a 1.5.1: quita los movimientos que
+    entraron dos veces por solaparse extractos y recupera los que se juntaron en uno.
+    Devuelve cuántos movimientos se recuperaron (hay que categorizarlos)."""
+    from moooney.ingest.load import (
+        find_overlap_duplicates,
+        recover_missing,
+        remove_overlap_duplicates,
+    )
+
+    conn = repo.connect(settings.paths.db_path, check_same_thread=False)
+    try:
+        report(log, "Buscando movimientos repetidos entre extractos que se solapan")
+        n = remove_overlap_duplicates(conn, find_overlap_duplicates(conn))
+        log(f"movimientos repetidos quitados: {n}" if n else "ningún movimiento repetido entre extractos")
+        report(log, "Releyendo los Excel de la carpeta por si falta algún movimiento")
+        r = recover_missing(conn, settings)
+        log(f"movimientos recuperados: {r}" if r else "no faltaba ningún movimiento")
+        if r:
+            backfill_clean_keys(conn)
+        repo.mark_card_settlements(conn)
+        return r
+    finally:
+        conn.close()
+
+
+def job_repair(real: Settings, settings: Settings, paths: Paths, log: Logger) -> None:
+    """Revisar extractos solapados y dejar la analítica al día con lo que cambie."""
+    stage(log, "Revisar extractos")
+    recuperados = job_repair_overlaps(real, log)
+    if recuperados:
+        stage(log, "Categorizar")
+        job_categorize(settings, paths, log)
+    stage(log, "Recalcular alertas")
+    job_alerts(settings, paths, log)
 
 
 def job_alerts(settings: Settings, paths: Paths, log: Logger) -> None:

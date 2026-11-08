@@ -40,3 +40,22 @@ banks:
       operation: ["movimiento"]
       amount: ["importe", "importe eur", "importe (eur)"]
       balance: ["disponible", "saldo"]
+
+  - name: tarjeta
+    # Extracto de la tarjeta de crédito del Santander: "Fecha operación", "Concepto", "Importe"
+    # ("-4,99€", texto) y "Divisa". Sin saldo ni IBAN. Va el último: una cuenta trae "Saldo" y la
+    # reconoce antes su perfil. Las compras cuentan una a una y la liquidación mensual de la
+    # cuenta deja de contar como gasto en los meses que cubre (db/repo.py, mark_card_settlements).
+    account: card
+    concept_builder: tarjeta
+    # Una cuenta a la que le falte el saldo debe dar error, nunca importarse como tarjeta: por eso
+    # pide "Divisa" y no reclama cabeceras con columnas que solo traen las cuentas.
+    required_columns: [date, concept, amount, currency]
+    reject_columns: ["saldo", "disponible", "fecha valor", "f.valor", "movimiento", "observaciones"]
+    columns:
+      date: ["fecha operacion", "fecha de operacion"]
+      value_date: ["fecha valor"]
+      concept: ["concepto", "descripcion", "comercio"]
+      amount: ["importe", "importe eur", "importe (eur)"]
+      balance: []
+      currency: ["divisa", "moneda"]

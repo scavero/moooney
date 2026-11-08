@@ -164,7 +164,48 @@ def propagate_to_transactions(
             " WHERE concept_clean = ?",
             (category, subcategory, flow_type, confidence, key),
         )
+    if flow_type == "card_settlement":
+        mark_card_settlements(conn)
     return cur.rowcount
+
+
+# ---------- tarjeta de crédito: compras sueltas frente a la liquidación ----------
+
+CARD_ACCOUNT_PREFIX = "tarjeta"  # cuentas de extractos de tarjeta (perfil con account: card)
+COVERED_FLOW = "card_settlement_covered"
+
+
+def mark_card_settlements(conn: sqlite3.Connection) -> int:
+    """Las liquidaciones de tarjeta cuyas compras ya están importadas dejan de ser gasto.
+
+    Una liquidación del día D paga, más o menos, el mes anterior. Está cubierta si algún
+    extracto de tarjeta abarca desde D-30 hasta D-3: entonces su flujo pasa a
+    `card_settlement_covered` (fuera de los gastos) y cuentan las compras una a una. Sin
+    extracto de tarjeta para ese periodo sigue siendo `card_settlement` y cuenta como gasto,
+    así que no se pierde nada. Se recalcula entera cada vez: es idempotente.
+    """
+    from datetime import date, timedelta
+
+    rangos = conn.execute(
+        "SELECT MIN(date) AS lo, MAX(date) AS hi FROM transactions WHERE account LIKE ? GROUP BY account",
+        (CARD_ACCOUNT_PREFIX + "%",),
+    ).fetchall()
+    filas = conn.execute(
+        "SELECT id, date, flow_type FROM transactions WHERE flow_type IN ('card_settlement', ?)",
+        (COVERED_FLOW,),
+    ).fetchall()
+    cambios = []
+    for f in filas:
+        d = date.fromisoformat(f["date"])
+        desde, hasta = (d - timedelta(days=30)).isoformat(), (d - timedelta(days=3)).isoformat()
+        cubierta = any(r["lo"] <= desde and r["hi"] >= hasta for r in rangos)
+        quiero = COVERED_FLOW if cubierta else "card_settlement"
+        if quiero != f["flow_type"]:
+            cambios.append((quiero, f["id"]))
+    if cambios:
+        with conn:
+            conn.executemany("UPDATE transactions SET flow_type = ? WHERE id = ?", cambios)
+    return len(cambios)
 
 
 # ---------- enriquecimiento externo (fase 2.5) ----------

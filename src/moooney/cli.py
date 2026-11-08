@@ -116,12 +116,46 @@ def ingest(
     table.add_column("Filas nuevas", justify="right")
     table.add_column("Rango de fechas")
     for o in outcomes:
-        if o.skipped:
+        if o.error:
+            table.add_row(o.filename, "[red]—[/red]", "[red]no se pudo leer[/red]", f"[red]{o.error}[/red]")
+        elif o.skipped:
             table.add_row(o.filename, "[dim]—[/dim]", "[dim]0 (repetido)[/dim]", "[dim]—[/dim]")
         else:
             rng = f"{o.date_min} … {o.date_max}" if o.date_min else "—"
             table.add_row(o.filename, str(o.rows_total), str(o.rows_new), rng)
     console.print(table)
+
+
+@app.command()
+def dedupe(
+    apply: bool = typer.Option(False, "--apply", help="Borrar de verdad; sin esto solo cuenta."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Extractos solapados: copias de un mismo movimiento y movimientos perdidos (cargas < 1.5.1).
+
+    Sin --apply solo cuenta las copias. Con --apply las quita, relee los Excel de la carpeta
+    para recuperar lo que faltase; después conviene `moooney categorize`.
+    """
+    from moooney.ingest.load import (
+        find_overlap_duplicates,
+        recover_missing,
+        remove_overlap_duplicates,
+    )
+
+    settings = _settings(config)
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        ids = find_overlap_duplicates(conn)
+        if not apply:
+            console.print(f"{len(ids)} movimientos repetidos entre extractos. Con --apply se quitan y se "
+                          "recuperan los que falten releyendo los Excel.")
+            return
+        console.print(f"Quitados {remove_overlap_duplicates(conn, ids)} movimientos repetidos.")
+        console.print(f"Recuperados {recover_missing(conn, settings)} movimientos que faltaban.")
+        backfill_clean_keys(conn)
+        repo.mark_card_settlements(conn)
+    finally:
+        conn.close()
 
 
 @app.command()

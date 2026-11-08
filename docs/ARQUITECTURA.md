@@ -12,13 +12,13 @@ pendientes (3, 4 y 5).
 ```mermaid
 flowchart LR
     subgraph entrada["Entrada manual"]
-        XLSX[("data/excel/*.xlsx<br/>exportación del banco,<br/>copiada a mano o subida en /pipeline")]
+        XLSX[("data/excel/*.xlsx<br/>cuenta o tarjeta del banco,<br/>copiada a mano o subida en /pipeline")]
     end
 
     subgraph f1["Fase 1 · Ingesta (sin IA)"]
         DETECT["detect.py<br/>SHA-256 del fichero"]
         PARSE["parse_santander.py<br/>cabecera, alias de columnas,<br/>importes es-ES, IBAN → ****NNNN"]
-        LOAD["load.py<br/>huella sha1(cuenta|fecha|importe|concepto|saldo)"]
+        LOAD["load.py<br/>clave (cuenta|fecha|importe|saldo),<br/>repeticiones contadas"]
         CSV[("data/clean/*.csv")]
     end
 

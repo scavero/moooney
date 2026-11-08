@@ -8,7 +8,7 @@ from pydantic import BaseModel, field_validator
 # Columnas destino del parser. 'account' se deriva del IBAN, no de una columna.
 TARGET_COLUMNS = ["date", "value_date", "concept", "amount", "balance"]
 # Columnas opcionales que algunos bancos traen y el constructor de concepto aprovecha.
-OPTIONAL_COLUMNS = ["operation"]
+OPTIONAL_COLUMNS = ["operation", "currency"]  # currency: solo para reconocer la cabecera
 
 
 class PathsSettings(BaseModel):
@@ -20,7 +20,8 @@ class PathsSettings(BaseModel):
 class ParserSettings(BaseModel):
     """Perfil de un banco: dónde está la tabla y cómo se llaman sus columnas.
 
-    `account`: "iban" deriva la cuenta del IBAN de las filas de cabecera; cualquier otro
+    `account`: "iban" deriva la cuenta del IBAN de las filas de cabecera; "card" es un extracto
+    de tarjeta ("tarjeta" o "tarjeta ****NNNN" si enseña los últimos dígitos); cualquier otro
     valor es una etiqueta fija (el BBVA no exporta el IBAN). `concept_builder`: cómo se
     compone el concepto a partir de las celdas (ver ingest/banks.py).
     """
@@ -32,6 +33,9 @@ class ParserSettings(BaseModel):
     columns: dict[str, list[str]]
     account: str = "iban"
     concept_builder: str = "plain"
+    # Columnas que este perfil no reclama nunca: si la cabecera las trae, es otro extracto
+    # (la tarjeta no tiene saldo; una cuenta sin «Saldo» debe dar error, no pasar por tarjeta).
+    reject_columns: list[str] = []
 
     @field_validator("columns")
     @classmethod
@@ -47,7 +51,7 @@ class ParserSettings(BaseModel):
     @field_validator("required_columns")
     @classmethod
     def _requeridas_validas(cls, v: list[str]) -> list[str]:
-        invalidas = [c for c in v if c not in TARGET_COLUMNS]
+        invalidas = [c for c in v if c not in TARGET_COLUMNS and c not in OPTIONAL_COLUMNS]
         if invalidas:
             raise ValueError(f"required_columns invalidas: {invalidas}")
         return v

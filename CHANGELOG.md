@@ -1,5 +1,22 @@
 # Cambios
 
+## Sin publicar (tras 1.5.0)
+
+- **Extractos de la tarjeta de crédito**: se reconoce el Excel de la tarjeta del Santander («Fecha
+  operación», «Concepto», «Importe» como «-4,99€», «Divisa»; sin saldo). Las compras entran como
+  «COMPRA EN …» en una cuenta «tarjeta» y cuentan una a una; la liquidación mensual de la cuenta
+  deja de contar como gasto en los meses que cubre el extracto de la tarjeta, así que nada se cuenta
+  dos veces y los meses sin extracto de tarjeta siguen contando la liquidación.
+- **Extractos que se solapan**: un movimiento ya cargado no vuelve a entrar aunque el banco escriba
+  distinto el concepto en otro informe (se compara cuenta, fecha, importe y saldo). Y dos movimientos
+  idénticos del mismo día ya no se quedan en uno: se cuentan (dos cafés iguales en la tarjeta, o un
+  cargo, su devolución y otra vez el cargo en la cuenta).
+- **Reparar lo ya cargado**: *Pipeline → Mantenimiento → Revisar extractos solapados* (o `moooney
+  dedupe --apply`) quita las copias que entraron dos veces y relee los Excel de la carpeta para
+  recuperar los movimientos que faltaban.
+- Un Excel que no se puede leer ya no bloquea la importación de los demás, y la subida desde la web
+  rechaza en el acto un formato que no reconoce ningún perfil, sin dejarlo en la carpeta.
+
 ## 1.5.0 · 2026-11-08
 
 - **Los trabajos cuentan qué hacen**: la tarjeta de un trabajo enseña sus etapas (subir → importar →

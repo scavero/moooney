@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS llm_calls (
 );
 
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+CREATE INDEX IF NOT EXISTS idx_transactions_account_date ON transactions(account, date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
 
 -- Fase 2.5: enriquecimiento externo. Una clave se consulta una sola vez.

@@ -14,6 +14,7 @@ import unicodedata
 import warnings
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
@@ -118,6 +119,10 @@ def detect_header(
             partial, _ = _match_header(row, profile)
             if len(partial) < 2:
                 continue
+            if profile.reject_columns:
+                rechazo = {normalize_name(a) for a in profile.reject_columns}
+                if any(c is not None and normalize_name(c) in rechazo for c in row):
+                    break  # esta cabecera es de otro tipo de extracto: este perfil no la reclama
             try:
                 mapping, found = map_columns(row, profile)
             except ParseError as e:
@@ -147,6 +152,21 @@ def extract_account(prelude_rows: list[tuple]) -> str:
                 if re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}", candidate):
                     return f"****{candidate[-4:]}"
     return "principal"
+
+
+CARD_RE = re.compile(r"(?:[*Xx•]{2,}[ -]?)(\d{4})\b|\b\d{4}[ -]?\d{2,4}[*Xx•]{2,}[ -]?[*Xx•]{0,4}[ -]?(\d{4})\b")
+
+
+def extract_card_account(prelude_rows: list[tuple]) -> str:
+    """'tarjeta ****NNNN' con los 4 últimos dígitos de la tarjeta si el extracto los enseña
+    enmascarados antes de la cabecera; si no, 'tarjeta'. Nunca guarda el número entero."""
+    for row in prelude_rows:
+        for cell in row:
+            if isinstance(cell, str):
+                m = CARD_RE.search(cell)
+                if m:
+                    return f"tarjeta ****{m.group(1) or m.group(2)}"
+    return "tarjeta"
 
 
 def parse_amount(value: object) -> float:
@@ -196,8 +216,11 @@ def parse_date_value(value: object) -> str:
     raise ParseError("fecha con formato no reconocido")
 
 
-def _read_rows(path: Path, parser: ParserSettings) -> tuple[str, list[tuple]]:
-    if path.suffix.lower() == ".xls":
+def _read_rows(path: Path | bytes, parser: ParserSettings) -> tuple[str, list[tuple]]:
+    """Filas de la hoja. `path` puede ser el contenido del fichero (subidas desde la web)."""
+    if isinstance(path, bytes):
+        path = BytesIO(path)
+    elif path.suffix.lower() == ".xls":
         raise ParseError("formato .xls no soportado; exporta el extracto a .xlsx")
     with warnings.catch_warnings():
         # Los Excel del banco vienen sin estilo por defecto y openpyxl avisa cada vez
@@ -214,7 +237,7 @@ def _read_rows(path: Path, parser: ParserSettings) -> tuple[str, list[tuple]]:
     return sheet_name, rows
 
 
-def inspect_file(path: Path, parser: ParserSettings | list[ParserSettings]) -> InspectResult:
+def inspect_file(path: Path | bytes, parser: ParserSettings | list[ParserSettings]) -> InspectResult:
     """Parsea devolviendo tambien los metadatos que enseña el comando inspect.
 
     Acepta un perfil o la lista de perfiles (`settings.profiles`): gana el primero que
@@ -243,7 +266,12 @@ def inspect_file(path: Path, parser: ParserSettings | list[ParserSettings]) -> I
         raise error
     profile, sheet_name, rows, header_idx, mapping_idx, found_by_index = chosen
     parser = profile
-    account = extract_account(rows[:header_idx]) if parser.account == "iban" else parser.account
+    if parser.account == "iban":
+        account = extract_account(rows[:header_idx])
+    elif parser.account == "card":
+        account = extract_card_account(rows[:header_idx])
+    else:
+        account = parser.account
     build_concept = BUILDERS[parser.concept_builder]
 
     def cell(row: tuple, target: str):

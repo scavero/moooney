@@ -96,6 +96,11 @@
         <button class="btn ghost" hx-post="/pipeline/jobs/categorize-refresh" hx-target="#job-panel" hx-swap="innerHTML" title="tras editar config/rules.yaml">Reaplicar reglas</button>
         <button class="btn ghost" hx-post="/pipeline/jobs/categorize-rebuild" hx-target="#job-panel" hx-swap="innerHTML" title="tras cambiar la normalización de conceptos">Reconstruir claves</button>
       </div>
+      <div class="concept" style="margin:16px 0 8px">Antes de la versión 1.5.1, al cargar extractos que se solapan algún movimiento podía entrar dos veces (el banco escribe distinto el concepto) y dos movimientos idénticos del mismo día se quedaban en uno. Esto quita las copias (misma cuenta, fecha, importe y saldo) y relee los Excel de la carpeta para recuperar lo que faltase.</div>
+      <div class="actions">
+        <button class="btn ghost" hx-post="/pipeline/jobs/repair" hx-target="#job-panel" hx-swap="innerHTML"
+                hx-confirm="Se borrarán los movimientos que estén dos veces (se queda el primero cargado) y se añadirán los que falten. No se puede deshacer. ¿Seguir?">Revisar extractos solapados</button>
+      </div>
     </details>
     <dl class="kv" style="margin-top:16px;font-size:14px">
       <dt>Decisión</dt><dd>{{ llm.models[llm.decider if llm.decider in llm.models else 'clef'] if llm else 'sin config/llm.yaml' }}{% if llm %} <span class="muted">vía {{ llm.base_url|replace('https://', '') }}</span>{% endif %}</dd>

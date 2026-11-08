@@ -43,7 +43,8 @@ HERE = Path(__file__).resolve().parent
 # Etiquetas humanas para los identificadores internos. La interfaz está en castellano:
 # nunca se enseña `card_settlement`, `clef_web` ni `anomalous_amount` al usuario.
 FLOW_LABEL = {"expense": "gasto", "income": "ingreso", "transfer_internal": "traspaso",
-              "investment": "inversión", "card_settlement": "tarjeta"}
+              "investment": "inversión", "card_settlement": "tarjeta",
+              "card_settlement_covered": "tarjeta (compras ya contadas)"}
 SOURCE_LABEL = {"user": "corregido por ti", "rule": "regla", "clef": "modelo", "clef_web": "modelo + web",
                 "embedding": "parecido", "llm": "segunda opinión"}
 SEVERITY_LABEL = {"critical": "crítica", "warning": "aviso", "info": "dato"}
@@ -646,6 +647,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         "second-opinion": "Segunda opinión del modelo de texto",
         "enrich": "Enriquecer dudosas por web",
         "alerts": "Recalcular recurrentes y alertas",
+        "repair": "Revisar extractos solapados",
     }
 
     def job_panel(request: Request, job, *, started: bool = False) -> HTMLResponse:
@@ -675,6 +677,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             "second-opinion": lambda log: service.job_categorize(s, p, log, second_opinion=True),
             "enrich": lambda log: service.job_enrich(s, p, log),
             "alerts": lambda log: service.job_alerts(s, p, log),
+            "repair": lambda log: service.job_repair(real, s, p, log),
         }
         try:
             job = state.jobs.start(JOB_NAMES[name], fns[name])
@@ -689,7 +692,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         results = []
         for f in files or []:
             content = await f.read(MAX_BYTES + 1)
-            results.append(save_upload(real.paths.excel_dir, f.filename or "", content))
+            results.append(save_upload(real.paths.excel_dir, f.filename or "", content, real.profiles))
         if not results:
             return HTMLResponse('<div class="notice warn">No ha llegado ningún fichero.</div>')
         lines = [f"{r.filename}: {r.message}" for r in results]

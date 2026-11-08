@@ -49,7 +49,7 @@ def _xlsx_sano(content: bytes) -> bool:
         return False
 
 
-def save_upload(excel_dir: Path, filename: str, content: bytes) -> UploadResult:
+def save_upload(excel_dir: Path, filename: str, content: bytes, profiles: list | None = None) -> UploadResult:
     """Guarda un Excel subido en `excel_dir`. No pisa nada: si ya hay un fichero idéntico no lo
     duplica, y si el nombre está ocupado por otro contenido añade (2), (3)…"""
     name = safe_name(filename or "")
@@ -65,6 +65,16 @@ def save_upload(excel_dir: Path, filename: str, content: bytes) -> UploadResult:
     if suffix == ".xlsx" and not _xlsx_sano(content):
         # Un fichero roto en la carpeta haría fallar todas las importaciones siguientes.
         return UploadResult(filename, message="el Excel está dañado o incompleto; descárgalo otra vez del banco")
+
+    if profiles is not None and suffix == ".xlsx":
+        # ¿Lo entiende algún perfil de banco? Se comprueba en memoria, antes de escribir nada: un
+        # fichero ilegible en la carpeta se quedaría «pendiente» para siempre.
+        from moooney.ingest.parse_santander import ParseError, inspect_file
+
+        try:
+            inspect_file(content, profiles)
+        except ParseError as e:
+            return UploadResult(filename, message=f"no reconozco el formato del extracto: {e}")
 
     excel_dir.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256(content).hexdigest()
