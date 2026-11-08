@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.5.3)
+## 1.5.4 · 2026-11-09
 
 - La demo de GitHub Pages enseña *Empezar de cero* en *Pipeline → Mantenimiento*, con el botón
   desactivado y una nota.
