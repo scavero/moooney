@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.5.1)
+## 1.5.2 · 2026-11-08
 
 - **Excel antiguos (.xls)**: se leen los extractos en formato Excel 97-2003 (algunos bancos y la
   exportación de la tarjeta los dan así), tanto copiados a la carpeta como subidos desde la web. Antes
