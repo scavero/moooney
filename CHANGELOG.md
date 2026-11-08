@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.5.2)
+## 1.5.3 · 2026-11-08
 
 - **Empezar de cero**: *Pipeline → Mantenimiento → Borrar movimientos y extractos* (o `moooney reset
   --yes`) borra todos los movimientos, las importaciones, los Excel de la carpeta de entrada y lo
