@@ -1,5 +1,12 @@
 # Cambios
 
+## Sin publicar (tras 1.3.0)
+
+- **Subir Excel desde la web**: en *Pipeline* se arrastran o eligen uno o varios Excel y se importan y
+  categorizan en el acto, sin tocar la carpeta. Se guardan en la carpeta de entrada con nombre saneado,
+  sin pisar nada (un fichero idéntico no se duplica; otro con el mismo nombre recibe (2)), y se rechazan
+  los que no son Excel, los de más de 20 MB y los dañados, que antes habrían bloqueado la importación.
+
 ## 1.3.0 · 2026-11-07
 
 - **Modo oscuro**: botón en el pie de la barra lateral (icono en móvil) que alterna automático, oscuro y claro;

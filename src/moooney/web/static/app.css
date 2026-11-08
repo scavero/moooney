@@ -452,3 +452,14 @@ th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
   .diag-list .impact-col .impact { font-size: 20px; }
   .diag-list .impact-col .concept { display: inline; margin-left: 4px; }
 }
+
+/* ---------- subir Excel desde la web ---------- */
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
+.upload { margin-bottom: var(--s2); }
+.dropzone { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: var(--s3); min-height: 96px; justify-content: center;
+  border: 1px dashed var(--line); border-radius: 6px; background: var(--tint); cursor: pointer; }
+.dropzone:hover, .dropzone.over { background: var(--dominant-soft); border-color: var(--dominant); }
+.dropzone:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dz-title { font-weight: 700; } .dz-link { color: var(--dominant); text-decoration: underline; text-underline-offset: 3px; }
+.dz-hint { color: var(--ink-3); font-size: 13px; }
+

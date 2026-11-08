@@ -27,7 +27,15 @@
 <div class="grid two section">
   <div class="card">
     <h2 style="margin-bottom:4px">1 · Ingesta</h2>
-    <div class="concept" style="margin-bottom:12px">Excel del Santander o del BBVA en <code>{{ excel_dir }}</code>; el banco se detecta por la cabecera. Fichero por hash y movimiento por huella: importar dos veces no duplica.{% if demo %} En la demo, lo que importes va a <strong>tu</strong> base.{% endif %}</div>
+    <div class="concept" style="margin-bottom:12px">Excel del Santander o del BBVA tal como lo descarga el banco; el banco se detecta por la cabecera. Fichero por hash y movimiento por huella: subir el mismo dos veces no duplica.{% if demo %} En la demo, lo que importes va a <strong>tu</strong> base.{% endif %}</div>
+    <form id="upload-form" class="upload" hx-post="/pipeline/upload" hx-encoding="multipart/form-data" hx-target="#job-panel" hx-swap="innerHTML"
+          hx-on::after-request="this.reset(); document.getElementById('upload-names').textContent = ''; window.scrollTo({top: 0, behavior: 'smooth'})">
+      <label class="dropzone" id="dropzone">
+        <input type="file" name="files" accept=".xlsx,.xls" multiple class="visually-hidden" id="upload-input">
+        <span class="dz-title">Arrastra aquí tus Excel o <span class="dz-link">elígelos</span></span>
+        <span class="dz-hint" id="upload-names">.xlsx o .xls, hasta 20 MB cada uno. Se importan y categorizan al momento.</span>
+      </label>
+    </form>
     <div class="scroll-x">
     <table class="keys-table">
       <tr><th>Fichero</th><th>Estado</th><th class="num">Filas · nuevas</th><th>Rango</th></tr>
@@ -39,13 +47,27 @@
         <td style="white-space:nowrap;color:var(--ink-2)">{% if f.date_min %}{{ f.date_min }} … {{ f.date_max }}{% else %}—{% endif %}</td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="muted">No hay ficheros .xlsx en la carpeta.</td></tr>
+      <tr><td colspan="4" class="muted">Todavía no hay ningún Excel. Súbelo arriba.</td></tr>
       {% endfor %}
     </table>
     </div>
     <div class="actions" style="margin-top:12px">
-      <button class="btn primary" hx-post="/pipeline/jobs/ingest" hx-target="#job-panel" hx-swap="innerHTML">Importar Excel nuevos</button>
+      <button class="btn ghost" hx-post="/pipeline/jobs/ingest" hx-target="#job-panel" hx-swap="innerHTML">Importar Excel nuevos de la carpeta</button>
     </div>
+    <div class="concept" style="margin-top:8px">También puedes dejarlos en <code>{{ excel_dir }}</code> e importarlos con el botón.</div>
+    <script>
+      (function () {
+        const form = document.getElementById('upload-form'), input = document.getElementById('upload-input'),
+              zone = document.getElementById('dropzone'), names = document.getElementById('upload-names');
+        if (!form || form.dataset.ready) return; form.dataset.ready = '1';
+        const send = () => { if (!input.files.length) return;
+          names.textContent = 'Subiendo ' + [...input.files].map(f => f.name).join(', ') + '…'; form.requestSubmit(); };
+        input.addEventListener('change', send);
+        ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('over'); }));
+        ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('over'); }));
+        zone.addEventListener('drop', e => { if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; send(); } });
+      })();
+    </script>
   </div>
 
   <div class="card">

@@ -54,7 +54,7 @@ moooney/
     cli.py
     config.py
     db/          schema.sql  repo.py
-    ingest/      detect.py  parse_santander.py  banks.py  load.py
+    ingest/      detect.py  parse_santander.py  banks.py  load.py  upload.py
     categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py  reask.py  second_opinion.py
     enrich/      settings.py  query.py  providers.py  runner.py
     analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py

@@ -35,7 +35,8 @@ No hace falta ningún modelo para probarla. Si prefieres Docker, mira la secció
 
 ## Con tus datos
 
-1. **Exporta** los movimientos de tu cuenta a Excel desde la web del banco y déjalos en `data/excel/`:
+1. **Exporta** los movimientos de tu cuenta a Excel desde la web del banco. Luego súbelos en la página
+   *Pipeline* (arrastrar o elegir) o déjalos en `data/excel/`:
    - **Santander**: Cuentas → Movimientos → filtro de fechas amplio → Descargar → Excel.
    - **BBVA**: Cuentas → Movimientos → Exportar → Excel («Últimos movimientos»).
    Se detecta el banco por la cabecera del fichero; puedes mezclar bancos en la misma carpeta.
@@ -55,7 +56,8 @@ uv run moooney web
    *Comercios*) → Presupuestos → Alertas → Informe. Cada paso tiene su botón, su registro en pantalla y su
    equivalente en la CLI; la página muestra de un vistazo qué paso pide acción.
 
-5. **Cada mes**: exporta el mes nuevo, déjalo en `data/excel/` y pulsa *Importar*. Nada se duplica. Si prefieres
+5. **Cada mes**: exporta el mes nuevo y súbelo en *Pipeline*: se importa y categoriza al momento. También
+   puedes dejarlo en `data/excel/` y pulsar *Importar*. Nada se duplica. Si prefieres
    olvidarte, `uv run moooney watch` vigila la carpeta y corre la pipeline sola (o una tarea programada, más abajo).
 
 ## Modelos

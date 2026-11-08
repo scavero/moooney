@@ -12,7 +12,7 @@ pendientes (3, 4 y 5).
 ```mermaid
 flowchart LR
     subgraph entrada["Entrada manual"]
-        XLSX[("data/excel/*.xlsx<br/>exportación Santander")]
+        XLSX[("data/excel/*.xlsx<br/>exportación del banco,<br/>copiada a mano o subida en /pipeline")]
     end
 
     subgraph f1["Fase 1 · Ingesta (sin IA)"]

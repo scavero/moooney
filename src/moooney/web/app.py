@@ -6,6 +6,7 @@ en segundo plano (ver jobs.py) y las ediciones (categoría, presupuesto, alerta
 vista) responden con fragmentos HTML que HTMX intercambia en la página.
 """
 
+import html
 import os
 import sqlite3
 from collections.abc import Iterator
@@ -14,7 +15,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -30,6 +31,7 @@ from moooney.analytics.recurring import load_recurring
 from moooney.config import Settings, load_settings
 from moooney.db import repo
 from moooney.export import export_filename, transactions_csv
+from moooney.ingest.upload import MAX_BYTES, save_upload
 from moooney.llm.client import offline_enabled
 from moooney.report import advice
 from moooney.web import queries, service
@@ -609,7 +611,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         steps = [
             {"n": 1, "label": "Importar", "ok": pending_files == 0,
              "status": f"{pending_files} pendientes" if pending_files else "al día",
-             "hint": f"{len(files)} ficheros en la carpeta", "cta": "Importar nuevos", "action": "ingest"},
+             "hint": f"{len(files)} ficheros en la carpeta",
+             **({"cta": "Importar nuevos", "action": "ingest"} if pending_files else {"cta": "Subir Excel", "href": "#upload-form"})},
             {"n": 2, "label": "Categorizar", "ok": not status["uncategorized"],
              "status": f"{status['uncategorized']} sin categoría" if status["uncategorized"] else "al día",
              "hint": f"{merchants['total']} claves en memoria", "cta": "Categorizar", "action": "categorize"},
@@ -665,6 +668,38 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             job = state.jobs.start(JOB_NAMES[name], fns[name])
         except RuntimeError as e:
             return HTMLResponse(f'<div class="notice warn">{e}</div>')
+        return templates.TemplateResponse(request, "partials/job.html", {"request": request, "job": job})
+
+    @app.post("/pipeline/upload", response_class=HTMLResponse)
+    async def pipeline_upload(request: Request, files: Annotated[list[UploadFile] | None, File()] = None):
+        """Excel subidos desde el navegador: van a la carpeta de entrada y se importan en el acto."""
+        real = state.settings  # como la ingesta: siempre a la carpeta y la base del usuario
+        results = []
+        for f in files or []:
+            content = await f.read(MAX_BYTES + 1)
+            results.append(save_upload(real.paths.excel_dir, f.filename or "", content))
+        if not results:
+            return HTMLResponse('<div class="notice warn">No ha llegado ningún fichero.</div>')
+        lines = [f"{r.filename}: {r.message}" for r in results]
+        if not any(r.ok for r in results):
+            items = "".join(f"<li>{html.escape(line)}</li>" for line in lines)
+            return HTMLResponse(f'<div class="notice crit"><strong>No se ha guardado nada.</strong><ul>{items}</ul></div>')
+        a = active()
+        s, p = a.settings, a.paths
+
+        def run(log):
+            for line in lines:
+                log(line)
+            service.job_ingest(real, log)
+            if not a.demo:  # en la demo se importa a tu base, pero no se categoriza la de la demo
+                service.job_categorize(s, p, log)
+                service.job_alerts(s, p, log)
+
+        try:
+            job = state.jobs.start("Importar Excel subidos", run)
+        except RuntimeError as e:
+            return HTMLResponse(f'<div class="notice warn">Ficheros guardados en la carpeta, pero {html.escape(str(e))}. '
+                                'Pulsa «Importar Excel nuevos» cuando termine.</div>')
         return templates.TemplateResponse(request, "partials/job.html", {"request": request, "job": job})
 
     @app.get("/pipeline/jobs/{job_id}", response_class=HTMLResponse)
