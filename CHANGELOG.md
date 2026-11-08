@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.3.0)
+## 1.4.0 · 2026-11-08
 
 - **Subir Excel desde la web**: en *Pipeline* se arrastran o eligen uno o varios Excel y se importan y
   categorizan en el acto, sin tocar la carpeta. Se guardan en la carpeta de entrada con nombre saneado,
