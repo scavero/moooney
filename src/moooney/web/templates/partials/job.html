@@ -1,20 +1,51 @@
-<div class="card job" style="margin-bottom:24px" id="job-{{ job.id }}"
-     {% if job.running %}hx-get="/pipeline/jobs/{{ job.id }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
-  <div class="topbar" style="margin-bottom:8px;align-items:baseline">
-    <h2 style="margin:0">{{ job.name }}
-      <span class="tag {{ 'info' if job.running else 'ok' if job.status == 'done' else 'crit' }}" style="vertical-align:middle">{{ 'en marcha…' if job.running else 'terminado' if job.status == 'done' else 'error' }}</span>
-    </h2>
-    <span class="concept">Empezó a las {{ job.started_at[11:19] }}{% if job.finished_at %}, terminó a las {{ job.finished_at[11:19] }}{% endif %}</span>
+{# Tarjeta de un trabajo en segundo plano. Mientras corre se repinta cada segundo; al terminar la
+   respuesta lleva HX-Trigger: job-finished y la página recarga sus cifras sola. #}
+<div class="card job" id="job-{{ job.id }}" data-job-status="{{ job.status }}"
+     {% if job.running %}hx-get="/pipeline/jobs/{{ job.id }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+  <div class="job-head">
+    <h2>{{ job.name }}</h2>
+    <span class="tag {{ 'info' if job.running else 'ok' if job.status == 'done' else 'crit' }}">{{ 'en marcha' if job.running else 'terminado' if job.status == 'done' else 'error' }}</span>
+    <span class="job-time" title="empezó a las {{ job.started_at[11:19] }}">{{ job.elapsed }}</span>
   </div>
-  {% if job.error %}<div class="notice crit">{{ job.error }}</div>{% endif %}
-  <div class="log">{% for line in job.lines %}{{ line }}
-{% else %}…{% endfor %}</div>
+
+  {% if job.stages|length > 1 %}
+  <ol class="job-stages">
+    {% for s in job.stages %}{% set st = job.stage_state(loop.index0) %}
+    <li class="{{ st }}"{% if st == 'current' %} aria-current="step"{% endif %}>
+      <span class="mark" aria-hidden="true">{{ '✓' if st == 'done' else '!' if st == 'error' else loop.index }}</span>
+      <span>{{ s }}<span class="visually-hidden"> ({{ {'done': 'hecho', 'current': 'en curso', 'error': 'falló', 'todo': 'pendiente'}[st] }})</span></span>
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+
+  <div role="status" aria-live="polite">
+  {% if job.running %}
+    <div class="job-now">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>{{ job.current or 'Empezando…' }}{% if job.total %} · <strong>{{ job.done }} de {{ job.total }}</strong>{% endif %}</span>
+    </div>
+    {% if job.percent is not none %}
+    <div class="bar" aria-hidden="true"><span style="width: {{ job.percent }}%"></span></div>
+    {% endif %}
+  {% elif job.status == 'done' %}
+    <div class="job-now done"><span class="mark" aria-hidden="true">✓</span><span>Listo en {{ job.elapsed }}.{% if not job.name.startswith('Informe') %} Las cifras de esta página ya están al día.{% endif %}</span></div>
+  {% else %}
+    <div class="notice crit" style="margin:0">Se ha parado con un error: {{ job.error }}. El registro de abajo dice en qué paso.</div>
+  {% endif %}
+  </div>
+
+  {% if job.lines %}
+  <div class="log job-log" aria-label="Registro del trabajo"><div>{% for line in job.lines %}{{ line }}
+{% endfor %}</div></div>
+  {% endif %}
+
   {% if not job.running %}
-  <div class="actions" style="margin-top:12px">
+  <div class="actions" style="margin-top:16px">
     {% if job.name.startswith('Informe') %}<a class="btn primary" href="/report">Ver informe</a>{% endif %}
-    <a class="btn ghost" href="/pipeline">Actualizar página</a>
     <a class="btn ghost" href="/merchants?mode=dudosas">Revisar dudosas</a>
-    <a class="btn ghost" href="/">Resumen</a>
+    <a class="btn ghost" href="/">Ir al resumen</a>
+    <button type="button" class="btn ghost" onclick="this.closest('.job').remove()">Cerrar</button>
   </div>
   {% endif %}
 </div>

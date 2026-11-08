@@ -1,0 +1,13 @@
+{# Indicador de trabajo en la barra lateral, en todas las páginas. Pregunta cada 2 s solo mientras
+   hay un trabajo en marcha; al lanzarse uno nuevo (HX-Trigger: job-started) se despierta. #}
+{% set running = job and job.running %}
+<span id="job-ind" hx-get="/pipeline/jobs/current{{ '?was=running' if running else '' }}" hx-swap="outerHTML"
+      hx-trigger="job-started from:body, job-finished from:body{{ ', every 2s' if running else '' }}">
+  {%- if running -%}
+  <span class="pill run" title="{{ job.name }}{{ ': ' ~ job.current if job.current else '' }}"><span class="spinner sm" aria-hidden="true"></span><span class="visually-hidden">trabajo en marcha</span></span>
+  {%- elif job and job.status == 'error' and job.seconds_since_finish < 600 -%}
+  <span class="pill crit" title="{{ job.name }}: error">!</span>
+  {%- elif job and job.seconds_since_finish < 600 -%}
+  <span class="pill ok" title="{{ job.name }}: terminado">✓</span>
+  {%- endif -%}
+</span>

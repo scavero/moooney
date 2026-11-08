@@ -35,7 +35,7 @@ from moooney.ingest.upload import MAX_BYTES, save_upload
 from moooney.llm.client import offline_enabled
 from moooney.report import advice
 from moooney.web import queries, service
-from moooney.web.jobs import JobRegistry
+from moooney.web.jobs import JobRegistry, stage
 from moooney.web.service import Paths
 
 HERE = Path(__file__).resolve().parent
@@ -224,6 +224,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             "merchants_counts": queries.merchants_summary(conn),
             "as_of": periods.as_of_date(conn),
             "job_running": state.jobs.current(),
+            "job_latest": state.jobs.latest(),
             "offline": offline_enabled(),
             "demo_mode": active().demo,
             "excel_dir": state.settings.paths.excel_dir,
@@ -587,8 +588,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
                 lambda log: service.job_report(s, p, log, month=month, use_model=True),
             )
         except RuntimeError as e:
-            return HTMLResponse(f'<div class="notice warn">{e}</div>')
-        return templates.TemplateResponse(request, "partials/job.html", {"request": request, "job": job})
+            return HTMLResponse(f'<div class="notice warn">{html.escape(str(e))}. Espera a que termine.</div>')
+        return job_panel(request, job, started=True)
 
     @app.post("/report/generate-offline")
     def report_generate_offline(month: str | None = None):
@@ -647,6 +648,17 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         "alerts": "Recalcular recurrentes y alertas",
     }
 
+    def job_panel(request: Request, job, *, started: bool = False) -> HTMLResponse:
+        """Tarjeta del trabajo. Avisa a la página por HX-Trigger: `job-started` al lanzarlo
+        (aparece el indicador de la barra lateral) y `job-finished` en cuanto termina (la página
+        recarga sus cifras sola, sin pulsar F5)."""
+        resp = templates.TemplateResponse(request, "partials/job.html", {"request": request, "job": job})
+        if started:
+            resp.headers["HX-Trigger"] = "job-started"
+        elif not job.running:
+            resp.headers["HX-Trigger"] = "job-finished"
+        return resp
+
     @app.post("/pipeline/jobs/{name}", response_class=HTMLResponse)
     def job_start(request: Request, name: str):
         if name not in JOB_NAMES:
@@ -667,8 +679,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         try:
             job = state.jobs.start(JOB_NAMES[name], fns[name])
         except RuntimeError as e:
-            return HTMLResponse(f'<div class="notice warn">{e}</div>')
-        return templates.TemplateResponse(request, "partials/job.html", {"request": request, "job": job})
+            return HTMLResponse(f'<div class="notice warn">{html.escape(str(e))}. Espera a que termine.</div>')
+        return job_panel(request, job, started=True)
 
     @app.post("/pipeline/upload", response_class=HTMLResponse)
     async def pipeline_upload(request: Request, files: Annotated[list[UploadFile] | None, File()] = None):
@@ -687,27 +699,47 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         a = active()
         s, p = a.settings, a.paths
 
+        stages = ["Subir", "Importar movimientos"] + ([] if a.demo else ["Categorizar", "Recalcular alertas"])
+
         def run(log):
             for line in lines:
                 log(line)
+            stage(log, "Importar movimientos")
             service.job_ingest(real, log)
             if not a.demo:  # en la demo se importa a tu base, pero no se categoriza la de la demo
+                stage(log, "Categorizar")
                 service.job_categorize(s, p, log)
+                stage(log, "Recalcular alertas")
                 service.job_alerts(s, p, log)
 
         try:
-            job = state.jobs.start("Importar Excel subidos", run)
+            job = state.jobs.start("Importar Excel subidos", run, stages=stages)
         except RuntimeError as e:
             return HTMLResponse(f'<div class="notice warn">Ficheros guardados en la carpeta, pero {html.escape(str(e))}. '
                                 'Pulsa «Importar Excel nuevos» cuando termine.</div>')
-        return templates.TemplateResponse(request, "partials/job.html", {"request": request, "job": job})
+        return job_panel(request, job, started=True)
+
+    @app.get("/pipeline/jobs/current", response_class=HTMLResponse)
+    def job_indicator(request: Request, was: str | None = None):
+        """Indicador de la barra lateral: se ve en todas las páginas mientras hay un trabajo. Si
+        termina mientras miras otra página, avisa con un toast que lleva a Pipeline."""
+        job = state.jobs.latest()
+        resp = templates.TemplateResponse(request, "partials/job_indicator.html", {"request": request, "job": job})
+        on_pipeline = "/pipeline" in request.headers.get("HX-Current-URL", "")
+        if was == "running" and job is not None and not job.running and not on_pipeline:
+            estado = "terminado" if job.status == "done" else "con error"
+            msg = f'{html.escape(job.name)}: {estado}. <a href="/pipeline">Ver resultado →</a>'
+            # Las cabeceras van en latin-1; el toast se pinta como HTML, así que basta con entidades.
+            resp.headers["X-Toast"] = msg.encode("ascii", "xmlcharrefreplace").decode("ascii")
+            resp.headers["X-Toast-Ms"] = "8000"
+        return resp
 
     @app.get("/pipeline/jobs/{job_id}", response_class=HTMLResponse)
     def job_status(request: Request, job_id: str):
         job = state.jobs.get(job_id)
         if job is None:
             raise HTTPException(status_code=404)
-        return templates.TemplateResponse(request, "partials/job.html", {"request": request, "job": job})
+        return job_panel(request, job)
 
     @app.get("/pipeline/enrich/preview", response_class=HTMLResponse)
     def enrich_preview(request: Request, conn: DB):

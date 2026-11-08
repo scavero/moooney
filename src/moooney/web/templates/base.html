@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=21">
+  <link rel="stylesheet" href="/static/app.css?v=23">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script>window.go = function (url) { window.location = url; };</script>
@@ -39,7 +39,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="/">moooney</a>
-    <nav>
+    <nav id="side-nav">
       <div class="group">Ver</div>
       <a href="/" class="{{ 'active' if path == '/' else '' }}">Resumen</a>
       <a href="/trends" class="{{ 'active' if path.startswith('/trends') else '' }}">Tendencias</a>
@@ -59,7 +59,7 @@
       <a href="/report" class="{{ 'active' if path.startswith('/report') else '' }}">Informe</a>
       <a href="/pipeline" class="{{ 'active' if path.startswith('/pipeline') else '' }}">
         Pipeline
-        {% if job_running %}<span class="pill run" title="{{ job_running.name }}">●</span>{% endif %}
+        {% if not snapshot %}{% with job=job_latest %}{% include "partials/job_indicator.html" %}{% endwith %}{% endif %}
       </a>
       <a href="/settings" class="{{ 'active' if path.startswith('/settings') else '' }}">Ajustes</a>
     </nav>
@@ -87,14 +87,25 @@
 <div id="toast"></div>
 <script>
   window.addEventListener('DOMContentLoaded', () => window.applyTheme());  // etiqueta del botón y gráficos
-  document.body.addEventListener('htmx:afterSettle', () => window.applyTheme());
-  // Toast de confirmación: cualquier respuesta HTMX con cabecera X-Toast la muestra 2,6 s.
+  document.body.addEventListener('htmx:afterSettle', () => { window.applyTheme(); window.syncJobButtons(); });
+  // Botones que lanzan trabajos: desactivados mientras uno corre, para que no choquen.
+  window.syncJobButtons = function () {
+    const running = !!document.querySelector('.job[data-job-status="running"], #job-ind .pill.run');
+    document.querySelectorAll('[hx-post^="/pipeline/jobs/"], [hx-post="/report/generate"]').forEach(b => {
+      if (!('t' in b.dataset)) b.dataset.t = b.title || '';
+      b.disabled = running; b.title = running ? 'Hay un trabajo en marcha; espera a que termine' : b.dataset.t;
+    });
+    const up = document.getElementById('upload-form'); if (up) up.classList.toggle('busy', running);
+  };
+  window.addEventListener('DOMContentLoaded', () => window.syncJobButtons());
+  // Toast de confirmación: cualquier respuesta HTMX con cabecera X-Toast la muestra (2,6 s o X-Toast-Ms).
   window.showToast = function (msg, ms) {
     const el = document.getElementById('toast'); if (!msg || !el) return;
     el.innerHTML = '<div class="toast">' + msg + '</div>'; clearTimeout(el._t); el._t = setTimeout(() => { el.innerHTML = ''; }, ms || 2600);
   };
   document.body.addEventListener('htmx:afterRequest', (e) => {
-    window.showToast(e.detail.xhr && e.detail.xhr.getResponseHeader && e.detail.xhr.getResponseHeader('X-Toast'));
+    const x = e.detail.xhr; if (!x || !x.getResponseHeader) return;
+    window.showToast(x.getResponseHeader('X-Toast'), +x.getResponseHeader('X-Toast-Ms') || 0);
   });
 </script>
 </body>

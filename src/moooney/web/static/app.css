@@ -418,7 +418,38 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .steps .step.todo .num { color: var(--warn-ink); }
 .steps .label { font-weight: 700; } .steps .hint { color: var(--ink-3); font-size: 13px; margin: 2px 0 12px; }
 .steps .btn { white-space: nowrap; }
-.job .log { max-height: 280px; }
+
+/* ---------- trabajos en marcha: etapa, qué hace ahora, progreso ---------- */
+.job { margin-bottom: var(--s3); scroll-margin-top: var(--s2); }
+#job-panel { scroll-margin-top: var(--s2); }
+.job-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s1) var(--s2); margin-bottom: var(--s2); }
+.job-head h2 { margin: 0; }
+.job-time { margin-left: auto; color: var(--ink-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+.job-stages { list-style: none; display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); margin: 0 0 var(--s2); padding: 0; }
+.job-stages li { display: flex; align-items: center; gap: var(--s1); color: var(--ink-3); }
+.job-stages .mark, .job-now .mark { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--line); font-size: 12px; font-weight: 700; flex: 0 0 auto; }
+.job-stages li.done { color: var(--ink-2); }
+.job-stages li.done .mark, .job-now.done .mark { background: var(--dominant-soft); border-color: transparent; color: var(--dominant); }
+.job-stages li.current { color: var(--ink); font-weight: 700; }
+.job-stages li.current .mark { background: var(--dominant); border-color: transparent; color: var(--on-dominant); }
+.job-stages li.error { color: var(--accent-ink); font-weight: 700; }
+.job-stages li.error .mark { background: var(--accent-soft); border-color: transparent; color: var(--accent-ink); }
+.job-now { display: flex; align-items: center; gap: 12px; font-size: 16px; color: var(--ink); min-height: 24px; }
+.job-now strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+.bar { height: 8px; border-radius: 999px; background: var(--neutral-soft); margin-top: var(--s1); overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--dominant); transition: width .4s ease-out; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--dominant-soft); border-top-color: var(--dominant);
+  animation: spin .8s linear infinite; flex: 0 0 auto; }
+.spinner.sm { display: inline-block; width: 10px; height: 10px; vertical-align: -1px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } .bar > span { transition: none; } }
+/* El registro se pega al final: lo último que pasó siempre a la vista. */
+.job .log.job-log { max-height: 200px; margin-top: var(--s2); display: flex; flex-direction: column-reverse; }
+.pill.ok { background: var(--surface); color: var(--dominant); }
+.upload.busy .dropzone { cursor: not-allowed; }
+.upload.busy .dz-title::after { content: " · espera a que termine el trabajo en marcha"; font-weight: 400; color: var(--ink-2); }
+.toast a { color: inherit; text-decoration: underline; margin-left: var(--s1); }
 
 /* ---------- tabla mes a mes: intensidad ---------- */
 td.heat { background: rgba(var(--heat-rgb), calc(0.02 + 0.16 * var(--v, 0))); }

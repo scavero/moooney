@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Pipeline{% endblock %}
 {% block content %}
-<div class="topbar">
+<div class="topbar" id="pipeline-head">
   <div><h1>Pipeline</h1><div class="subtitle">{{ status.transactions }} movimientos, del <strong title="{{ status.date_min }}">{{ status.date_min|fecha }} {{ (status.date_min or '')[:4] }}</strong> al <strong title="{{ status.date_max }}">{{ status.date_max|fecha }} {{ (status.date_max or '')[:4] }}</strong>. {{ status.uncategorized }} sin categoría, {{ status.imports }} importaciones.</div></div>
 </div>
 
@@ -10,7 +10,12 @@
 <div id="job-panel">
   {% if job_running %}{% with job=job_running %}{% include "partials/job.html" %}{% endwith %}{% endif %}
 </div>
+{# Al terminar un trabajo, la cabecera y todo lo de debajo del panel se recargan solos (cifras,
+   pasos, ficheros, historial). Va en un elemento vacío aparte porque hx-select se hereda. #}
+<div hidden hx-get="/pipeline" hx-trigger="job-finished from:body" hx-select="#pipeline-live"
+     hx-target="#pipeline-live" hx-swap="outerHTML" hx-select-oob="#pipeline-head,#side-nav"></div>
 
+<div id="pipeline-live">
 {# Qué pide acción, de un vistazo. Solo el paso pendiente lleva botón primario. #}
 <div class="steps">
   {% for st in steps %}
@@ -29,11 +34,11 @@
     <h2 style="margin-bottom:4px">1 · Ingesta</h2>
     <div class="concept" style="margin-bottom:12px">Excel del Santander o del BBVA tal como lo descarga el banco; el banco se detecta por la cabecera. Fichero por hash y movimiento por huella: subir el mismo dos veces no duplica.{% if demo %} En la demo, lo que importes va a <strong>tu</strong> base.{% endif %}</div>
     <form id="upload-form" class="upload" hx-post="/pipeline/upload" hx-encoding="multipart/form-data" hx-target="#job-panel" hx-swap="innerHTML"
-          hx-on::after-request="this.reset(); document.getElementById('upload-names').textContent = ''; window.scrollTo({top: 0, behavior: 'smooth'})">
+          hx-on::after-request="this.reset(); document.getElementById('upload-names').textContent = document.getElementById('upload-names').dataset.hint">
       <label class="dropzone" id="dropzone">
         <input type="file" name="files" accept=".xlsx,.xls" multiple class="visually-hidden" id="upload-input">
         <span class="dz-title">Arrastra aquí tus Excel o <span class="dz-link">elígelos</span></span>
-        <span class="dz-hint" id="upload-names">.xlsx o .xls, hasta 20 MB cada uno. Se importan y categorizan al momento.</span>
+        <span class="dz-hint" id="upload-names" aria-live="polite" data-hint=".xlsx o .xls, hasta 20 MB cada uno. Se importan y categorizan al momento.">.xlsx o .xls, hasta 20 MB cada uno. Se importan y categorizan al momento.</span>
       </label>
     </form>
     <div class="scroll-x">
@@ -60,8 +65,14 @@
         const form = document.getElementById('upload-form'), input = document.getElementById('upload-input'),
               zone = document.getElementById('dropzone'), names = document.getElementById('upload-names');
         if (!form || form.dataset.ready) return; form.dataset.ready = '1';
-        const send = () => { if (!input.files.length) return;
-          names.textContent = 'Subiendo ' + [...input.files].map(f => f.name).join(', ') + '…'; form.requestSubmit(); };
+        let label = '';
+        const send = () => { if (!input.files.length || form.classList.contains('busy')) return;
+          label = 'Subiendo ' + [...input.files].map(f => f.name).join(', ');
+          names.textContent = label + '…'; form.requestSubmit(); };
+        // Progreso real de la subida (un extracto grande por una conexión lenta tarda).
+        form.addEventListener('htmx:xhr:progress', e => { if (e.detail.lengthComputable && e.detail.total) {
+          const pc = Math.round(100 * e.detail.loaded / e.detail.total);
+          names.textContent = pc < 100 ? label + '… ' + pc + ' %' : 'Comprobando los ficheros…'; } });
         input.addEventListener('change', send);
         ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('over'); }));
         ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('over'); }));
@@ -148,4 +159,21 @@
     </div>
   </div>
 </div>
+</div>{# /pipeline-live #}
+<script>
+  (function () {
+    // Cuando aparece algo en el panel (un trabajo nuevo o un aviso), se trae a la vista: si se
+    // lanzó desde un botón de abajo, la persona no vería que ha empezado.
+    const panel = document.getElementById('job-panel');
+    if (!panel || panel.dataset.ready) return; panel.dataset.ready = '1';
+    panel.addEventListener('htmx:afterSwap', e => {
+      if (e.detail.target !== panel) return;  // los repintados del propio trabajo no mueven la página
+      const r = panel.getBoundingClientRect();
+      if (r.top < 0 || r.top > window.innerHeight * 0.6) {
+        const quiet = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        panel.scrollIntoView({ behavior: quiet ? 'auto' : 'smooth', block: 'start' });
+      }
+    });
+  })();
+</script>
 {% endblock %}

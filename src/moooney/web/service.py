@@ -40,7 +40,7 @@ from moooney.llm.client import (
     offline_enabled,
 )
 from moooney.llm.decide import build_decider
-from moooney.web.jobs import Logger
+from moooney.web.jobs import Logger, report
 
 
 def _now() -> str:
@@ -190,6 +190,7 @@ def set_enrichment_enabled(paths: Paths, enabled: bool) -> None:
 def job_ingest(settings: Settings, log: Logger) -> None:
     conn = repo.connect(settings.paths.db_path, check_same_thread=False)
     try:
+        report(log, "Leyendo los Excel de la carpeta y cargando los movimientos")
         outcomes = ingest_directory(settings.paths.excel_dir, conn, settings)
         if not outcomes:
             log(f"no hay ficheros Excel en {settings.paths.excel_dir}")
@@ -198,6 +199,7 @@ def job_ingest(settings: Settings, log: Logger) -> None:
                 log(f"{o.filename}: ya importado, se omite")
             else:
                 log(f"{o.filename}: {o.rows_total} filas, {o.rows_new} nuevas ({o.date_min} … {o.date_max})")
+        report(log, "Calculando la clave de comercio de los movimientos nuevos")
         n = backfill_clean_keys(conn)
         if n:
             log(f"claves de comercio calculadas para {n} movimientos nuevos")
@@ -220,8 +222,10 @@ def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: boo
         if refresh:
             n_upd, n_exam = refresh_rules(conn, rules)
             log(f"reglas reaplicadas: {n_upd} claves cambiadas de {n_exam}")
+        report(log, "Buscando los comercios sin categoría")
         jobs = pending_jobs(conn)
         log(f"{len(jobs)} claves pendientes")
+        report(log, "Aplicando tus reglas")
         n_rules, restantes = apply_rules(conn, jobs, rules)
         log(f"reglas: {n_rules} resueltas, {len(restantes)} restantes")
         llm = llm_settings_or_none(paths)
@@ -229,6 +233,7 @@ def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: boo
             recorder = CallRecorder(conn)
             cliente = LLMClient(llm, recorder=recorder)
             try:
+                report(log, f"Buscando comercios parecidos a los ya conocidos ({len(restantes)} claves)")
                 n_emb, restantes = apply_embeddings(conn, restantes, cliente, llm.models["embeddings"])
                 log(f"embeddings: {n_emb} heredadas, {len(restantes)} restantes")
             except LLMError as e:
@@ -238,6 +243,7 @@ def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: boo
                 n_clef, n_fail = apply_decider(
                     conn, restantes, decider, taxonomy, build_questions(taxonomy),
                     max_workers=llm.max_concurrency,
+                    on_count=lambda k, n: report(log, "Preguntando al modelo por cada comercio", k, n),
                 )
                 log(f"decider ({llm.decider}): {n_clef} resueltas, {n_fail} fallidas")
         elif restantes:
@@ -254,6 +260,7 @@ def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: boo
                     recorder = CallRecorder(conn)
                 cliente = LLMClient(llm, recorder=recorder)
                 if retry:
+                    report(log, "Volviendo a preguntar por las dudosas")
                     rs = reask_dudosas(
                         conn, build_decider(llm, cliente), taxonomy, build_questions(taxonomy),
                         max_workers=llm.max_concurrency, on_progress=lambda k, m: log(f"  {k}: {m}"),
@@ -262,6 +269,7 @@ def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: boo
                         f"({rs.changed} cambian de categoría), {rs.failed} fallidas")
                 if second_opinion:
                     recorder.flush()
+                    report(log, "El modelo de texto revisa las dudosas por lotes")
                     ss = run_second_opinion(conn, cliente, llm, taxonomy, on_progress=lambda k, m: log(f"  {k}: {m}"))
                     log(f"segunda opinión: {ss.examined} dudosas, {ss.changed} cambian, {ss.confirmed} confirmadas, "
                         f"{ss.kept} se quedan, {ss.failed} fallidas")
@@ -309,10 +317,18 @@ def job_enrich(settings: Settings, paths: Paths, log: Logger, *, limit: int | No
         candidates = select_candidates(conn, enr)
         con_consulta = sum(1 for c in candidates if c.query)
         log(f"{len(candidates)} candidatas, {con_consulta} con consulta")
+        total = min(len(candidates), limit) if limit else len(candidates)
+        hechas = [0]
+
+        def avance(key: str, prov: str) -> None:
+            hechas[0] += 1
+            log(f"  {key}: {prov}")
+            report(log, "Consultando fuera las dudosas", min(hechas[0], total), total)
+
+        report(log, "Consultando fuera las dudosas", 0, total)
         summary = run_enrichment(
             conn, enr, build_providers(enr), build_decider(llm, cliente), taxonomy,
-            build_questions(taxonomy), candidates=candidates, limit=limit,
-            on_progress=lambda key, prov: log(f"  {key}: {prov}"),
+            build_questions(taxonomy), candidates=candidates, limit=limit, on_progress=avance,
         )
         log(f"consultadas {summary.queried}, con resultado {summary.hits}, errores {summary.errors}")
         log(f"mejoraron {summary.improved}, cambiaron de categoría {summary.changed_category}, "
@@ -329,6 +345,7 @@ def job_report(settings: Settings, paths: Paths, log: Logger, *, month: str | No
     conn = repo.connect(settings.paths.db_path, check_same_thread=False)
     recorder: CallRecorder | None = None
     try:
+        report(log, "Preparando los agregados del mes")
         refresh_recurring(conn)
         limits = budgets_mod.load_budgets_config(paths.budgets)
         payload = advice.build_payload(conn, month, budgets_limits=limits or None)
@@ -339,6 +356,7 @@ def job_report(settings: Settings, paths: Paths, log: Logger, *, month: str | No
             recorder = CallRecorder(conn)
             cliente = LLMClient(llm, recorder=recorder)
             try:
+                report(log, "El modelo está redactando el informe")
                 content = advice.generate_report(cliente, llm, payload)
                 model = llm.models.get("redaccion", "?")
                 kind = "modelo"
@@ -364,8 +382,10 @@ def job_report(settings: Settings, paths: Paths, log: Logger, *, month: str | No
 def job_alerts(settings: Settings, paths: Paths, log: Logger) -> None:
     conn = repo.connect(settings.paths.db_path, check_same_thread=False)
     try:
+        report(log, "Buscando pagos recurrentes")
         n = refresh_recurring(conn)
         log(f"recurrentes detectados: {n}")
+        report(log, "Comprobando presupuestos y alertas")
         found, nuevas = refresh_alerts(conn, paths)
         log(f"alertas detectadas: {found}, nuevas: {nuevas}")
     finally:

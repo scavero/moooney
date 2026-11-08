@@ -282,6 +282,7 @@ def apply_decider(
     max_workers: int = 8,
     dry_run: bool = False,
     on_progress: Callable[[str, str], None] | None = None,
+    on_count: Callable[[int, int], None] | None = None,
 ) -> tuple[int, int]:
     """Consulta el decider para las claves restantes, en paralelo.
 
@@ -297,7 +298,9 @@ def apply_decider(
     resueltas = fallidas = 0
     with ThreadPoolExecutor(max_workers=max(1, min(max_workers, len(jobs)))) as pool:
         futures = {pool.submit(ask, job): job for job in jobs}
-        for future, job in futures.items():
+        for i, (future, job) in enumerate(futures.items(), start=1):
+            if on_count:  # cuántas claves van respondidas de cuántas, para la barra de la web
+                on_count(i - 1, len(jobs))
             try:
                 answers = future.result()
             except (LLMError, ValueError):

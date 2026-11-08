@@ -1,5 +1,15 @@
 # Cambios
 
+## Sin publicar (tras 1.4.0)
+
+- **Los trabajos cuentan qué hacen**: la tarjeta de un trabajo enseña sus etapas (subir → importar →
+  categorizar → alertas), qué está haciendo ahora, cuánto lleva (p. ej. 12 de 40 comercios, con barra)
+  y el tiempo. Al terminar, la página recarga sola sus cifras, pasos, ficheros e historial: ya no hace
+  falta pulsar F5. Un indicador en la barra lateral se ve desde cualquier página y, si el trabajo
+  acaba mientras miras otra, un aviso lleva al resultado. Los botones que lanzan trabajos se
+  desactivan mientras hay uno en marcha, la subida muestra su porcentaje y el panel se trae a la vista
+  al lanzar un trabajo desde abajo.
+
 ## 1.4.0 · 2026-11-08
 
 - **Subir Excel desde la web**: en *Pipeline* se arrastran o eligen uno o varios Excel y se importan y
