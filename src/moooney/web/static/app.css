@@ -147,7 +147,7 @@ select:focus, input:focus, button:focus-visible, a:focus-visible { outline: 2px 
 .btn.danger:hover { background: var(--accent-soft); }
 .btn.ghost { border-color: var(--line-soft); }
 .btn.small { min-height: 32px; padding: 0 12px; font-size: 13px; }
-.btn[disabled] { opacity: .4; cursor: not-allowed; }
+.btn[disabled], .btn[disabled]:hover { color: var(--ink-3); border-color: var(--line-soft); background: transparent; cursor: not-allowed; }  /* sin opacidad: el texto sigue en 4,5:1 */
 
 /* ---------- rejillas y bloques ---------- */
 .grid { display: grid; gap: var(--s4) var(--s5); }

@@ -1,5 +1,12 @@
 # Cambios
 
+## Sin publicar (tras 1.5.3)
+
+- La demo de GitHub Pages enseña *Empezar de cero* en *Pipeline → Mantenimiento*, con el botón
+  desactivado y una nota.
+- Los botones desactivados ya no se aclaran con opacidad: pasan al gris de texto más claro permitido,
+  así que siguen en 4,5:1 de contraste en los dos temas.
+
 ## 1.5.3 · 2026-11-08
 
 - **Empezar de cero**: *Pipeline → Mantenimiento → Borrar movimientos y extractos* (o `moooney reset

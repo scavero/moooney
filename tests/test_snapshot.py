@@ -40,5 +40,8 @@ def test_snapshot_relativo_y_sin_nada_del_entorno(tmp_path, monkeypatch):
         assert not re.search(r'(href|src)="/', text), f.name  # todo relativo: vale en /moooney/
         assert "secreto" not in text and str(tmp_path) not in text
     assert "tu-proxy.example.com" in (out / "settings.html").read_text(encoding="utf-8")
+    pipeline = (out / "pipeline.html").read_text(encoding="utf-8")
+    assert "Empezar de cero" in pipeline and "Desactivado en la demo" in pipeline
+    assert "jobs/reset" not in pipeline  # en la demo el botón no lanza nada
     for css in (out / "static").rglob("*.css"):
         assert "url(/" not in css.read_text(encoding="utf-8").replace("'", "").replace('"', ""), css.name
