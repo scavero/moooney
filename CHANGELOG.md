@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.4.0)
+## 1.5.0 · 2026-11-08
 
 - **Los trabajos cuentan qué hacen**: la tarjeta de un trabajo enseña sus etapas (subir → importar →
   categorizar → alertas), qué está haciendo ahora, cuánto lleva (p. ej. 12 de 40 comercios, con barra)
