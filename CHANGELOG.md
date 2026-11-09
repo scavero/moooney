@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.5.4)
+## 1.5.5 · 2026-11-09
 
 - **Cheques y pagarés**: una regla nueva clasifica los ingresos de cheques y pagarés (ENTREGA DE
   DOCUMENTOS PARA SU COMPENSACION, INGRESO DE CHEQUE, REMESA DE PAGARES…) como *Ingresos → otros
