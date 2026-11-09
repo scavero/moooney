@@ -40,6 +40,10 @@ rules:
   - {pattern: '^RETIRADA DE EFECTIVO', category: Efectivo, subcategory: retiradas, flow_type: expense}
   - {pattern: '^INGRESO EN CAJERO', category: Efectivo, subcategory: ingresos, flow_type: income}
   - {pattern: '^LIQUIDACION REMESAS', category: Efectivo, subcategory: ingresos, flow_type: income}
+  - pattern: '^ENTREGA DE DOCUMENTOS|^(INGRESO|ABONO|REMESA)( DE)? (CHEQUES?|PAGARES?)\b|COMPENSACION DE (CHEQUES?|PAGARES?)\b'
+    category: Ingresos
+    subcategory: otros ingresos
+    flow_type: income # cheque o pagare ingresado en la cuenta; si era tuyo, corrigelo a traspaso en Comercios
   - pattern: '^PAYPAL EUROPE'
     category: Otros
     subcategory: otros

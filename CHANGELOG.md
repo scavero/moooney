@@ -1,5 +1,12 @@
 # Cambios
 
+## Sin publicar (tras 1.5.4)
+
+- **Cheques y pagarés**: una regla nueva clasifica los ingresos de cheques y pagarés (ENTREGA DE
+  DOCUMENTOS PARA SU COMPENSACION, INGRESO DE CHEQUE, REMESA DE PAGARES…) como *Ingresos → otros
+  ingresos* sin preguntar al modelo. Si era dinero tuyo de otra cuenta, corrígelo a traspaso en
+  *Comercios*. Para aplicarla a lo ya categorizado: `moooney categorize --refresh-rules`.
+
 ## 1.5.4 · 2026-11-09
 
 - La demo de GitHub Pages enseña *Empezar de cero* en *Pipeline → Mantenimiento*, con el botón

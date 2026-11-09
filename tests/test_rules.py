@@ -37,6 +37,19 @@ def test_bizum_enviado_con_comercio_es_transferencia():
     assert (match.category, match.flow_type) == ("Transferencias", "expense")
 
 
+@pytest.mark.parametrize("key", ["ENTREGA DE DOCUMENTOS PARA SU COMPENSACION", "INGRESO DE CHEQUE",
+                                 "INGRESO CHEQUE", "REMESA DE PAGARES", "ABONO PAGARE"])
+def test_cheques_y_pagares_ingresados_son_ingresos(key):
+    match = match_rules(key, _rules())
+    assert match is not None
+    assert (match.category, match.subcategory, match.flow_type) == ("Ingresos", "otros ingresos", "income")
+
+
+def test_cheque_devuelto_no_es_ingreso():
+    match = match_rules("CHEQUE DEVUELTO", _rules())
+    assert match is None or match.category != "Ingresos"
+
+
 def test_inversion_antes_que_estado():
     match = match_rules("SUSCRIPCION FONDOS MI BANCO GLOBAL FI", _rules())
     assert match is not None
