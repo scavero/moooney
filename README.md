@@ -234,7 +234,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 172 tests, todos con datos sintéticos
+uv run pytest        # 200 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```

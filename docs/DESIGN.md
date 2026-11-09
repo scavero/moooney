@@ -188,7 +188,9 @@ moooney/
 4.5. **Diagnóstico, tendencias y previsión** en la web; librerías JS en local. ✔
 5. **Empaquetado e informe**: docker compose, informe mensual con consejos del modelo, watch. ✔
 
-Próximo (sin fecha): importación del Excel de la tarjeta de crédito y conciliación con la liquidación; más bancos (solo requiere alias de columnas y prefijos); etiquetas de usuario en movimientos sueltos.
+Hecho después de la fase 5: extractos de la tarjeta de crédito conciliados con la liquidación, multibanco (perfiles en `settings.yaml`, BBVA), etiquetas en movimientos sueltos, subida de Excel desde la web, `.xls` antiguos y *Empezar de cero* (ver `CHANGELOG.md`).
+
+Pendiente (sin fecha): confirmar con un Excel real del BBVA con importes el formato numérico de `Importe` y `Disponible`.
 
 ## Preguntas abiertas
 

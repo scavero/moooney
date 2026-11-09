@@ -54,24 +54,23 @@ moooney/
     cli.py
     config.py
     db/          schema.sql  repo.py
-    ingest/      detect.py  parse_santander.py  banks.py  load.py  upload.py
+    ingest/      detect.py  parse_santander.py  banks.py  load.py  upload.py  reset.py  watch.py
     categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py  reask.py  second_opinion.py
     enrich/      settings.py  query.py  providers.py  runner.py
-    analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py
+    analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py  insights.py  forecast.py
     llm/         client.py  anonymize.py  prompts/
     web/         app.py  queries.py  service.py  jobs.py  snapshot.py  templates/  static/
     demo.py
-    export.py
+    export.py  envfile.py
     report/      advice.py
-    ingest/      watch.py (además de detect, parse_santander, load)
   tests/
 ```
 
 ## Fases
 
-1. **Ingesta** (en curso): `inspect`, parseo Santander → CSV limpio, deduplicación, carga en SQLite, `status`. Sin IA. Ver `docs/historico/PROMPT_FASE1.md`.
-2. **Categorización**: normalización de conceptos, memoria de comercios, reglas, embeddings, Clef-Flash, `review`. Ver `docs/historico/PROMPT_FASE2.md`.
-2.5. **Enriquecimiento externo** (opcional): buscador o mapas para comercios que la cascada no resuelve. Ver `docs/historico/PROMPT_FASE2_5.md`.
+1. **Ingesta** (hecha): `inspect`, parseo Santander → CSV limpio, deduplicación, carga en SQLite, `status`. Sin IA. Ver `docs/historico/PROMPT_FASE1.md`.
+2. **Categorización** (hecha): normalización de conceptos, memoria de comercios, reglas, embeddings, Clef-Flash, `review`. Ver `docs/historico/PROMPT_FASE2.md`.
+2.5. **Enriquecimiento externo** (hecho, opcional): buscador o mapas para comercios que la cascada no resuelve. Ver `docs/historico/PROMPT_FASE2_5.md`.
 3. **Analítica** (hecha 2026-10-11): métricas mensuales, recurrentes, presupuestos, alertas. Comandos `metrics`, `recurring`, `budget init|set|show`, `alerts`.
 4. **Web app (GUI)** (hecha 2026-10-11): FastAPI + Jinja + HTMX en `src/moooney/web/`, comando `moooney web`; toda la CLI desde el navegador. `moooney demo` genera una base sintética (`src/moooney/demo.py`) para probarla y para los tests de la web.
 4.5. **Diagnóstico y previsión** (hecho 2026-10-11): `analytics/insights.py` y `analytics/forecast.py`, página `/trends` y tarjeta de diagnóstico en el resumen. htmx y Chart.js servidos desde `static/vendor/`.
