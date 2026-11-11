@@ -2,6 +2,11 @@
 
 ## Sin publicar (tras 1.5.5)
 
+- **Gastos compartidos**: nueva página *Compartidos*. Si pagas una cena de 80 € y te devuelven 20 €
+  por Bizum, emparejas la devolución con el gasto y el mes cuenta 60 € de restaurantes, no 80 € de
+  gasto más 20 € de ingreso. Propone los emparejamientos que cuadran como reparto a partes iguales
+  («entre 4») o del mismo puñado de días; cada propuesta se acepta, se descarta («no es una
+  devolución») o se deshace después.
 - **Reglas desde la web**: *Comercios → Tus reglas* crea una regla sin tocar YAML: «si la clave
   empieza por / contiene» un texto, a una categoría y subcategoría. Mientras escribes enseña a qué
   claves afectaría (y cuáles no cambian por estar corregidas a mano); al guardar se aplica en el acto

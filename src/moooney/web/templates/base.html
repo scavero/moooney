@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=24">
+  <link rel="stylesheet" href="/static/app.css?v=25">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script>window.go = function (url) { window.location = url; };</script>
@@ -50,6 +50,7 @@
         {% if merchants_counts.dudosas %}<span class="pill soft" title="dudosas por revisar">{{ merchants_counts.dudosas }}</span>{% endif %}
       </a>
       <a href="/recurring" class="{{ 'active' if path.startswith('/recurring') else '' }}">Recurrentes</a>
+      <a href="/shared" class="{{ 'active' if path.startswith('/shared') else '' }}">Compartidos</a>
       <a href="/budgets" class="{{ 'active' if path.startswith('/budgets') else '' }}">Presupuestos</a>
       <a href="/alerts" class="{{ 'active' if path.startswith('/alerts') else '' }}">
         Alertas

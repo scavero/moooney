@@ -359,6 +359,11 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .progress > i { display: block; height: 100%; background: var(--dominant); }
 .keys-table td { padding-top: 8px; padding-bottom: 8px; }
 .keys-table .concept { max-width: 640px; }
+
+/* gastos compartidos: un ingreso por bloque y sus gastos candidatos como botones */
+.shared-item { padding: var(--s2) 0 var(--s3); }
+.shared-item + .shared-item { border-top: 1px solid var(--line-soft); padding-top: var(--s3); }
+.shared-income { display: flex; gap: var(--s2); align-items: baseline; flex-wrap: wrap; margin-bottom: var(--s1); }
 .heat-table { font-size: 14px; }
 .heat-table th { white-space: nowrap; }
 .queue .key { font-family: var(--font-display); font-weight: 800; font-size: 44px; letter-spacing: -.02em; line-height: 1.05; margin-bottom: var(--s4); }

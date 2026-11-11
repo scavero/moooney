@@ -166,6 +166,22 @@ def propagate_to_transactions(
         )
     if flow_type == "card_settlement":
         mark_card_settlements(conn)
+    apply_reimbursements(conn)  # una devolución emparejada no vuelve a ser ingreso
+    return cur.rowcount
+
+
+def apply_reimbursements(conn: sqlite3.Connection) -> int:
+    """Los ingresos emparejados con un gasto (gastos compartidos, analytics/shared.py) cuentan
+    como gasto en positivo de la categoría de ese gasto. Idempotente."""
+    with conn:
+        cur = conn.execute(
+            """UPDATE transactions SET flow_type = 'expense', category = e.category,
+                   subcategory = e.subcategory, confidence = 1.0
+               FROM reimbursements r JOIN transactions e ON e.id = r.expense_id
+               WHERE transactions.id = r.income_id
+                 AND (transactions.flow_type IS NOT 'expense' OR transactions.category IS NOT e.category
+                      OR transactions.subcategory IS NOT e.subcategory)"""
+        )
     return cur.rowcount
 
 

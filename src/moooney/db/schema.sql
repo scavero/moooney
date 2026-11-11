@@ -143,3 +143,20 @@ CREATE TABLE IF NOT EXISTS transaction_tags (
     PRIMARY KEY (transaction_id, tag)
 );
 CREATE INDEX IF NOT EXISTS idx_transaction_tags_tag ON transaction_tags(tag);
+
+-- Gastos compartidos: un ingreso (bizum o transferencia recibida) que es tu parte de vuelta
+-- de un gasto que pagaste tú. El ingreso pasa a contar como gasto en positivo de la categoría
+-- del gasto, así el gasto queda neto y el ingreso no infla los ingresos. Se guarda lo que
+-- tenía antes para deshacerlo.
+CREATE TABLE IF NOT EXISTS reimbursements (
+    income_id   INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+    expense_id  INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reimbursements_expense ON reimbursements(expense_id);
+
+-- Ingresos que el usuario ha dicho que no son una devolución: no se vuelven a proponer.
+CREATE TABLE IF NOT EXISTS reimbursement_dismissed (
+    income_id   INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+    created_at  TEXT NOT NULL
+);

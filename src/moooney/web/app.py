@@ -27,6 +27,7 @@ from moooney.analytics import budgets as budgets_mod
 from moooney.analytics import forecast as forecast_mod
 from moooney.analytics import insights as insights_mod
 from moooney.analytics import periods
+from moooney.analytics import shared as shared_mod
 from moooney.analytics.metrics import full_months_before_safe
 from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
@@ -476,6 +477,34 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             request, "partials/merchant_row.html",
             {"request": request, "m": row, "taxonomy": taxonomy(), "saved": n},
         )
+
+    # ---------- gastos compartidos ----------
+
+    @app.get("/shared", response_class=HTMLResponse)
+    def shared_page(request: Request, conn: DB):
+        links = shared_mod.linked(conn)
+        recovered = sum(float(r["income_amount"]) for r in links)
+        paid = {r["expense_id"]: -float(r["expense_amount"]) for r in links}
+        return render(request, conn, "shared.html", suggestions=shared_mod.suggestions(conn), links=links,
+                      recovered=recovered, net=sum(paid.values()) - recovered)
+
+    @app.post("/shared/link")
+    def shared_link(conn: DB, income_id: Annotated[int, Form()], expense_id: Annotated[int, Form()]):
+        try:
+            shared_mod.link(conn, income_id, expense_id)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return RedirectResponse("/shared", status_code=303)
+
+    @app.post("/shared/unlink")
+    def shared_unlink(conn: DB, income_id: Annotated[int, Form()]):
+        shared_mod.unlink(conn, income_id)
+        return RedirectResponse("/shared", status_code=303)
+
+    @app.post("/shared/dismiss")
+    def shared_dismiss(conn: DB, income_id: Annotated[int, Form()]):
+        shared_mod.dismiss(conn, income_id)
+        return RedirectResponse("/shared", status_code=303)
 
     # ---------- recurrentes ----------
 
