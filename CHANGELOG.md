@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.5.5)
+## 1.6.0 · 2026-11-11
 
 - **Metas y «qué pasaría si»**: nueva página *Metas*. Apuntas cuánto quieres juntar, cuánto llevas y
   para cuándo, y te dice cuándo llegas a tu ritmo de ahorro y, si no llegas a tiempo, cuánto haría
