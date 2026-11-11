@@ -165,18 +165,18 @@ ni URL del proxy en el entorno. Ningún dato de esta máquina entra en ella.
 flowchart TB
     subgraph cli["cli.py (typer)"]
         C1[inspect] --- C2[ingest] --- C3[status] --- C4[merchants] --- C5[categorize] --- C6[enrich] --- C7[review] --- C8[eval-clef]
-        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts] --- C13[web] --- C14[demo] --- C15[report] --- C16[watch]
+        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts] --- C13[web] --- C14[demo] --- C15[report] --- C16[watch] --- C17[backup] --- C18[reset]
     end
 
     subgraph src["src/moooney/"]
-        ING["ingest/<br/>detect · parse_santander · load"]
-        CAT["categorize/<br/>normalize · keys · rules · taxonomy<br/>embed · pipeline · evaluate"]
+        ING["ingest/<br/>detect · parse_santander · banks<br/>load · upload · reset · watch"]
+        CAT["categorize/<br/>normalize · keys · rules · web_rules · taxonomy<br/>embed · pipeline · evaluate"]
         ENRM["enrich/<br/>settings · query · providers · runner"]
-        ANA["analytics/<br/>periods · recurring · metrics<br/>budgets · alerts · insights · forecast"]
+        ANA["analytics/<br/>periods · recurring · metrics · budgets · alerts<br/>insights · forecast · price_changes<br/>shared · yearly · goals"]
         REP["report/<br/>advice"]
         WEB["web/<br/>app · queries · service · jobs<br/>templates · static"]
         LLM["llm/<br/>client · anonymize · decide"]
-        DBM["db/<br/>schema.sql · repo"]
+        DBM["db/<br/>schema.sql · repo · backup"]
     end
 
     subgraph tablas["SQLite · data/moooney.db"]
@@ -192,12 +192,16 @@ flowchart TB
         T10[(alerts)]
         T11[(reports)]
         T12[(transaction_tags)]
+        T13[(reimbursements)]
+        T14[(goals)]
     end
+
+    BK[("data/backups/<br/>copias de la base")]
 
     subgraph cfg["config/*.yaml"]
         Y1[settings]
         Y2[categories]
-        Y3[rules]
+        Y3[rules · rules.local y rules.web ignorados]
         Y4[llm]
         Y5[enrichment]
         Y6[budgets · ignorado]
@@ -209,6 +213,7 @@ flowchart TB
     CAT --> LLM
     ENRM --> LLM
     ING & CAT & ENRM & ANA & LLM --> DBM --> tablas
+    DBM -- "watch una al día · antes de borrar" --> BK
     Y1 --> ING
     Y2 & Y3 --> CAT
     Y4 --> LLM

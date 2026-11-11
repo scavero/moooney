@@ -100,6 +100,8 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
   se gasta; presupuesto con la marca del día de hoy y alertas pendientes.
 - **Tendencias**: previsión a fin de mes y de los próximos tres, colchón en meses, saldo proyectado a un
   año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
+- **Año**: el año frente al anterior (cortado en el mismo día si está en curso): ingresos, gastos, ahorro,
+  cada categoría con su diferencia, el gasto mes a mes y el mes más caro y el más barato.
 - **Movimientos**: filtros por mes, categoría, flujo, cuenta, etiqueta y texto, totales del filtro; la
   categoría se corrige en la propia fila; **etiquetas libres** en movimientos sueltos (viaje, reforma…) para
   agrupar gastos de distintas categorías y ver lo que suman; **Exportar CSV** descarga el filtro completo listo
@@ -110,10 +112,17 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
   saltar. Una corrección se aplica a todos los movimientos del comercio para siempre. La tabla completa de
   claves, con fuente, confianza y filtros, queda plegada debajo. Antes de revisar a mano, *Pipeline* ofrece
   **Reintentar dudosas** (el decider vuelve a preguntar con el tipo de operación y el resumen web) y
-  **Segunda opinión** (el modelo de texto revisa por lotes y solo sustituye si está seguro).
-- **Recurrentes**, **Presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con
-  proyección), **Alertas** (presupuesto al 80 / 100 %, importe anómalo, cargo duplicado, recurrente nuevo,
-  subida de precio, ingreso que no llega, saldo proyectado negativo, comisiones).
+  **Segunda opinión** (el modelo de texto revisa por lotes y solo sustituye si está seguro). En **Tus reglas**
+  creas una regla sin tocar YAML («empieza por» / «contiene» → categoría), con vista previa de a qué afecta.
+- **Recurrentes**: abre con **lo que te ha subido** (cuotas que cambian de precio y recibos al alza, con su
+  coste al año) y sigue con el calendario de cargos de los próximos 30 días.
+- **Compartidos**: empareja el Bizum que te devuelve un amigo con el gasto que pagaste tú; el gasto cuenta
+  neto y la devolución deja de ser ingreso. Propone los repartos a partes iguales.
+- **Presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con proyección).
+- **Metas**: cuánto quieres juntar y para cuándo, cuándo llegas a tu ritmo y un simulador «qué pasaría si»
+  que recorta categorías o da de baja recurrentes.
+- **Alertas** (presupuesto al 80 / 100 %, importe anómalo, cargo duplicado, recurrente nuevo, subida de
+  precio, recibo al alza, ingreso que no llega, saldo proyectado negativo, comisiones).
 - **Informe**: el modelo de texto recibe solo agregados y devuelve un informe breve con acciones
   priorizadas por impacto. Sin modelo, el informe sale de los hallazgos deterministas.
 - **Pipeline**: todos los pasos con un botón, vista previa y activación del enriquecimiento, auditoría de
@@ -235,7 +244,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 211 tests, todos con datos sintéticos
+uv run pytest        # 232 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```

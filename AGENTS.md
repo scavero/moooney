@@ -53,11 +53,12 @@ moooney/
   src/moooney/
     cli.py
     config.py
-    db/          schema.sql  repo.py
+    db/          schema.sql  repo.py  backup.py
     ingest/      detect.py  parse_santander.py  banks.py  load.py  upload.py  reset.py  watch.py
-    categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py  reask.py  second_opinion.py
+    categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py  reask.py  second_opinion.py  web_rules.py
     enrich/      settings.py  query.py  providers.py  runner.py
     analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py  insights.py  forecast.py
+                 price_changes.py  shared.py  yearly.py  goals.py
     llm/         client.py  anonymize.py  prompts/
     web/         app.py  queries.py  service.py  jobs.py  snapshot.py  templates/  static/
     demo.py
