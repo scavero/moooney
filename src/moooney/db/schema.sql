@@ -171,3 +171,14 @@ CREATE TABLE IF NOT EXISTS goals (
     deadline    TEXT,
     created_at  TEXT NOT NULL
 );
+
+-- Conversación con el asistente (página Pregunta). Solo preguntas del usuario y respuestas del
+-- modelo, que se redactan a partir de agregados. Empezar de cero la borra.
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id          INTEGER PRIMARY KEY,
+    role        TEXT NOT NULL,          -- user | assistant
+    content     TEXT NOT NULL,
+    tools       TEXT,                   -- consultas usadas, separadas por comas
+    error       INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL
+);

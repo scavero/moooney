@@ -163,6 +163,34 @@ class LLMClient:
             raise LLMError(f"el LLM devolvio un content vacio{motivo}")
         return content
 
+    def complete(
+        self,
+        *,
+        model: str,
+        messages: list[dict],
+        purpose: str,
+        tools: list[dict] | None = None,
+        max_tokens: int | None = None,
+        extra: dict | None = None,
+    ) -> dict:
+        """Chat completion con herramientas. Devuelve el message entero (content y tool_calls)."""
+        payload: dict = {"model": model, "messages": messages}
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        if extra:
+            payload.update(extra)
+        data = self._post("/chat/completions", payload, model=model, purpose=purpose)
+        try:
+            message = data["choices"][0]["message"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMError("respuesta del LLM sin choices[0].message") from exc
+        if not isinstance(message, dict):
+            raise LLMError("respuesta del LLM con un message que no es un objeto")
+        return message
+
     def embed(self, *, model: str, texts: list[str], purpose: str) -> list[list[float]]:
         data = self._post("/embeddings", {"model": model, "input": texts}, model=model, purpose=purpose)
         try:

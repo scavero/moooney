@@ -469,3 +469,31 @@ def job_reset(settings: Settings, log: Logger) -> None:
     log("se conservan la memoria de comercios, los presupuestos y la configuración")
     if r.copia is not None:
         log(f"copia de la base antes de borrar: {r.copia.name} (moooney backup --restore para volver)")
+
+
+def chat_ask(conn: sqlite3.Connection, paths: Paths, question: str):
+    """Pregunta al asistente y guarda la conversación. Devuelve el Answer (o el error en él)."""
+    from moooney.chat import agent
+    from moooney.chat.tools import Context
+
+    q = agent.check_question(question)  # ValueError si no vale: no se guarda nada
+    llm = llm_settings_or_none(paths)
+    if offline_enabled():
+        raise ValueError("el asistente necesita el modelo y estás en modo offline")
+    if llm is None:
+        raise ValueError("falta config/llm.yaml")
+    previous = agent.history_for_model(conn)
+    agent.save(conn, "user", q)
+    refresh_recurring(conn)
+    recorder = CallRecorder(conn)
+    client = LLMClient(llm, recorder=recorder)
+    try:
+        answer = agent.ask(client, llm, Context(conn, paths.budgets), q, previous)
+        agent.save(conn, "assistant", answer.content, tools_used=answer.tools_used)
+    except LLMError as e:
+        answer = agent.Answer(content="", error=f"El modelo no ha podido responder: {e}")
+        agent.save(conn, "assistant", answer.error, error=True)
+    finally:
+        client.close()
+        recorder.flush()
+    return answer

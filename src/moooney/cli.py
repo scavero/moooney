@@ -1095,6 +1095,37 @@ def report(
 
 
 @app.command()
+def ask(
+    question: str = typer.Argument(..., help="La pregunta, entre comillas."),
+    new: bool = typer.Option(False, "--new", help="Empieza una conversación nueva (olvida las anteriores)."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Pregunta al asistente por tus finanzas (consulta agregados y responde con el modelo de texto)."""
+    from moooney.chat import agent
+    from moooney.web import service
+
+    settings = _settings(config)
+    paths = service.Paths(config.parent if config else Path("config"))
+    conn = repo.connect(settings.paths.db_path)
+    try:
+        if new:
+            agent.clear(conn)
+        try:
+            answer = service.chat_ask(conn, paths, question)
+        except ValueError as e:
+            console.print(str(e), style="red", markup=False)
+            raise typer.Exit(1) from e
+    finally:
+        conn.close()
+    if answer.error:
+        console.print(answer.error, style="red", markup=False)
+        raise typer.Exit(1)
+    console.print(answer.content, markup=False, highlight=False)
+    if answer.tools_used:
+        console.print(f"[dim]consultado: {', '.join(dict.fromkeys(answer.tools_used))}[/dim]")
+
+
+@app.command()
 def watch(
     interval: float = typer.Option(60.0, "--interval", help="Segundos entre comprobaciones."),
     once: bool = typer.Option(False, "--once", help="Comprueba una vez y sale (para tareas programadas)."),

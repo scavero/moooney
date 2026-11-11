@@ -34,6 +34,7 @@ from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
 from moooney.categorize import web_rules
 from moooney.categorize.rules import Rule
+from moooney.chat import agent as chat_agent
 from moooney.config import Settings, load_settings
 from moooney.db import repo
 from moooney.db.backup import list_backups
@@ -486,6 +487,46 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             request, "partials/merchant_row.html",
             {"request": request, "m": row, "taxonomy": taxonomy(), "saved": n},
         )
+
+    # ---------- asistente ----------
+
+    def chat_html(text: str) -> str:
+        """Markdown del modelo a HTML, sin dejar pasar HTML propio de la respuesta."""
+        import markdown as md
+
+        return md.markdown(text.replace("&", "&amp;").replace("<", "&lt;"))
+
+    def chat_ctx() -> dict:
+        llm = service.llm_settings_or_none(active().paths)
+        return {"has_llm": llm is not None and not offline_enabled(),
+                "model_name": llm.models.get("redaccion", "—") if llm else "—"}
+
+    @app.get("/chat", response_class=HTMLResponse)
+    def chat_page(request: Request, conn: DB):
+        msgs = [{"role": r["role"], "html": chat_html(r["content"]) if r["role"] == "assistant" and not r["error"]
+                 else "", "text": r["content"], "error": bool(r["error"]),
+                 "tools": (r["tools"] or "").split(",") if r["tools"] else []}
+                for r in chat_agent.history(conn)]
+        return render(request, conn, "chat.html", messages=msgs, suggestions=chat_agent.SUGGESTIONS,
+                      **chat_ctx())
+
+    @app.post("/chat", response_class=HTMLResponse)
+    def chat_post(request: Request, conn: DB, question: Annotated[str, Form()] = ""):
+        try:
+            answer = service.chat_ask(conn, active().paths, question)
+        except ValueError as e:
+            return templates.TemplateResponse(request, "partials/chat_turn.html", {
+                "question": None, "reply": {"error": True, "text": str(e).capitalize() + ".", "tools": []}})
+        reply = {"error": bool(answer.error), "text": answer.error or answer.content,
+                 "html": "" if answer.error else chat_html(answer.content),
+                 "tools": list(dict.fromkeys(answer.tools_used))}
+        return templates.TemplateResponse(request, "partials/chat_turn.html", {
+            "question": " ".join(question.split()), "reply": reply})
+
+    @app.post("/chat/clear")
+    def chat_clear(conn: DB):
+        chat_agent.clear(conn)
+        return RedirectResponse("/chat", status_code=303)
 
     # ---------- metas ----------
 

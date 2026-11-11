@@ -66,22 +66,25 @@ def category_insights(report: MetricsReport, month: str) -> list[Insight]:
         delta = c.amount - base
         pct = delta / base if base > 0 else (1.0 if delta > 0 else 0.0)
         cuando = "" if full else f" a día {report.as_of[8:10]}"
+        # con el mes a medias la media también va a prorrata, y lo que «libera» es una extrapolación
+        hab = "habituales" if full else "habituales hasta ese día"
         if delta > MIN_IMPACT_EUR and pct > MIN_PCT_CHANGE:
             out.append(Insight(
                 kind="category_up", severity="warn",
-                title=f"{c.category} se dispara{cuando}: {_eur(c.amount)} frente a {_eur(base)} habituales",
+                title=f"{c.category} se dispara{cuando}: {_eur(c.amount)} frente a {_eur(base)} {hab}",
                 detail=f"+{pct:.0%} sobre los últimos {c.n_prev_months} meses completos"
                        f"{' (a prorrata de días)' if not full else ''}. "
-                       f"Volver a la media libera {_eur(delta / ratio)} al mes.",
+                       + (f"Volver a la media libera {_eur(delta / ratio)} al mes." if full else
+                        f"Si el resto del mes sigue igual, serían {_eur(delta / ratio)} más que un mes normal."),
                 impact=delta / ratio,
                 link=f"/transactions?month={month}&category={c.category}",
             ))
         elif delta < -MIN_IMPACT_EUR and pct < -MIN_PCT_CHANGE and base > 0:
             out.append(Insight(
                 kind="category_down", severity="good",
-                title=f"{c.category} baja{cuando}: {_eur(c.amount)} frente a {_eur(base)} habituales",
+                title=f"{c.category} baja{cuando}: {_eur(c.amount)} frente a {_eur(base)} {hab}",
                 detail=f"{pct:.0%} respecto a los últimos {c.n_prev_months} meses"
-                       f"{' (a prorrata de días)' if not full else ''}. Si se mantiene, son {_eur(-delta / ratio)} al mes.",
+                       f"{' (a prorrata de días)' if not full else ''}. Si se mantiene, son {_eur(-delta / ratio)} menos al mes.",
                 impact=-delta / ratio,
                 link=f"/transactions?month={month}&category={c.category}",
             ))

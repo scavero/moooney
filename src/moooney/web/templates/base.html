@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=26">
+  <link rel="stylesheet" href="/static/app.css?v=28">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script>window.go = function (url) { window.location = url; };</script>
@@ -45,6 +45,7 @@
       <a href="/trends" class="{{ 'active' if path.startswith('/trends') else '' }}">Tendencias</a>
       <a href="/year" class="{{ 'active' if path.startswith('/year') else '' }}">Año</a>
       <a href="/transactions" class="{{ 'active' if path.startswith('/transactions') else '' }}">Movimientos</a>
+      <a href="/chat" class="{{ 'active' if path.startswith('/chat') else '' }}">Pregunta</a>
       <div class="group">Mantener</div>
       <a href="/merchants" class="{{ 'active' if path.startswith('/merchants') else '' }}">
         Comercios

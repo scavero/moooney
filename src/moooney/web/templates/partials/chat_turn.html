@@ -1,0 +1,15 @@
+{# Un turno del asistente: la pregunta (si la hay) y la respuesta. Se añade al final de #chat-log. #}
+{% set TOOL_LABEL = {"resumen_mes": "resumen del mes", "gasto_por_categoria": "categorías", "comercios_top": "comercios",
+  "gasto_en_comercio": "un comercio", "recurrentes": "recurrentes", "presupuestos": "presupuestos", "alertas": "alertas",
+  "hallazgos": "diagnóstico", "prevision": "previsión", "resumen_anio": "año", "metas": "metas"} %}
+{% if question %}<div class="chat-q">{{ question }}</div>{% endif %}
+{% if reply %}
+{% if reply.error %}
+<div class="chat-err" role="alert">{{ reply.text }}</div>
+{% else %}
+<div class="chat-a">
+  {{ reply.html|safe }}
+  {% if reply.tools %}<div class="chat-src">Consultado: {% for t in reply.tools %}{{ TOOL_LABEL.get(t, t) }}{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
+</div>
+{% endif %}
+{% endif %}

@@ -509,3 +509,22 @@ th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
 .sim-rec input { width: 20px; height: 20px; accent-color: var(--dominant); }
 .sim-result { display: flex; gap: var(--s4); flex-wrap: wrap; align-items: flex-start; margin-top: var(--s3); padding-top: var(--s2); border-top: 1px solid var(--line-soft); }
 .sim-result .value { font-family: var(--font-display); font-size: 40px; font-weight: 500; }
+
+/* asistente (Pregunta) */
+.chat { max-width: 76ch; }
+.chat-log { display: flex; flex-direction: column; gap: var(--s3); margin-bottom: var(--s3); }
+.chat-q { align-self: flex-end; max-width: 60ch; background: var(--dominant-soft); color: var(--ink); padding: var(--s1) var(--s2); border-radius: 16px 16px 4px 16px; font-size: 16px; }
+.chat-a { font-size: 16px; line-height: 1.55; }
+.chat-a p { margin: 0 0 var(--s1); } .chat-a ul, .chat-a ol { margin: 0 0 var(--s1); padding-left: 20px; }
+.chat-a li { margin: 4px 0; } .chat-a strong { font-weight: 700; }
+.chat-a h1, .chat-a h2, .chat-a h3 { font-size: 18px; margin: var(--s2) 0 var(--s1); }
+.chat-src { color: var(--ink-3); font-size: 13px; margin-top: 4px; }
+.chat-err { color: var(--warn-ink); background: var(--warn-bg); padding: var(--s1) var(--s2); border-left: 3px solid var(--warn); }
+.chat-form { display: flex; gap: var(--s1); align-items: center; }
+.chat-form input[type=text] { flex: 1; min-width: 0; }
+.chat-suggest { display: flex; flex-wrap: wrap; gap: var(--s1); margin-bottom: var(--s2); }
+.chat-suggest .chip { min-height: 40px; font-weight: 400; color: var(--ink); }
+.chat-suggest[hidden] { display: none; }
+.chat-suggest p { width: 100%; margin: 0; }
+.chat-wait { color: var(--ink-2); font-size: 14px; margin-bottom: var(--s2); align-items: center; gap: var(--s1); }
+.chat-wait.htmx-request { display: flex; }

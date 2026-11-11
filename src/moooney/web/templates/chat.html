@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Pregunta{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Pregunta</h1><div class="subtitle">Pregunta por tus gastos o pide consejo. El asistente consulta tus totales por mes, categoría y comercio; nunca ve movimientos sueltos.</div></div>
+  {% if messages %}
+  <form method="post" action="/chat/clear"><button class="btn ghost" type="submit" {% if snapshot %}disabled{% endif %}>Nueva conversación</button></form>
+  {% endif %}
+</div>
+
+{% if snapshot %}
+<div class="notice section">En la demo publicada no hay modelo: el asistente funciona en tu equipo, con <code>moooney web</code> y la clave del proxy.</div>
+{% elif not has_llm %}
+<div class="notice warn section">El asistente necesita el modelo de texto: {{ 'estás en modo offline' if offline else 'falta config/llm.yaml o la clave del proxy' }}. <a href="/settings">Ver en Ajustes →</a></div>
+{% endif %}
+
+<div class="card section chat">
+  <div id="chat-log" class="chat-log" aria-live="polite">
+    {% for m in messages %}
+      {% if m.role == 'user' %}{% with question=m.text, reply=None %}{% include "partials/chat_turn.html" %}{% endwith %}
+      {% else %}{% with question=None, reply=m %}{% include "partials/chat_turn.html" %}{% endwith %}{% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="chat-suggest" id="chat-suggest" {% if messages %}hidden{% endif %}>
+    <p class="muted">Algunas ideas para empezar:</p>
+    {% for s in suggestions %}
+    <button class="chip ghost" type="button" hx-post="/chat" hx-vals='{{ {"question": s}|tojson }}' hx-target="#chat-log"
+            hx-swap="beforeend show:#chat-form:bottom" hx-indicator="#chat-wait" hx-disabled-elt="#chat-form button, #chat-suggest button"
+            hx-on::after-request="document.getElementById('chat-suggest').hidden = true"
+            {% if snapshot or not has_llm %}disabled{% endif %}>{{ s }}</button>
+    {% endfor %}
+  </div>
+
+  <div id="chat-wait" class="chat-wait htmx-indicator"><span class="spinner"></span> Consultando tus datos y redactando… suele tardar unos segundos.</div>
+
+  <form id="chat-form" class="chat-form" hx-post="/chat" hx-target="#chat-log" hx-swap="beforeend show:#chat-form:bottom"
+        hx-indicator="#chat-wait" hx-disabled-elt="#chat-form button, #chat-suggest button"
+        hx-on::after-request="if (event.detail.successful) { this.reset(); document.getElementById('chat-suggest').hidden = true; this.querySelector('input').focus(); }">
+    <label for="chat-q" style="position:absolute;left:-9999px">Tu pregunta</label>
+    <input id="chat-q" type="text" name="question" required maxlength="600" autocomplete="off"
+           placeholder="p. ej. ¿cuánto gasto al mes en supermercado?" {% if snapshot or not has_llm %}disabled{% endif %}>
+    <button class="btn primary" type="submit" {% if snapshot or not has_llm %}disabled{% endif %}>Preguntar</button>
+  </form>
+  <p class="concept" style="margin-top:12px">Responde {{ model_name }} a través de tu proxy de modelos. Cada llamada queda en la auditoría. No es un asesor financiero.</p>
+</div>
+{% endblock %}
