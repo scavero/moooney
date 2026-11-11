@@ -5,7 +5,8 @@ Tipos:
 - anomalous_amount: importe muy fuera del histórico de ese comercio.
 - duplicate_charge: mismo comercio e importe en menos de 48 h.
 - new_recurring: recurrente que empezó hace poco (nueva suscripción o cuota).
-- price_increase: recurrente cuyo último importe supera en > 5 % su media.
+- price_increase: cuota fija que ha cambiado a un precio más alto (escalón, ver price_changes.py).
+- bill_rising: recibo variable cuyos tres últimos cargos promedian > 15 % más que los anteriores.
 - missing_income: ingreso recurrente que no ha llegado cuando tocaba.
 - negative_balance: el saldo proyectado hasta el próximo ingreso recurrente queda en negativo.
 - bank_fee: comisiones bancarias cobradas en la ventana.
@@ -21,6 +22,7 @@ from datetime import date, timedelta
 from moooney.analytics import periods
 from moooney.analytics.budgets import BudgetRow
 from moooney.analytics.metrics import EXPENSE_FLOWS
+from moooney.analytics.price_changes import detect_price_changes
 
 WINDOW_DAYS = 30
 ANOMALY_MIN_HISTORY = 5
@@ -28,9 +30,9 @@ ANOMALY_SIGMAS = 3.0
 ANOMALY_MIN_EUROS = 20.0
 DUPLICATE_HOURS = 48
 NEW_RECURRING_DAYS = 90
-PRICE_INCREASE_PCT = 0.05
 MISSING_INCOME_GRACE_DAYS = 5
 MISSING_INCOME_MAX_PERIODS = 3  # pasados 3 periodos sin ingreso se deja de avisar
+PRICE_TYPES = ("price_increase", "bill_rising")
 SEVERITIES = ("info", "warning", "critical")
 
 
@@ -135,7 +137,7 @@ def recurring_alerts(conn: sqlite3.Connection, as_of: str) -> list[Alert]:
     for r in conn.execute("SELECT * FROM recurring"):
         first_seen = date.fromisoformat(r["first_seen"])
         last_seen = date.fromisoformat(r["last_seen"])
-        avg, last = float(r["amount_avg"]), float(r["amount_last"])
+        avg = float(r["amount_avg"])
         active = bool(r["active"])
         if r["flow_type"] == "income":
             expected = date.fromisoformat(r["next_expected"])
@@ -155,12 +157,27 @@ def recurring_alerts(conn: sqlite3.Connection, as_of: str) -> list[Alert]:
                 message=f"{r['key']}: nuevo cargo {r['period_label']} de {abs(avg):,.2f} € desde {r['first_seen']}",
                 dedup_key=f"new_recurring|{r['key']}",
             ))
-        if r["flow_type"] in EXPENSE_FLOWS and avg < 0 and abs(last) > abs(avg) * (1 + PRICE_INCREASE_PCT):
-            pct = (abs(last) / abs(avg) - 1) * 100
+    out.extend(price_change_alerts(conn))
+    return out
+
+
+def price_change_alerts(conn: sqlite3.Connection) -> list[Alert]:
+    """Una alerta por cada subida (no por cada cargo): la clave lleva la fecha del cambio."""
+    out: list[Alert] = []
+    for p in detect_price_changes(conn):
+        if p.kind == "step":
             out.append(Alert(
-                type="price_increase", severity="warning", date=r["last_seen"],
-                message=f"{r['key']}: último cargo {abs(last):,.2f} €, un {pct:.0f} % sobre su media ({abs(avg):,.2f} €)",
-                dedup_key=f"price_increase|{r['key']}|{r['last_seen']}",
+                type="price_increase", severity="warning", date=p.since,
+                message=(f"{p.key}: sube de {p.old:,.2f} € a {p.new:,.2f} € desde el {p.since} "
+                         f"(+{p.pct:.0f} %, unos {p.delta_year:,.0f} € más al año)"),
+                dedup_key=f"price_increase|{p.key}|{p.since}",
+            ))
+        else:
+            out.append(Alert(
+                type="bill_rising", severity="warning", date=p.since,
+                message=(f"{p.key}: los {p.n_since} últimos recibos promedian {p.new:,.2f} €, un {p.pct:.0f} % más "
+                         f"que antes ({p.old:,.2f} €); a este ritmo, unos {p.delta_year:,.0f} € más al año"),
+                dedup_key=f"bill_rising|{p.key}|{p.since[:7]}",
             ))
     return out
 
@@ -232,9 +249,19 @@ def run_alerts(conn: sqlite3.Connection, as_of: str, budget_rows: list[BudgetRow
 
 
 def store_alerts(conn: sqlite3.Connection, alerts: list[Alert]) -> int:
-    """Inserta las alertas nuevas (por dedup_key). Devuelve cuántas entraron."""
+    """Inserta las alertas nuevas (por dedup_key). Devuelve cuántas entraron.
+
+    Las subidas de precio sin revisar que ya no se cumplen (el precio volvió, o eran del
+    formato anterior a 1.6) se retiran: una subida es un estado, no un suceso."""
     inserted = 0
+    vivas = [a.dedup_key for a in alerts if a.type in PRICE_TYPES]
     with conn:
+        marks = ",".join("?" for _ in vivas) or "''"
+        conn.execute(
+            f"DELETE FROM alerts WHERE acknowledged = 0 AND type IN ({','.join('?' for _ in PRICE_TYPES)})"
+            f" AND dedup_key NOT IN ({marks})",
+            (*PRICE_TYPES, *vivas),
+        )
         for a in alerts:
             cur = conn.execute(
                 "INSERT OR IGNORE INTO alerts (type, severity, date, transaction_id, message,"

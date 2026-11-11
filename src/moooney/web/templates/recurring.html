@@ -16,10 +16,32 @@
   <div class="card kpi"><div class="label">Saldo tras los cargos</div><div class="value {{ 'pos' if after >= 0 else 'neg' }}">{{ after|eur }}</div><div class="hint">saldo actual {{ balance|eur }}{% if next_income %} · sin contar el ingreso del <span title="{{ next_income }}">{{ next_income|fecha }}</span>{% endif %}</div></div>
 </div>
 
+{% if price_up %}
+{% set subidas = price_up.values()|list %}
+<div class="card section">
+  <h2 style="margin-bottom:4px">Lo que te ha subido</h2>
+  <div class="concept" style="margin-bottom:8px">{{ subidas|length }} {{ 'recibo cuesta' if subidas|length == 1 else 'recibos cuestan' }} más que antes: unos <strong style="color:var(--ink-2)">{{ subidas|sum(attribute='delta_year')|eur }} más al año</strong> si siguen así. Buen momento para revisar la tarifa o darlo de baja.</div>
+  <table class="rec-table">
+    <tr><th>Recibo</th><th class="num">Antes</th><th class="num">Ahora</th><th class="num">Al año</th></tr>
+    {% for p in subidas %}
+    <tr>
+      <td style="min-width:0">
+        <a class="name" href="/transactions?key={{ p.key|urlencode }}" style="font-weight:500">{{ p.key }}</a>
+        <div class="concept" style="margin-top:2px">{% if p.kind == 'step' %}cuota {{ p.period_label }}, más cara desde el <span title="{{ p.since }}">{{ p.since|fecha }}</span>{% else %}media de los {{ p.n_since }} últimos recibos frente a los anteriores{% endif %}</div>
+      </td>
+      <td class="num" style="color:var(--ink-2);font-weight:400">{{ p.old|eur(2) }}</td>
+      <td class="num">{{ p.new|eur(2) }} <span class="flag">+{{ '%.0f'|format(p.pct) }} %</span></td>
+      <td class="num neg">+{{ p.delta_year|eur }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
 <div class="grid three section">
   <div class="card">
     <h2 style="margin-bottom:4px">{{ 'Todos los recurrentes' if all else 'Recurrentes activos' }}</h2>
-    <div class="concept" style="margin-bottom:8px">{{ rows|length }} en total. Pulsa una clave para ver sus movimientos.{% if price_up %} Los marcados en ámbar han subido de precio en el último cobro.{% endif %}</div>
+    <div class="concept" style="margin-bottom:8px">{{ rows|length }} en total. Pulsa una clave para ver sus movimientos.{% if price_up %} Los marcados en ámbar han subido de precio.{% endif %}</div>
     <div class="scroll-x">
     <table class="rec-table">
       <tr><th>Clave</th><th>Periodo</th><th class="num">Importe</th><th class="num">Último</th><th class="num">Próximo</th></tr>
@@ -31,7 +53,7 @@
         </td>
         <td style="white-space:nowrap">{{ r.period_label }}</td>
         <td class="num {{ 'pos' if r.amount_avg > 0 else '' }}">{{ r.amount_avg|eur(2) }}
-          {% if r.key in price_up %}<div class="flag" style="margin-top:2px">Sube: último {{ (r.amount_last|abs)|eur(2) }}</div>{% endif %}</td>
+          {% if r.key in price_up %}{% set p = price_up[r.key] %}<div class="flag" style="margin-top:2px" title="{{ 'desde el ' ~ p.since }}">{{ p.old|eur(2) }} → {{ p.new|eur(2) }}</div>{% endif %}</td>
         <td class="num" style="color:var(--ink-2);font-weight:400" title="{{ r.last_seen }}">{{ r.last_seen|fecha }}</td>
         <td class="num" title="{{ r.next_expected }}">{{ r.next_expected|fecha }}</td>
       </tr>

@@ -27,6 +27,7 @@ from moooney.analytics import forecast as forecast_mod
 from moooney.analytics import insights as insights_mod
 from moooney.analytics import periods
 from moooney.analytics.metrics import full_months_before_safe
+from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
 from moooney.config import Settings, load_settings
 from moooney.db import repo
@@ -53,6 +54,7 @@ SEVERITY_LABEL = {"critical": "crítica", "warning": "aviso", "info": "dato"}
 ALERT_TYPE_LABEL = {
     "budget_80": "presupuesto al 80 %", "budget_100": "presupuesto superado", "anomalous_amount": "importe anómalo",
     "duplicate_charge": "cargo duplicado", "new_recurring": "recurrente nuevo", "price_increase": "subida de precio",
+    "bill_rising": "recibo al alza",
     "missing_income": "ingreso que no llega", "negative_balance": "saldo en negativo", "bank_fee": "comisión bancaria",
 }
 ALERT_EXPLAIN = {
@@ -60,7 +62,8 @@ ALERT_EXPLAIN = {
     "budget_100": "Una categoría ha superado su límite mensual.",
     "anomalous_amount": "Un cargo muy por encima del histórico de ese comercio (mediana + 3 desviaciones robustas y más de 20 €).",
     "duplicate_charge": "Mismo comercio e importe en menos de 48 h: puede ser un cobro repetido.",
-    "price_increase": "Un recurrente cuyo último cargo supera en más de un 5 % su media.",
+    "price_increase": "Una cuota fija que ha pasado a cobrarse más cara (al menos un 3 % y 50 céntimos), con lo que supone al año.",
+    "bill_rising": "Un recibo variable (luz, agua…) cuyos tres últimos cargos promedian más de un 15 % y 5 € por encima de los anteriores.",
     "new_recurring": "Un cargo que empezó a repetirse hace menos de 90 días.",
     "missing_income": "Un ingreso recurrente que no llegó cuando tocaba.",
     "negative_balance": "Con los recurrentes previstos, el saldo quedaría en negativo antes del próximo ingreso.",
@@ -455,7 +458,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             -float(r["amount_avg"]) * (30.0 / r["period_days"])
             for r in rows if r["active"] and r["flow_type"] in ("expense", "card_settlement")
         )
-        price_up = {a["message"].split(":")[0] for a in alerts_mod.pending_alerts(conn) if a["type"] == "price_increase"}
+        price_up = {p.key: p for p in detect_price_changes(conn)}
         next_income = min((r["next_expected"] for r in upcoming if r["flow_type"] == "income"), default=None)
         return render(request, conn, "recurring.html", rows=rows, all=all, calendar=calendar, horizon=horizon,
                       charges_total=charges_total, charges_n=sum(1 for r in upcoming if r["flow_type"] != "income"),

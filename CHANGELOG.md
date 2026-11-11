@@ -2,6 +2,12 @@
 
 ## Sin publicar (tras 1.5.5)
 
+- **Recibos que suben**: *Recurrentes* abre con «Lo que te ha subido»: cada recibo más caro que antes,
+  el precio de antes y el de ahora, y cuánto supone al año. Distingue la cuota fija que cambia de
+  precio (de 12,99 € a 15,99 €, y se sigue viendo aunque pasen meses) del recibo variable que va al
+  alza (la luz, con sus tres últimos recibos un 15 % por encima de los anteriores). Las alertas
+  *subida de precio* y la nueva *recibo al alza* salen una vez por subida, no en cada cobro, y se
+  retiran solas si el precio vuelve.
 - **Copias de seguridad de la base**: la vigilancia guarda una copia al día y *Empezar de cero* otra
   antes de borrar, en `data/backups/` (nuevo ajuste `paths.backups_dir`); se conservan las 14 más
   recientes. Se hacen con la API de copia de SQLite, así salen coherentes aunque la web esté
