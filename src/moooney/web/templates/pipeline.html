@@ -101,6 +101,18 @@
         <button class="btn ghost" hx-post="/pipeline/jobs/repair" hx-target="#job-panel" hx-swap="innerHTML"
                 hx-confirm="Se borrarán los movimientos que estén dos veces (se queda el primero cargado) y se añadirán los que falten. No se puede deshacer. ¿Seguir?">Revisar extractos solapados</button>
       </div>
+      <h3 style="margin:24px 0 8px">Copias de seguridad</h3>
+      <div class="concept" style="margin-bottom:8px">La vigilancia guarda una copia de la base al día y <em>Empezar de cero</em> otra antes de borrar; se conservan las 14 más recientes.
+        {% if backups %}Última: <strong style="color:var(--ink-2)">{{ backups[0].created.strftime('%d/%m/%Y %H:%M') }}</strong>{% if backups[0].reason %} ({{ backups[0].reason|replace('-', ' ') }}){% endif %} · {{ backups|length }} {{ 'copia' if backups|length == 1 else 'copias' }}.{% else %}Todavía no hay ninguna.{% endif %}
+        Para volver a una: <code>moooney backup --list</code> y <code>moooney backup --restore &lt;fichero&gt;</code>.</div>
+      <div class="actions">
+        {% if snapshot %}
+        <button class="btn ghost" type="button" disabled aria-describedby="backup-demo-note">Hacer copia ahora</button>
+        <span id="backup-demo-note" class="muted">Desactivado en la demo.</span>
+        {% else %}
+        <button class="btn ghost" hx-post="/pipeline/jobs/backup" hx-target="#job-panel" hx-swap="innerHTML">Hacer copia ahora</button>
+        {% endif %}
+      </div>
       {% if snapshot %}
       <h3 style="margin:24px 0 8px">Empezar de cero</h3>
       <div class="concept" style="margin-bottom:8px">Borra todos los movimientos, los Excel de la carpeta de entrada y lo calculado con ellos (alertas, recurrentes, informes, etiquetas). <strong style="color:var(--ink-2)">Se conservan</strong> la memoria de comercios con tus correcciones, los presupuestos, las claves y la configuración: lo que vuelvas a subir sale categorizado al instante. Para confirmarlo hay que escribir {{ reset_word }}.</div>
@@ -110,10 +122,10 @@
       </div>
       {% elif not demo or files %}
       <h3 style="margin:24px 0 8px">Empezar de cero</h3>
-      <div class="concept" style="margin-bottom:8px">Borra {% if not demo %}los {{ status.transactions }} movimientos{% endif %}{% if not demo and files %}, {% endif %}{% if files %}{{ 'el Excel' if files|length == 1 else 'los ' ~ files|length ~ ' Excel' }} de la carpeta de entrada{% endif %} y lo calculado con ellos (alertas, recurrentes, informes, etiquetas). <strong style="color:var(--ink-2)">Se conservan</strong> la memoria de comercios con tus correcciones, los presupuestos, las claves y la configuración: lo que vuelvas a subir sale categorizado al instante. No se puede deshacer.</div>
+      <div class="concept" style="margin-bottom:8px">Borra {% if not demo %}los {{ status.transactions }} movimientos{% endif %}{% if not demo and files %}, {% endif %}{% if files %}{{ 'el Excel' if files|length == 1 else 'los ' ~ files|length ~ ' Excel' }} de la carpeta de entrada{% endif %} y lo calculado con ellos (alertas, recurrentes, informes, etiquetas). <strong style="color:var(--ink-2)">Se conservan</strong> la memoria de comercios con tus correcciones, los presupuestos, las claves y la configuración: lo que vuelvas a subir sale categorizado al instante. Antes de borrar se guarda una copia de la base; los Excel borrados no se recuperan.</div>
       <div class="actions">
         <button class="btn danger" hx-post="/pipeline/jobs/reset" hx-target="#job-panel" hx-swap="innerHTML"
-                hx-prompt="Se borrarán todos los movimientos y los Excel de la carpeta. No se puede deshacer. Escribe {{ reset_word }} para confirmar.">Borrar movimientos y extractos</button>
+                hx-prompt="Se borrarán todos los movimientos y los Excel de la carpeta (antes se guarda una copia de la base). Escribe {{ reset_word }} para confirmar.">Borrar movimientos y extractos</button>
       </div>
       {% endif %}
     </details>

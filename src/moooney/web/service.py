@@ -432,6 +432,16 @@ def job_alerts(settings: Settings, paths: Paths, log: Logger) -> None:
         conn.close()
 
 
+def job_backup(settings: Settings, log: Logger) -> None:
+    """Copia de seguridad de la base del usuario (ver db/backup.py)."""
+    from moooney.db.backup import make_backup
+
+    stage(log, "Copia de seguridad")
+    copia = make_backup(settings.paths.db_path, settings.paths.backups_dir)
+    log(f"copia guardada: {copia.name} ({copia.stat().st_size / 1e6:.1f} MB)")
+    log("se guardan las 14 más recientes; para volver a una: moooney backup --restore <fichero>")
+
+
 def job_reset(settings: Settings, log: Logger) -> None:
     """Empezar de cero: borra movimientos y extractos y conserva memoria de comercios,
     presupuestos y configuración (ver ingest/reset.py)."""
@@ -447,3 +457,5 @@ def job_reset(settings: Settings, log: Logger) -> None:
     log(f"borrados {r.movimientos} movimientos de {r.importaciones} importaciones")
     log(f"borrados {r.excel} Excel de la carpeta de entrada, {r.csv} CSV limpios y {r.informes} informes")
     log("se conservan la memoria de comercios, los presupuestos y la configuración")
+    if r.copia is not None:
+        log(f"copia de la base antes de borrar: {r.copia.name} (moooney backup --restore para volver)")

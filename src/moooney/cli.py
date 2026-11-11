@@ -153,6 +153,41 @@ def reset(
 
 
 @app.command()
+def backup(
+    list_: bool = typer.Option(False, "--list", help="Lista las copias guardadas."),
+    restore: Path | None = typer.Option(None, "--restore", help="Vuelve a esta copia (antes guarda la actual)."),
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Copia de seguridad de la base: memoria de comercios, correcciones, presupuestos y movimientos.
+
+    Sin opciones hace una copia ahora. La vigilancia (`watch`) ya hace una al día y *Empezar de
+    cero* otra antes de borrar. Se guardan las 14 más recientes en `paths.backups_dir`.
+    """
+    from moooney.db.backup import list_backups, make_backup, restore_backup
+
+    settings = _settings(config)
+    db, dest = settings.paths.db_path, settings.paths.backups_dir
+    if list_:
+        copias = list_backups(dest)
+        if not copias:
+            console.print(f"No hay copias en {dest}.")
+        for b in copias:
+            motivo = f" ({b.reason})" if b.reason else ""
+            console.print(f"{b.path.name}  {b.created:%d/%m/%Y %H:%M}  {b.size / 1e6:.1f} MB{motivo}")
+        return
+    if restore is not None:
+        fichero = restore if restore.exists() else dest / restore
+        previa = restore_backup(fichero, db, dest)
+        console.print(f"Restaurada {fichero.name}. La base que había se ha guardado en {previa.name}. "
+                      "Reinicia la web si está abierta.")
+        return
+    if not db.exists():
+        console.print(f"No hay base en {db}: nada que copiar.")
+        raise typer.Exit(1)
+    console.print(f"Copia guardada en {make_backup(db, dest)}")
+
+
+@app.command()
 def dedupe(
     apply: bool = typer.Option(False, "--apply", help="Borrar de verdad; sin esto solo cuenta."),
     config: Path = CONFIG_OPTION,

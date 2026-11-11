@@ -207,7 +207,8 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `eval-clef` | Mide al modelo contra claves etiquetadas a mano |
 | `metrics`, `recurring`, `budget init\|set\|show`, `alerts` | Analítica |
 | `report` | Informe mensual con consejos (`--no-model` para la versión determinista) |
-| `watch` | Vigila `data/excel/` y corre la pipeline; `--once` para tareas programadas |
+| `watch` | Vigila `data/excel/` y corre la pipeline; `--once` para tareas programadas. Guarda una copia de la base al día |
+| `backup` | Copia de la base ahora; `--list` las enseña y `--restore <fichero>` vuelve a una |
 | `export` | Movimientos categorizados a CSV; `--month`, `--category`, `--out` |
 | `tag` | Etiqueta un movimiento (`tag ID "viaje china"`, `--remove`); sin argumentos lista las etiquetas |
 | `web` | Interfaz web local |
@@ -234,7 +235,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 200 tests, todos con datos sintéticos
+uv run pytest        # 211 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```

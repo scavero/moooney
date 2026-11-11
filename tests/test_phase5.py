@@ -94,7 +94,12 @@ def test_watch_detecta_excel_nuevo_y_corre_la_pipeline(tmp_path, monkeypatch):
     assert pending_files(settings) == []
     lines: list[str] = []
     assert watch(settings, settings_path.parent, lines.append, once=True) == 0
-    assert lines == ["nada nuevo"]
+    # la primera vuelta guarda la copia del día (en la carpeta de la demo) y no hay nada nuevo
+    assert lines[0].startswith("copia de seguridad: moooney-") and lines[1:] == ["nada nuevo"]
+    assert len(list((tmp_path / "demo" / "backups").glob("moooney-*.db"))) == 1
+    lines.clear()
+    watch(settings, settings_path.parent, lines.append, once=True)
+    assert lines == ["nada nuevo"]  # la segunda, el mismo día, ya no copia
 
     make_santander_xlsx(settings.paths.excel_dir / "nuevo.xlsx")
     assert [p.name for p in pending_files(settings)] == ["nuevo.xlsx"]

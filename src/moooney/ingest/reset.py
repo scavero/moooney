@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 
 from moooney.config import Settings
+from moooney.db.backup import make_backup
 from moooney.ingest.detect import list_excel_files
 
 # Orden: primero lo que apunta a transactions, después transactions e imports.
@@ -30,6 +32,7 @@ class ResetOutcome:
     excel: int
     csv: int
     informes: int
+    copia: Path | None = None  # copia de la base hecha justo antes de borrar
 
 
 def summary(conn: sqlite3.Connection, settings: Settings) -> dict[str, int]:
@@ -43,7 +46,11 @@ def summary(conn: sqlite3.Connection, settings: Settings) -> dict[str, int]:
 
 
 def reset_data(conn: sqlite3.Connection, settings: Settings) -> ResetOutcome:
-    """Borra movimientos y extractos. No se puede deshacer."""
+    """Borra movimientos y extractos. Antes guarda una copia de la base (motivo «antes-de-borrar»):
+    los movimientos se pueden recuperar con `moooney backup --restore`; los Excel borrados, no."""
+    copia = None
+    if settings.paths.db_path.exists():
+        copia = make_backup(settings.paths.db_path, settings.paths.backups_dir, reason="antes-de-borrar")
     reports_dir = settings.paths.reports_dir
     excel_dir, clean_dir = settings.paths.excel_dir, settings.paths.clean_dir
     # Primero los Excel: si la vigilancia da una vuelta a mitad, ya no encuentra nada que importar.
@@ -63,4 +70,4 @@ def reset_data(conn: sqlite3.Connection, settings: Settings) -> ResetOutcome:
         for t in TABLES:
             conn.execute(f"DELETE FROM {t}")
     conn.execute("VACUUM")  # que el fichero de la base no siga guardando lo borrado
-    return ResetOutcome(movimientos, importaciones, len(excel), len(csvs), len(md))
+    return ResetOutcome(movimientos, importaciones, len(excel), len(csvs), len(md), copia)

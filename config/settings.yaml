@@ -4,6 +4,7 @@ paths:
   clean_dir: data/clean
   db_path: data/moooney.db
   reports_dir: reports
+  backups_dir: data/backups
 
 # Configuracion del parser de extractos del Santander
 parser:

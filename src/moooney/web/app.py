@@ -30,6 +30,7 @@ from moooney.analytics.metrics import full_months_before_safe
 from moooney.analytics.recurring import load_recurring
 from moooney.config import Settings, load_settings
 from moooney.db import repo
+from moooney.db.backup import list_backups
 from moooney.export import export_filename, transactions_csv
 from moooney.ingest.reset import CONFIRM_WORD
 from moooney.ingest.upload import MAX_BYTES, save_upload
@@ -633,6 +634,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             "status": status, "files": files, "imports": queries.imports_history(conn), "merchants": merchants,
             "egress": queries.egress_stats(conn), "enrichment": enr, "llm": llm, "jobs": state.jobs.recent(),
             "excel_dir": state.settings.paths.excel_dir, "demo": a.demo, "steps": steps, "reset_word": CONFIRM_WORD,
+            "backups": list_backups(state.settings.paths.backups_dir),
         }
 
     @app.get("/pipeline", response_class=HTMLResponse)
@@ -650,6 +652,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         "alerts": "Recalcular recurrentes y alertas",
         "repair": "Revisar extractos solapados",
         "reset": "Empezar de cero",
+        "backup": "Copia de seguridad",
     }
 
     def job_panel(request: Request, job, *, started: bool = False) -> HTMLResponse:
@@ -681,6 +684,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             "alerts": lambda log: service.job_alerts(s, p, log),
             "repair": lambda log: service.job_repair(real, s, p, log),
             "reset": lambda log: service.job_reset(real, log),
+            "backup": lambda log: service.job_backup(real, log),
         }
         if name == "reset" and request.headers.get("HX-Prompt", "").strip().upper() != CONFIRM_WORD:
             # Borrado sin vuelta atrás: hay que escribir la palabra, no basta con un clic.

@@ -103,6 +103,7 @@ def make_settings(tmp_path: Path) -> Settings:
         "clean_dir": str(tmp_path / "clean"),
         "db_path": str(tmp_path / "moooney.db"),
         "reports_dir": str(tmp_path / "reports"),
+        "backups_dir": str(tmp_path / "backups"),
     }
     return Settings.model_validate(data)
 

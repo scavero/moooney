@@ -1,5 +1,14 @@
 # Cambios
 
+## Sin publicar (tras 1.5.5)
+
+- **Copias de seguridad de la base**: la vigilancia guarda una copia al día y *Empezar de cero* otra
+  antes de borrar, en `data/backups/` (nuevo ajuste `paths.backups_dir`); se conservan las 14 más
+  recientes. Se hacen con la API de copia de SQLite, así salen coherentes aunque la web esté
+  escribiendo. `moooney backup` copia ahora, `--list` las enseña y `--restore <fichero>` vuelve a
+  una (antes guarda la base actual). En *Pipeline → Mantenimiento* se ve la última y hay un botón
+  *Hacer copia ahora*.
+
 ## 1.5.5 · 2026-11-09
 
 - **Cheques y pagarés**: una regla nueva clasifica los ingresos de cheques y pagarés (ENTREGA DE

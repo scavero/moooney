@@ -12,6 +12,7 @@ from pathlib import Path
 
 from moooney.config import Settings
 from moooney.db import repo
+from moooney.db.backup import backup_if_due
 from moooney.ingest.detect import list_excel_files, sha256_file
 
 Logger = Callable[[str], None]
@@ -55,6 +56,12 @@ def watch(settings: Settings, config_dir: Path, log: Logger, *, interval: float 
     iterations = 0
     ignorados: set[str] = set()  # hashes de Excel que no se han podido importar
     while True:
+        try:  # copia diaria de la base: la vigilancia es lo único que está siempre en marcha
+            copia = backup_if_due(settings.paths.db_path, settings.paths.backups_dir)
+            if copia is not None:
+                log(f"copia de seguridad: {copia.name}")
+        except Exception as e:
+            log(f"no se ha podido hacer la copia de seguridad ({type(e).__name__}: {e})")
         try:
             nuevos = [p for p in pending_files(settings) if sha256_file(p) not in ignorados]
             if nuevos:

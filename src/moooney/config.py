@@ -16,6 +16,7 @@ class PathsSettings(BaseModel):
     clean_dir: Path = Path("data/clean")
     db_path: Path = Path("data/moooney.db")
     reports_dir: Path = Path("reports")  # informes en Markdown
+    backups_dir: Path = Path("data/backups")  # copias de la base (db/backup.py)
 
 
 class ParserSettings(BaseModel):

@@ -129,6 +129,7 @@ def build_demo(target: Path, *, source_config: Path = Path("config"), months: in
         "clean_dir": str(target / "clean"),
         "db_path": str(target / "moooney.db"),
         "reports_dir": str(target / "reports"),
+        "backups_dir": str(target / "backups"),
     }
     settings_path = config_dir / "settings.yaml"
     settings_path.write_text(yaml.safe_dump(base_settings, allow_unicode=True, sort_keys=False), encoding="utf-8")
