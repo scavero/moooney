@@ -25,6 +25,7 @@ reports/
 # Presupuestos del usuario (importes personales)
 config/budgets.yaml
 config/rules.local.yaml
+config/rules.web.yaml
 
 # Credenciales y configuración local
 .env

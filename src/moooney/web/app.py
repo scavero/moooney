@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -29,6 +30,8 @@ from moooney.analytics import periods
 from moooney.analytics.metrics import full_months_before_safe
 from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
+from moooney.categorize import web_rules
+from moooney.categorize.rules import Rule
 from moooney.config import Settings, load_settings
 from moooney.db import repo
 from moooney.db.backup import list_backups
@@ -418,7 +421,46 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             queue_current=current, queue_pos=len(queue_rows) - len(pending) + 1, queue_total=len(queue_rows),
             queue_suggestions=suggestions, skip=skip, queue_mode=queue,
             tail_n=len(cola_larga), tail_total=sum(abs(float(r["total"])) for r in cola_larga),
+            web_rules=[{"rule": r, "how": how, "text": text} for r in web_rules.read(web_rules.path_for(active().paths.rules))
+                       for how, text in [web_rules.describe(r.pattern)]],
+            rule_msg=request.query_params.get("regla_ok", ""), rule_error=request.query_params.get("regla_error", ""),
         )
+
+    @app.get("/merchants/rules/preview", response_class=HTMLResponse)
+    def rule_preview(request: Request, conn: DB, text: str = "", mode: str = "empieza"):
+        ctx: dict = {"request": request, "text": text}
+        try:
+            ctx["pv"] = web_rules.preview(conn, web_rules.build_pattern(text, mode))
+        except ValueError as e:
+            ctx["error"] = str(e).capitalize() + "."
+        return templates.TemplateResponse(request, "partials/rule_preview.html", ctx)
+
+    @app.post("/merchants/rules")
+    def rule_add(conn: DB, text: Annotated[str, Form()], mode: Annotated[str, Form()],
+                 target: Annotated[str, Form()]):
+        tx = taxonomy()
+        category, _, sub = target.partition("|")
+        try:
+            if category not in tx.categories or sub not in tx.categories[category].subcategories:
+                raise ValueError("elige una categoría de la lista")
+            rule = Rule(pattern=web_rules.build_pattern(text, mode), category=category, subcategory=sub,
+                        flow_type=tx.default_flow_type(category))
+        except ValueError as e:
+            return RedirectResponse(f"/merchants?regla_error={quote(str(e).capitalize())}#tus-reglas", status_code=303)
+        p = active().paths
+        web_rules.add(web_rules.path_for(p.rules), rule)
+        n = service.reapply_all_rules(conn, p)
+        how, txt = web_rules.describe(rule.pattern)
+        msg = (f"Regla guardada: {how} {txt} → {category}. "
+               f"{n} {'clave cambiada' if n == 1 else 'claves cambiadas'} ahora; las nuevas se categorizarán así al importar.")
+        return RedirectResponse(f"/merchants?regla_ok={quote(msg)}#tus-reglas", status_code=303)
+
+    @app.post("/merchants/rules/delete")
+    def rule_delete(pattern: Annotated[str, Form()]):
+        ok = web_rules.remove(web_rules.path_for(active().paths.rules), pattern)
+        how, txt = web_rules.describe(pattern)
+        msg = f"Regla quitada: {how} {txt}." if ok else "Esa regla ya no estaba."
+        return RedirectResponse(f"/merchants?regla_ok={quote(msg)}#tus-reglas", status_code=303)
 
     @app.post("/merchants/{key:path}/category", response_class=HTMLResponse)
     def merchant_set_category(request: Request, conn: DB, key: str,

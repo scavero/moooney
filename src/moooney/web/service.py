@@ -115,6 +115,15 @@ def set_merchant_category(
     )
 
 
+def reapply_all_rules(conn: sqlite3.Connection, paths: Paths) -> int:
+    """Reaplica todas las reglas (generales, locales y web) a lo que no corrigió el usuario.
+    Devuelve las claves que cambiaron."""
+    from moooney.categorize.pipeline import refresh_rules
+
+    cambiadas, _ = refresh_rules(conn, load_rules(paths.rules, taxonomy_for(paths)))
+    return cambiadas
+
+
 def set_budget(conn: sqlite3.Connection, paths: Paths, category: str, amount: float) -> None:
     limits = budgets_mod.load_budgets_config(paths.budgets)
     if amount <= 0:
@@ -438,7 +447,8 @@ def job_backup(settings: Settings, log: Logger) -> None:
 
     stage(log, "Copia de seguridad")
     copia = make_backup(settings.paths.db_path, settings.paths.backups_dir)
-    log(f"copia guardada: {copia.name} ({copia.stat().st_size / 1e6:.1f} MB)")
+    mb = f"{copia.stat().st_size / 1e6:.1f}".replace(".", ",")
+    log(f"copia guardada: {copia.name} ({mb} MB)")
     log("se guardan las 14 más recientes; para volver a una: moooney backup --restore <fichero>")
 
 

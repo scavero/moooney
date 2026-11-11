@@ -3,6 +3,7 @@ data/
 reports/
 config/budgets.yaml
 config/rules.local.yaml
+config/rules.web.yaml
 .env
 .env.*
 !.env.example

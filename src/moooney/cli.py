@@ -173,7 +173,7 @@ def backup(
             console.print(f"No hay copias en {dest}.")
         for b in copias:
             motivo = f" ({b.reason})" if b.reason else ""
-            console.print(f"{b.path.name}  {b.created:%d/%m/%Y %H:%M}  {b.size / 1e6:.1f} MB{motivo}")
+            console.print(f"{b.path.name}  {b.created:%d/%m/%Y %H:%M}  {f"{b.size / 1e6:.1f}".replace(".", ",")} MB{motivo}")
         return
     if restore is not None:
         fichero = restore if restore.exists() else dest / restore

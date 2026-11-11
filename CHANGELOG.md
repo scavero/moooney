@@ -2,6 +2,10 @@
 
 ## Sin publicar (tras 1.5.5)
 
+- **Reglas desde la web**: *Comercios → Tus reglas* crea una regla sin tocar YAML: «si la clave
+  empieza por / contiene» un texto, a una categoría y subcategoría. Mientras escribes enseña a qué
+  claves afectaría (y cuáles no cambian por estar corregidas a mano); al guardar se aplica en el acto
+  y vale para los extractos futuros. Se guardan en `config/rules.web.yaml`, fuera de git.
 - **Recibos que suben**: *Recurrentes* abre con «Lo que te ha subido»: cada recibo más caro que antes,
   el precio de antes y el de ahora, y cuánto supone al año. Distingue la cuota fija que cambia de
   precio (de 12,99 € a 15,99 €, y se sigue viendo aunque pasen meses) del recibo variable que va al

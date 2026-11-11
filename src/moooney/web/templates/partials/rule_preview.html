@@ -1,0 +1,8 @@
+{% if error %}<span>{{ error }}</span>
+{% elif not pv.total %}<span>Ninguna clave de tu memoria casa con «{{ text }}». La regla servirá para las que lleguen.</span>
+{% else %}<span>Casa con <strong style="color:var(--ink-2)">{{ pv.total }} {{ 'clave' if pv.total == 1 else 'claves' }}</strong>{% if pv.user %} ({{ pv.user }} corregida{{ 's' if pv.user > 1 }} por ti, que no cambia{{ 'n' if pv.user > 1 }}){% endif %} · {{ pv.movimientos }} movimientos:</span>
+<ul style="margin:4px 0 0;padding-left:20px">
+  {% for r in pv.sample %}<li>{{ r.key }} <span class="muted">· {{ r.category or 'sin categoría' }} · {{ r.n }} mov.{% if r.source == 'user' %} · corregida por ti{% endif %}</span></li>{% endfor %}
+  {% if pv.total > pv.sample|length %}<li class="muted">y {{ pv.total - pv.sample|length }} más</li>{% endif %}
+</ul>
+{% endif %}

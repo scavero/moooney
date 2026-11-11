@@ -51,7 +51,10 @@ def load_rules(path: Path | None = None, taxonomy: Taxonomy | None = None) -> li
         raise FileNotFoundError(f"no se encuentra la configuracion de reglas: {path}")
     rules = _read_rules(path)
     # Reglas propias del usuario (comercios de su zona, servicios que usa): fuera de git y con
-    # prioridad sobre las generales.
+    # prioridad sobre las generales. Primero las escritas a mano, después las creadas en la web.
+    web = path.with_name("rules.web.yaml")
+    if web.is_file():
+        rules = _read_rules(web) + rules
     local = path.with_name("rules.local.yaml")
     if local.is_file():
         rules = _read_rules(local) + rules

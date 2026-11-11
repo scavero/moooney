@@ -104,4 +104,49 @@
   </div>
 </div>
 </details>
+
+<details class="all-keys" id="tus-reglas" {% if rule_msg or rule_error %}open{% endif %}>
+  <summary><h2>Tus reglas</h2><span class="muted">{{ web_rules|length }} {{ 'regla' if web_rules|length == 1 else 'reglas' }}</span></summary>
+<div class="card">
+  {% if rule_msg %}<div class="notice ok" style="margin-bottom:16px">{{ rule_msg }}</div>{% endif %}
+  {% if rule_error %}<div class="notice warn" style="margin-bottom:16px">{{ rule_error }}</div>{% endif %}
+  <div class="concept" style="margin-bottom:16px">Para que todos los comercios que se parecen vayan a la misma categoría sin preguntar al modelo, también los que lleguen en extractos futuros. Lo que corregiste a mano no se toca.</div>
+  <form class="filters" method="post" action="/merchants/rules" style="flex-wrap:wrap">
+    <label for="r-mode" style="position:absolute;left:-9999px">Cómo casa</label>
+    <select id="r-mode" name="mode">
+      <option value="empieza">Si la clave empieza por</option>
+      <option value="contiene">Si la clave contiene</option>
+    </select>
+    <label for="r-text" style="position:absolute;left:-9999px">Texto</label>
+    <input id="r-text" type="text" name="text" required minlength="3" placeholder="p. ej. GASOLINERA" autocomplete="off"
+           hx-get="/merchants/rules/preview" hx-trigger="input changed delay:300ms" hx-include="#r-mode" hx-target="#rule-preview">
+    <label for="r-target" style="position:absolute;left:-9999px">Categoría</label>
+    <select id="r-target" name="target" required>
+      {% for c, spec in taxonomy.categories.items() %}
+      <optgroup label="{{ c }}">{% for s in spec.subcategories %}<option value="{{ c }}|{{ s }}">{{ c }} → {{ s }}</option>{% endfor %}</optgroup>
+      {% endfor %}
+    </select>
+    <button class="btn primary" type="submit" {% if snapshot %}disabled{% endif %}>Guardar regla</button>
+  </form>
+  <div id="rule-preview" class="concept" style="margin:8px 0 16px">Escribe un texto para ver a qué claves afectaría.</div>
+  {% if web_rules %}
+  <table class="keys-table">
+    <tr><th>Regla</th><th>Categoría</th><th style="width:120px"></th></tr>
+    {% for r in web_rules %}
+    <tr>
+      <td>{{ r.how }} <strong>{{ r.text }}</strong></td>
+      <td>{{ r.rule.category }} → {{ r.rule.subcategory }}</td>
+      <td class="num">
+        <form method="post" action="/merchants/rules/delete" style="display:inline">
+          <input type="hidden" name="pattern" value="{{ r.rule.pattern }}">
+          <button class="btn ghost" type="submit" {% if snapshot %}disabled{% endif %}>Quitar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div class="concept" style="margin-top:8px">Quitar una regla no deshace lo que ya categorizó: esas claves se quedan como están hasta que las corrijas.</div>
+  {% endif %}
+</div>
+</details>
 {% endblock %}
