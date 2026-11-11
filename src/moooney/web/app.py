@@ -25,6 +25,7 @@ from moooney import envfile
 from moooney.analytics import alerts as alerts_mod
 from moooney.analytics import budgets as budgets_mod
 from moooney.analytics import forecast as forecast_mod
+from moooney.analytics import goals as goals_mod
 from moooney.analytics import insights as insights_mod
 from moooney.analytics import periods, yearly
 from moooney.analytics import shared as shared_mod
@@ -485,6 +486,47 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             request, "partials/merchant_row.html",
             {"request": request, "m": row, "taxonomy": taxonomy(), "saved": n},
         )
+
+    # ---------- metas ----------
+
+    @app.get("/goals", response_class=HTMLResponse)
+    def goals_page(request: Request, conn: DB):
+        service.refresh_recurring(conn)
+        base = goals_mod.baseline(conn)
+        today = date.today().isoformat()
+        goals = goals_mod.list_goals(conn)
+        net = base.net if base else 0.0
+        planned = [(g, goals_mod.plan(g, net, today)) for g in goals]
+        sim = {"net": round(net, 2), "month": today[:7],
+               "goals": [{"name": g.name, "missing": round(g.missing, 2)} for g in goals]}
+        cut = [c for c in (base.categories[:8] if base else []) if c.variable >= 5]
+        return render(request, conn, "goals.html", base=base, base_net=net, goals=planned, sim=sim,
+                      cut_categories=cut, this_month=today[:7], goal_error=request.query_params.get("error", ""))
+
+    def _goal_error(e: ValueError) -> RedirectResponse:
+        return RedirectResponse(f"/goals?error={quote(str(e).capitalize() + '.')}", status_code=303)
+
+    @app.post("/goals")
+    def goal_add(conn: DB, name: Annotated[str, Form()], target: Annotated[float, Form()],
+                 saved: Annotated[float, Form()] = 0.0, deadline: Annotated[str, Form()] = ""):
+        try:
+            goals_mod.add_goal(conn, name, target, saved, deadline or None)
+        except ValueError as e:
+            return _goal_error(e)
+        return RedirectResponse("/goals", status_code=303)
+
+    @app.post("/goals/{goal_id}/saved")
+    def goal_saved(conn: DB, goal_id: int, saved: Annotated[float, Form()]):
+        try:
+            goals_mod.set_saved(conn, goal_id, saved)
+        except ValueError as e:
+            return _goal_error(e)
+        return RedirectResponse("/goals", status_code=303)
+
+    @app.post("/goals/{goal_id}/delete")
+    def goal_delete(conn: DB, goal_id: int):
+        goals_mod.delete_goal(conn, goal_id)
+        return RedirectResponse("/goals", status_code=303)
 
     # ---------- gastos compartidos ----------
 

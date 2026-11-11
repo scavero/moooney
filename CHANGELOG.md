@@ -2,6 +2,11 @@
 
 ## Sin publicar (tras 1.5.5)
 
+- **Metas y «qué pasaría si»**: nueva página *Metas*. Apuntas cuánto quieres juntar, cuánto llevas y
+  para cuándo, y te dice cuándo llegas a tu ritmo de ahorro y, si no llegas a tiempo, cuánto haría
+  falta al mes. El simulador recorta la parte variable de tus categorías o da de baja recurrentes y
+  recalcula al momento el ahorro al mes y al año y la fecha de cada meta. Las metas se guardan en la
+  base: entran en las copias y *Empezar de cero* las conserva.
 - **Resumen del año**: nueva página *Año*. Ingresos, gastos, ahorro e inversión del año, cada
   categoría frente al año anterior y el gasto mes a mes con la categoría que más pesó; dice cuál fue
   el mes más caro y el más barato. Si el año está en curso, el anterior se corta en el mismo día para

@@ -160,3 +160,14 @@ CREATE TABLE IF NOT EXISTS reimbursement_dismissed (
     income_id   INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
     created_at  TEXT NOT NULL
 );
+
+-- Metas de ahorro: cuánto quieres juntar, cuánto llevas apartado y para cuándo. Son del
+-- usuario y no salen de ningún extracto: Empezar de cero las conserva.
+CREATE TABLE IF NOT EXISTS goals (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,
+    target      REAL NOT NULL,
+    saved       REAL NOT NULL DEFAULT 0,
+    deadline    TEXT,
+    created_at  TEXT NOT NULL
+);
