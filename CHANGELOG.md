@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar (tras 1.6.0)
+## 1.7.0 · 2026-11-11
 
 - **Pregunta**: nueva página con un asistente al que preguntas por tus finanzas («¿cómo voy este
   mes?», «¿qué me ha subido?», «¿dónde recorto 100 €?») y te da consejos. Lo responde el modelo de
