@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Año {{ y.year }}{% endblock %}
+{% macro delta(cur, prev, good_up=true) -%}
+{%- if prev is not none and prev -%}
+{%- set d = (cur / prev - 1) * 100 -%}
+<span class="{{ 'pos' if (d >= 0) == good_up else 'neg' }}" style="font-weight:500">{{ '%+.0f'|format(d) }} %</span> frente a {{ y.year - 1 }}
+{%- else -%}sin {{ y.year - 1 }} completo para comparar{%- endif -%}
+{%- endmacro %}
+{% block content %}
+<div class="topbar">
+  <div><h1>{{ y.year }}</h1><div class="subtitle">{% if y.partial %}Año en curso, hasta el <strong title="{{ y.cutoff }}">{{ y.cutoff|fecha }}</strong>. {{ y.year - 1 }} se corta en el mismo día para comparar.{% else %}Año completo.{% endif %}</div></div>
+  {% if years|length > 1 %}
+  <div class="segmented" aria-label="Año">
+    {% for yy in years %}<a class="{{ 'on' if yy == y.year else '' }}" href="/year?year={{ yy }}">{{ yy }}</a>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% set p = y.prev_totals %}
+<div class="grid kpis section">
+  <div class="card kpi"><div class="label">Ingresos</div><div class="value pos">{{ y.totals.income|eur }}</div><div class="hint">{{ delta(y.totals.income, p.income if p else none) }}</div></div>
+  <div class="card kpi"><div class="label">Gastos</div><div class="value neg">{{ y.totals.expenses|eur }}</div><div class="hint">{{ delta(y.totals.expenses, p.expenses if p else none, false) }}</div></div>
+  <div class="card kpi"><div class="label">Ahorro</div><div class="value {{ 'pos' if y.totals.net >= 0 else 'neg' }}">{{ y.totals.net|eur }}</div>
+    <div class="hint">{% if y.totals.savings_rate is not none %}{{ '%.0f'|format(y.totals.savings_rate * 100) }} % de lo que entró{% endif %}{% if p %} · {{ p.net|eur }} en {{ y.year - 1 }}{% endif %}</div></div>
+  <div class="card kpi"><div class="label">Invertido</div><div class="value">{{ y.totals.investment|eur }}</div><div class="hint">aparte del ahorro{% if p %} · {{ p.investment|eur }} en {{ y.year - 1 }}{% endif %}</div></div>
+</div>
+
+{% set hi, lo = y.costliest, y.cheapest %}
+{% if hi %}
+<div class="notice section">El mes más caro fue <strong>{{ hi.month|mes }}</strong>, con {{ hi.expenses|eur }}{% if hi.top_category %} (sobre todo {{ hi.top_category }}, {{ hi.top_amount|eur }}){% endif %}.{% if lo and lo.month != hi.month %} El más barato, <strong>{{ lo.month|mes }}</strong>, con {{ lo.expenses|eur }}.{% endif %}</div>
+{% endif %}
+
+<div class="grid two section">
+  <div class="card">
+    <h2 style="margin-bottom:4px">Por categoría</h2>
+    <div class="concept" style="margin-bottom:8px">Gasto del año{% if p %} frente al mismo periodo de {{ y.year - 1 }}{% endif %}. Pulsa una categoría para ver sus movimientos.</div>
+    <div class="scroll-x">
+    <table>
+      <tr><th>Categoría</th><th class="num">{{ y.year }}</th>{% if p %}<th class="num">{{ y.year - 1 }}</th><th class="num">Diferencia</th>{% endif %}</tr>
+      {% for c in y.categories %}
+      <tr>
+        <td><a href="/transactions?category={{ c.category|urlencode }}" style="font-weight:500">{{ c.category }}</a></td>
+        <td class="num">{{ c.amount|eur }}</td>
+        {% if p %}
+        <td class="num" style="color:var(--ink-2);font-weight:400">{{ c.prev|eur if c.prev is not none else '—' }}</td>
+        <td class="num {{ 'neg' if (c.delta or 0) > 0 else 'pos' }}">{% if c.delta is not none %}{{ '%+.0f'|format(c.delta) }} €{% if c.delta_pct is not none %} <span class="concept">{{ '%+.0f'|format(c.delta_pct) }} %</span>{% endif %}{% else %}nuevo{% endif %}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2 style="margin-bottom:4px">Mes a mes</h2>
+    <div class="concept" style="margin-bottom:8px">Gasto de cada mes y la categoría que más pesó. Los meses a medias no cuentan para el más caro ni el más barato.</div>
+    <div class="scroll-x">
+    <table>
+      <tr><th>Mes</th><th class="num">Gasto</th><th class="num">{{ y.year - 1 }}</th><th>Lo que más</th></tr>
+      {% for m in y.months %}
+      <tr>
+        <td style="text-transform:capitalize;font-weight:500">{{ m.month|mes }}{% if m.has_data and not m.full %} <span class="concept" style="text-transform:none">· a medias</span>{% endif %}</td>
+        <td class="num">{{ m.expenses|eur if m.has_data else '—' }}</td>
+        <td class="num" style="color:var(--ink-2);font-weight:400">{{ m.prev_expenses|eur if m.prev_expenses is not none else '—' }}</td>
+        <td class="concept">{{ m.top_category or '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -2,6 +2,10 @@
 
 ## Sin publicar (tras 1.5.5)
 
+- **Resumen del año**: nueva página *Año*. Ingresos, gastos, ahorro e inversión del año, cada
+  categoría frente al año anterior y el gasto mes a mes con la categoría que más pesó; dice cuál fue
+  el mes más caro y el más barato. Si el año está en curso, el anterior se corta en el mismo día para
+  que la comparación sea justa.
 - **Gastos compartidos**: nueva página *Compartidos*. Si pagas una cena de 80 € y te devuelven 20 €
   por Bizum, emparejas la devolución con el gasto y el mes cuenta 60 € de restaurantes, no 80 € de
   gasto más 20 € de ingreso. Propone los emparejamientos que cuadran como reparto a partes iguales

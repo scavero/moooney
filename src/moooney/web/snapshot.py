@@ -30,7 +30,7 @@ HERE = Path(__file__).resolve().parent
 
 # Solo lo que está en git: nada de rules.local.yaml ni budgets.yaml del usuario.
 CONFIG_FILES = ("settings.yaml", "categories.yaml", "rules.yaml", "llm.yaml", "enrichment.yaml")
-SEED_PATHS = ("/", "/trends", "/transactions", "/merchants", "/recurring", "/shared", "/budgets", "/alerts",
+SEED_PATHS = ("/", "/trends", "/year", "/transactions", "/merchants", "/recurring", "/shared", "/budgets", "/alerts",
               "/report", "/pipeline", "/settings")
 PAGE_NAMES = {"/": "index.html"} | {p: p.strip("/") + ".html" for p in SEED_PATHS if p != "/"}
 LINK_ATTR = re.compile(r'(href|src)="(/[^"]*)"')

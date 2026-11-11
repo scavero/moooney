@@ -26,7 +26,7 @@ from moooney.analytics import alerts as alerts_mod
 from moooney.analytics import budgets as budgets_mod
 from moooney.analytics import forecast as forecast_mod
 from moooney.analytics import insights as insights_mod
-from moooney.analytics import periods
+from moooney.analytics import periods, yearly
 from moooney.analytics import shared as shared_mod
 from moooney.analytics.metrics import full_months_before_safe
 from moooney.analytics.price_changes import detect_price_changes
@@ -301,6 +301,14 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         )
 
     # ---------- tendencias y previsión ----------
+
+    @app.get("/year", response_class=HTMLResponse)
+    def year_page(request: Request, conn: DB, year: int | None = None):
+        years = yearly.years_available(conn)
+        if not years:
+            return render(request, conn, "empty.html")
+        y = yearly.year_summary(conn, year if year in years else years[0])
+        return render(request, conn, "year.html", y=y, years=years)
 
     @app.get("/trends", response_class=HTMLResponse)
     def trends(request: Request, conn: DB, category: str | None = None):
