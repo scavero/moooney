@@ -122,7 +122,7 @@ flowchart LR
     subgraph org["ClusterTIC · proxy LiteLLM (autoalojado)"]
         CLEF["clef-flash<br/>decisiones"]
         BGE["bge-m3<br/>embeddings"]
-        QWEN["qwen3.8-flash-next<br/>informe mensual"]
+        QWEN["qwen3.8-flash-next<br/>informe mensual y asistente"]
     end
 
     subgraph internet["Internet (solo fase 2.5, opcional, desactivable)"]
@@ -136,6 +136,7 @@ flowchart LR
     ANON --> BGE
     RAW -- "solo agregados mensuales:<br/>resumen, categorías, hallazgos,<br/>recurrentes, previsión (JSON ≤ 12k chars)" --> ANON
     ANON --> QWEN
+    RAW -- "asistente: la pregunta y el resultado<br/>de cada consulta (totales por mes,<br/>categoría o comercio; JSON ≤ 6k chars)" --> ANON
     QWEN --> LOG1
     ANON -- "solo la clave de comercio limpia<br/>(sin importes, fechas, personas)" --> NOM
     ANON --> DDG
@@ -165,7 +166,7 @@ ni URL del proxy en el entorno. Ningún dato de esta máquina entra en ella.
 flowchart TB
     subgraph cli["cli.py (typer)"]
         C1[inspect] --- C2[ingest] --- C3[status] --- C4[merchants] --- C5[categorize] --- C6[enrich] --- C7[review] --- C8[eval-clef]
-        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts] --- C13[web] --- C14[demo] --- C15[report] --- C16[watch] --- C17[backup] --- C18[reset]
+        C9[metrics] --- C10[recurring] --- C11[budget] --- C12[alerts] --- C13[web] --- C14[demo] --- C15[report] --- C16[watch] --- C17[backup] --- C18[reset] --- C19[ask]
     end
 
     subgraph src["src/moooney/"]
@@ -174,6 +175,7 @@ flowchart TB
         ENRM["enrich/<br/>settings · query · providers · runner"]
         ANA["analytics/<br/>periods · recurring · metrics · budgets · alerts<br/>insights · forecast · price_changes<br/>shared · yearly · goals"]
         REP["report/<br/>advice"]
+        CHAT["chat/<br/>tools · agent"]
         WEB["web/<br/>app · queries · service · jobs<br/>templates · static"]
         LLM["llm/<br/>client · anonymize · decide"]
         DBM["db/<br/>schema.sql · repo · backup"]
@@ -194,6 +196,7 @@ flowchart TB
         T12[(transaction_tags)]
         T13[(reimbursements)]
         T14[(goals)]
+        T15[(chat_messages)]
     end
 
     BK[("data/backups/<br/>copias de la base")]
@@ -207,9 +210,10 @@ flowchart TB
         Y6[budgets · ignorado]
     end
 
-    cli --> ING & CAT & ENRM & ANA & WEB & REP
-    WEB --> ING & CAT & ENRM & ANA & REP
+    cli --> ING & CAT & ENRM & ANA & WEB & REP & CHAT
+    WEB --> ING & CAT & ENRM & ANA & REP & CHAT
     REP --> ANA & LLM
+    CHAT --> ANA & LLM
     CAT --> LLM
     ENRM --> LLM
     ING & CAT & ENRM & ANA & LLM --> DBM --> tablas

@@ -72,7 +72,7 @@ tres papeles, y cada uno se asigna en `config/llm.yaml`:
 | Papel | Para qué | Por defecto |
 |---|---|---|
 | `clef` | Decidir la categoría de cada comercio nuevo | [Clef-Flash](https://huggingface.co/Cloudflare/clef-flash) |
-| `redaccion` | Informe mensual, segunda opinión y reserva para categorizar | `qwen3.8-flash-next-fp8` |
+| `redaccion` | Informe mensual, asistente *Pregunta*, segunda opinión y reserva para categorizar | `qwen3.8-flash-next-fp8` |
 | `embeddings` | Heredar la categoría entre variantes de un mismo comercio | `bge-m3` |
 
 Los nombres por defecto son los del servidor del autor; cámbialos por los que sirva el tuyo. Si no tienes
@@ -125,6 +125,9 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
   precio, recibo al alza, ingreso que no llega, saldo proyectado negativo, comisiones).
 - **Informe**: el modelo de texto recibe solo agregados y devuelve un informe breve con acciones
   priorizadas por impacto. Sin modelo, el informe sale de los hallazgos deterministas.
+- **Pregunta**: un asistente al que preguntas por tus gastos o pides consejo. Las cifras salen de
+  consultas deterministas sobre tus totales (nunca movimientos sueltos) y el modelo de texto las
+  redacta; cada respuesta dice qué ha consultado.
 - **Pipeline**: todos los pasos con un botón, vista previa y activación del enriquecimiento, auditoría de
   lo que ha salido a modelos e Internet, historial de importaciones y trabajos.
 - **Ajustes**: la clave del proxy (y la de Google Places, opcional) sin tocar ficheros, con prueba de
@@ -216,6 +219,7 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `eval-clef` | Mide al modelo contra claves etiquetadas a mano |
 | `metrics`, `recurring`, `budget init\|set\|show`, `alerts` | Analítica |
 | `report` | Informe mensual con consejos (`--no-model` para la versión determinista) |
+| `ask` | Pregunta al asistente (`moooney ask "¿cómo voy este mes?"`); `--new` empieza conversación |
 | `watch` | Vigila `data/excel/` y corre la pipeline; `--once` para tareas programadas. Guarda una copia de la base al día |
 | `backup` | Copia de la base ahora; `--list` las enseña y `--restore <fichero>` vuelve a una |
 | `export` | Movimientos categorizados a CSV; `--month`, `--category`, `--out` |
@@ -244,7 +248,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 232 tests, todos con datos sintéticos
+uv run pytest        # 239 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```

@@ -1,5 +1,19 @@
 # Cambios
 
+## Sin publicar (tras 1.6.0)
+
+- **Pregunta**: nueva página con un asistente al que preguntas por tus finanzas («¿cómo voy este
+  mes?», «¿qué me ha subido?», «¿dónde recorto 100 €?») y te da consejos. Lo responde el modelo de
+  texto (qwen3.8), pero las cifras no las calcula él: elige entre once consultas deterministas
+  (resumen del mes, categorías, comercios, un comercio mes a mes, recurrentes y subidas,
+  presupuestos, alertas, diagnóstico, previsión, año y metas), moooney las calcula y el modelo
+  redacta con lo que le devuelven. Solo ve totales por mes, categoría y comercio, nunca movimientos
+  sueltos; cada respuesta dice qué ha consultado y cada llamada queda en la auditoría. Recuerda la
+  conversación hasta que pulsas *Nueva conversación*; *Empezar de cero* la borra. También desde la
+  terminal: `moooney ask "¿cómo voy este mes?"`.
+- El diagnóstico con el mes a medias deja claro que la media es «hasta ese día» y que el ahorro
+  posible es una extrapolación («si el resto del mes sigue igual…»).
+
 ## 1.6.0 · 2026-11-11
 
 - **Metas y «qué pasaría si»**: nueva página *Metas*. Apuntas cuánto quieres juntar, cuánto llevas y
