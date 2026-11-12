@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.7.1 · 2026-11-12
+
+- **Móvil**: la navegación pasa a una barra inferior con cuatro accesos (Resumen, Tendencias,
+  Movimientos, Pregunta) y «Más», que abre el menú completo por grupos; antes era una tira que se
+  desplazaba de lado sin indicarlo. El contenido usa todo el ancho (los márgenes eran de 48 px por
+  una regla que anulaba la del móvil), las cifras de cabecera van de dos en dos y los filtros en
+  dos columnas iguales. Movimientos, Alertas y Presupuestos dejan de ser tablas que se desplazan
+  de lado: cada fila se apila (importe, botón y límite siempre a la vista). Campos a 16 px para
+  que iOS no amplíe la página al escribir y controles de 40 px también en los botones pequeños.
+
 ## 1.7.0 · 2026-11-11
 
 - **Pregunta**: nueva página con un asistente al que preguntas por tus finanzas («¿cómo voy este
