@@ -65,9 +65,11 @@ def test_pagina(tmp_path, monkeypatch):
     settings_path = build_demo(tmp_path / "demo", source_config=Path(__file__).resolve().parent.parent / "config",
                                months=8)
     with TestClient(create_app(settings_path)) as c:
-        r = c.get("/goals")
-        assert r.status_code == 200 and "¿Qué pasaría si…?" in r.text and "sim-cut" in r.text
+        viejo = c.get("/goals", follow_redirects=False)  # la dirección de antes lleva a Plan
+        assert viejo.status_code == 303 and viejo.headers["location"] == "/budgets#metas"
+        r = c.get("/budgets")
+        assert r.status_code == 200 and "<h1>Plan</h1>" in r.text and 'id="budget-rows"' in r.text and "¿Qué pasaría si…?" in r.text and "sim-cut" in r.text
         r = c.post("/goals", data={"name": "Colchón", "target": "5000", "saved": "100", "deadline": "2099-12"})
         assert r.status_code == 200 and "Colchón" in r.text and "llegas en" in r.text
         r = c.post("/goals", data={"name": "Mal", "target": "0"})
-        assert "mayor que cero" in r.text
+        assert "mayor que cero" in r.text and str(r.url).endswith("#metas")

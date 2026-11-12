@@ -88,7 +88,7 @@ def test_presupuestos_proponer_y_fijar(client):
     r = client.get("/budgets")
     assert "Proponer presupuesto" in r.text
     r = client.post("/budgets/propose", data={"months": 6, "cut": 10}, follow_redirects=True)  # recorte en %
-    assert r.status_code == 200 and "Seguimiento" in r.text and "Mes transcurrido" in r.text
+    assert r.status_code == 200 and "Proyección fin de mes" in r.text and "Mes transcurrido" in r.text
     assert "Alimentacion" in r.text
     r = client.post("/budgets/Ocio", data={"amount": 50, "month": "2026-10"})
     assert r.status_code == 200 and "Ocio" in r.text and 'value="50"' in r.text

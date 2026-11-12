@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.8.3 · 2026-11-12
+
+- **Plan, en una sola página**: Presupuestos y Metas dejan de ser dos pestañas. Arriba, el
+  seguimiento del presupuesto del mes; debajo, las metas y el simulador «qué pasaría si». La
+  dirección `/goals` lleva a esa parte de la página.
+
 ## 1.8.2 · 2026-11-12
 
 - **Compartidos, dentro de Movimientos**: desaparece como página y pestaña. Cada movimiento enseña

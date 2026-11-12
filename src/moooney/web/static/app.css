@@ -131,6 +131,7 @@ h3 { font-family: var(--font-body); font-weight: 700; font-size: 12px; letter-sp
 .subtitle { color: var(--ink-2); margin-bottom: var(--s4); font-weight: 400; }
 .topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s4); }
 .topbar .subtitle { margin-bottom: 0; }
+.plan-part { margin-top: var(--s6); scroll-margin-top: var(--s3); }
 .month-nav { display: flex; align-items: center; gap: var(--s1); }
 
 /* ---------- controles ---------- */

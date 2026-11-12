@@ -93,7 +93,7 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
 
 La web tiene siete secciones; las páginas que comparten sección son pestañas dentro de ella:
 **Resumen**, **Tendencias**, **Movimientos**, **Pregunta** (e Informe mensual), **Plan**
-(Presupuestos y Metas), **Avisos** (Alertas y Recurrentes) y **Datos** (Importar, Comercios y Ajustes).
+(Presupuestos y Metas, en una misma página), **Avisos** (Alertas y Recurrentes) y **Datos** (Importar, Comercios y Ajustes).
 
 - **Resumen**: abre con la cifra de ahorro neto del mes y un **veredicto en una frase**, calculado sin modelo
   («Has ahorrado el 30 % de lo que entró; alimentación se dispara»); debajo, ingresos, gastos fijos y
@@ -123,8 +123,8 @@ La web tiene siete secciones; las páginas que comparten sección son pestañas 
   coste al año) y sigue con el calendario de cargos de los próximos 30 días.
 - **Gastos compartidos** (dentro de Movimientos, en el «···» de cada fila y con su filtro): empareja el Bizum que te devuelve un amigo con el gasto que pagaste tú; el gasto cuenta
   neto y la devolución deja de ser ingreso. Propone los repartos a partes iguales.
-- **Presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con proyección).
-- **Metas**: cuánto quieres juntar y para cuándo, cuándo llegas a tu ritmo y un simulador «qué pasaría si»
+- **Plan · presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con proyección).
+- **Plan · metas** (en la misma página, debajo): cuánto quieres juntar y para cuándo, cuándo llegas a tu ritmo y un simulador «qué pasaría si»
   que recorta categorías o da de baja recurrentes.
 - **Alertas** (presupuesto al 80 / 100 %, importe anómalo, cargo duplicado, recurrente nuevo, subida de
   precio, recibo al alza, ingreso que no llega, saldo proyectado negativo, comisiones).

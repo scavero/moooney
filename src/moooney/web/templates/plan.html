@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Plan {{ month|mes }}{% endblock %}
+{# Presupuestos del mes y, debajo, las metas con su simulador: una sola página. #}
+{% block content %}
+<div class="topbar">
+  <div>
+    <h1>Plan</h1>
+    <div class="subtitle"><span style="text-transform:capitalize">{{ month|mes }}</span>{% if is_current %} · a día <strong>{{ day }} de {{ days_in_month }}</strong>{% elif has_config %} · mes cerrado{% endif %} · <a href="#metas">Metas y «qué pasaría si»</a></div>
+  </div>
+  <div class="month-nav">
+    {% if prev_month %}<a class="btn ghost" href="/budgets?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>{% else %}<span class="btn ghost" aria-disabled="true" title="no hay datos anteriores">‹</span>{% endif %}
+    <label for="month-select" style="position:absolute;left:-9999px">Mes</label>
+    <select id="month-select" onchange="go('/budgets?month='+this.value)">
+      {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}
+    </select>
+    {% if next_month %}<a class="btn ghost" href="/budgets?month={{ next_month }}" aria-label="mes siguiente" title="mes siguiente">›</a>{% else %}<span class="btn ghost" aria-disabled="true" title="es el último mes con datos">›</span>{% endif %}
+  </div>
+</div>
+
+{% if not has_config %}
+<div class="notice">Todavía no hay presupuestos. La propuesta usa la <strong>mediana</strong> del gasto de cada categoría en los últimos meses completos y recorta un 10 % las variables; las dominadas por cargos recurrentes no se tocan. Después ajusta cada límite a mano.</div>
+{% else %}
+<div class="grid kpis section">
+  <div class="card kpi"><div class="label">Gastado</div><div class="value {{ 'neg' if total_spent > total_limit else '' }}">{{ total_spent|eur }}</div><div class="hint">de {{ total_limit|eur }} de límite{% if total_limit %} · {{ '%.0f'|format(total_spent / total_limit * 100) }} %{% endif %}</div></div>
+  <div class="card kpi"><div class="label">Mes transcurrido</div><div class="value">{{ '%.0f'|format(today_pct) }} %</div><div class="hint">{% if is_current %}si vas por debajo de la marca, vas bien{% else %}mes cerrado{% endif %}</div></div>
+  <div class="card kpi"><div class="label">Proyección fin de mes</div><div class="value {{ 'neg' if total_projected > total_limit else '' }}">{{ total_projected|eur if is_current else '—' }}</div><div class="hint">{% if is_current %}{{ over_count }} {{ 'categoría se pasaría' if over_count == 1 else 'categorías se pasarían' }} al ritmo actual{% else %}sin proyección en un mes cerrado{% endif %}</div></div>
+</div>
+{% endif %}
+
+<div class="grid budget">
+  <div class="card">
+    <h2 style="margin-bottom:4px">Presupuestos</h2>
+    <div class="concept" style="margin-bottom:8px">La marca negra es donde deberías estar hoy. El límite se guarda al salir del campo; pon 0 para quitarlo.</div>
+    <div class="scroll-x">
+    <table class="budget-table">
+      <tr><th>Categoría</th><th style="width:30%">Gastado</th><th class="num">Queda</th><th class="num">Proyección</th><th class="num">Límite</th></tr>
+      <tbody id="budget-rows">
+      {% for r in rows %}{% include "partials/budget_row.html" %}{% endfor %}
+      {% if not rows %}<tr><td colspan="5" class="muted">Sin límites definidos para <span style="text-transform:capitalize">{{ month|mes }}</span>.</td></tr>{% endif %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <div>
+    {% if sin_limite %}
+    <div class="card section">
+      <h2 style="margin-bottom:4px">Añadir límite</h2>
+      <div class="concept" style="margin-bottom:12px">Aparece en el seguimiento al instante.</div>
+      {# La fila nueva entra directamente en la tabla: ya no hay que recargar. #}
+      <form class="inline-form" hx-post="/budgets/__cat__" hx-target="#budget-rows" hx-swap="beforeend"
+            hx-on::config-request="event.detail.path = '/budgets/' + encodeURIComponent(this.querySelector('[name=category]').value)"
+            hx-on::after-request="this.reset()">
+        <input type="hidden" name="month" value="{{ month }}">
+        <label for="new-cat" style="position:absolute;left:-9999px">Categoría</label>
+        <select id="new-cat" name="category" required style="min-width:180px"><option value="">Categoría…</option>{% for c in sin_limite %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
+        <label for="new-amount" style="position:absolute;left:-9999px">Límite mensual en euros</label>
+        <input id="new-amount" type="number" name="amount" placeholder="€ al mes" min="5" step="5" required style="width:110px">
+        <button class="btn primary" type="submit">Añadir</button>
+      </form>
+    </div>
+    {% endif %}
+    <div class="card">
+      <h2 style="margin-bottom:4px">{{ 'Regenerar propuesta' if has_config else 'Proponer presupuesto' }}</h2>
+      <div class="concept" style="margin-bottom:12px">Mediana del gasto en los últimos meses completos, con recorte en las categorías variables.{% if has_config %} Sustituye todos los límites actuales.{% endif %}</div>
+      <form method="post" action="/budgets/propose" class="kv">
+        <label for="months">Meses de histórico</label><input id="months" type="number" name="months" value="6" min="2" max="24" style="width:96px">
+        <label for="cut">Recorte en variables (%)</label><input id="cut" type="number" name="cut" value="10" min="0" max="50" step="5" style="width:96px">
+        <span></span><button class="btn {{ '' if has_config else 'primary' }}" type="submit" {% if has_config %}onclick="return confirm('Sustituye todos los límites actuales por la propuesta. ¿Seguir?')"{% endif %}>{{ 'Calcular y sustituir' if has_config else 'Calcular y guardar' }}</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="plan-part" id="metas">
+  <h2 style="margin-bottom:4px">Metas y «qué pasaría si»</h2>
+  <div class="subtitle" style="margin-bottom:var(--s3)">{% if base %}Con tu mes medio de los {{ base.months|length }} últimos meses completos ({{ base.months[0]|mes }} a {{ base.months[-1]|mes }}).{% else %}Hace falta al menos un mes completo de movimientos.{% endif %}</div>
+</div>
+
+{% if base %}
+<div class="grid kpis section">
+  <div class="card kpi"><div class="label">Ahorras al mes</div><div class="value {{ 'pos' if base.net >= 0 else 'neg' }}">{{ base.net|eur }}</div><div class="hint">ingresos menos gastos, de media</div></div>
+  <div class="card kpi"><div class="label">Entra al mes</div><div class="value">{{ base.income|eur }}</div><div class="hint">ingresos medios</div></div>
+  <div class="card kpi"><div class="label">Sale al mes</div><div class="value">{{ base.expenses|eur }}</div><div class="hint">{{ (base.recurring|sum(attribute='monthly'))|eur }} en recurrentes</div></div>
+</div>
+{% endif %}
+
+{% if goal_error %}<div class="notice warn section">{{ goal_error }}</div>{% endif %}
+
+<div class="card section">
+  <h3 style="margin-top:0">Tus metas</h3>
+  <div class="concept" style="margin-bottom:16px">Cuánto quieres juntar, cuánto llevas ya apartado y, si quieres, para cuándo.</div>
+  {% for g, pl in goals %}
+  <div class="goal">
+    <div class="goal-head">
+      <strong class="goal-name">{{ g.name }}</strong>
+      <span>{{ g.saved|eur }} de {{ g.target|eur }}{% if g.deadline %} · para {{ g.deadline|mes }}{% endif %}</span>
+    </div>
+    <div class="bar"><span style="width:{{ g.pct }}%"></span></div>
+    <p class="goal-plan">
+      {% if g.missing <= 0 %}<strong class="pos">Conseguida.</strong>
+      {% elif pl.months_to_goal is none %}Con lo que ahorras ahora no llegas: de media sale más de lo que entra. Prueba abajo qué recortar.
+      {% else %}A tu ritmo llegas en <strong>{{ pl.eta|mes }}</strong> ({{ pl.months_to_goal }} {{ 'mes' if pl.months_to_goal == 1 else 'meses' }}).
+        {% if g.deadline %}{% if pl.on_track %}<span class="pos">Llegas a tiempo.</span>{% else %}Para llegar en {{ g.deadline|mes }} hacen falta <strong>{{ pl.needed|eur }} al mes</strong>, {{ (pl.needed - base_net)|eur }} más de lo que ahorras.{% endif %}{% endif %}
+      {% endif %}
+    </p>
+    <div class="actions">
+      <form hx-boost="false" method="post" action="/goals/{{ g.id }}/saved" class="actions">
+        <label for="saved-{{ g.id }}" class="concept">Llevo apartado</label>
+        <input id="saved-{{ g.id }}" type="number" name="saved" value="{{ '%.0f'|format(g.saved) }}" min="0" step="1" style="width:120px">
+        <button class="btn ghost" type="submit" {% if snapshot %}disabled{% endif %}>Actualizar</button>
+      </form>
+      <form hx-boost="false" method="post" action="/goals/{{ g.id }}/delete">
+        <button class="btn ghost" type="submit" style="color:var(--ink-3)" {% if snapshot %}disabled{% endif %}>Quitar meta</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <p class="muted" style="margin-bottom:16px">Todavía no tienes metas.</p>
+  {% endfor %}
+  <h3 style="margin:24px 0 8px">Nueva meta</h3>
+  <form hx-boost="false" method="post" action="/goals" class="actions">
+    <label for="g-name" style="position:absolute;left:-9999px">Nombre</label>
+    <input id="g-name" type="text" name="name" required maxlength="60" placeholder="p. ej. Viaje de verano">
+    <label for="g-target" class="concept">Quiero juntar</label>
+    <input id="g-target" type="number" name="target" required min="1" step="1" style="width:120px" placeholder="3000">
+    <label for="g-saved" class="concept">ya tengo</label>
+    <input id="g-saved" type="number" name="saved" min="0" step="1" value="0" style="width:110px">
+    <label for="g-deadline" class="concept">para</label>
+    <input id="g-deadline" type="month" name="deadline" min="{{ this_month }}">
+    <button class="btn primary" type="submit" {% if snapshot %}disabled{% endif %}>Añadir meta</button>
+  </form>
+</div>
+
+{% if base %}
+<div class="card section" id="simulador">
+  <h3 style="margin-top:0">¿Qué pasaría si…?</h3>
+  <div class="concept" style="margin-bottom:16px">Recorta la parte variable de una categoría o da de baja un recurrente y mira cuánto ahorrarías y cuándo llegarías a tus metas. No cambia nada: es solo una cuenta.</div>
+  <div class="grid two">
+    <div>
+      <h3 style="margin-bottom:8px">Recortar</h3>
+      <table>
+        <tr><th>Categoría</th><th class="num">Variable al mes</th><th class="num" style="width:120px">Recorte</th></tr>
+        {% for c in cut_categories %}
+        <tr>
+          <td>{{ c.category }}</td>
+          <td class="num">{{ c.variable|eur }}</td>
+          <td class="num"><label for="cut-{{ loop.index }}" style="position:absolute;left:-9999px">Recorte de {{ c.category }}</label>
+            <select id="cut-{{ loop.index }}" class="sim-cut" data-amount="{{ '%.2f'|format(c.variable) }}">
+              {% for p in [0, 10, 20, 30, 50] %}<option value="{{ p }}">{{ p }} %</option>{% endfor %}
+            </select></td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div>
+      <h3 style="margin-bottom:8px">Dar de baja</h3>
+      {% for r in base.recurring[:10] %}
+      <label class="sim-rec"><input type="checkbox" class="sim-drop" data-amount="{{ '%.2f'|format(r.monthly) }}"> {{ r.key }} <span class="muted">· {{ r.monthly|eur(2) }} al mes</span></label>
+      {% else %}
+      <p class="muted">No hay recurrentes activos.</p>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="sim-result" aria-live="polite">
+    <div><div class="label">Ahorrarías al mes</div><div class="value" id="sim-net">{{ base.net|eur }}</div><div class="hint" id="sim-delta">como ahora</div></div>
+    <div id="sim-goals" class="concept"></div>
+  </div>
+</div>
+<script id="sim-data" type="application/json">{{ sim|tojson }}</script>
+<script src="/static/goals.js"></script>
+{% endif %}
+{% endblock %}

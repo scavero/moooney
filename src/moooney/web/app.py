@@ -195,16 +195,19 @@ SECTIONS: list[tuple[str, str, list[tuple[str, str]]]] = [
     ("Tendencias", "/trends", []),
     ("Movimientos", "/transactions", []),
     ("Pregunta", "/chat", [("Asistente", "/chat"), ("Informe mensual", "/report")]),
-    ("Plan", "/budgets", [("Presupuestos", "/budgets"), ("Metas", "/goals")]),
+    ("Plan", "/budgets", []),  # presupuestos y metas, en una página; /goals redirige aquí
     ("Avisos", "/alerts", [("Alertas", "/alerts"), ("Recurrentes", "/recurring")]),
     ("Datos", "/pipeline", [("Importar", "/pipeline"), ("Comercios", "/merchants"), ("Ajustes", "/settings")]),
 ]
+
+# Direcciones que pertenecen a una sección sin ser una pestaña suya.
+EXTRA_PATHS = {"Plan": ["/goals"]}
 
 
 def section_of(path: str) -> tuple[str, list[tuple[str, str]]]:
     """Sección a la que pertenece una ruta y sus pestañas (vacías si la sección es una sola página)."""
     for name, href, tabs in SECTIONS:
-        for target in [href, *(h for _, h in tabs)]:
+        for target in [href, *(h for _, h in tabs), *(EXTRA_PATHS.get(name, []))]:
             if path == target or (target != "/" and path.startswith(target)):
                 return name, tabs
     return "Resumen", []
@@ -684,8 +687,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
 
     # ---------- metas ----------
 
-    @app.get("/goals", response_class=HTMLResponse)
-    def goals_page(request: Request, conn: DB):
+    def goals_context(request: Request, conn: sqlite3.Connection) -> dict:
+        """Metas y simulador, la segunda mitad de la página Plan."""
         service.refresh_recurring(conn)
         base = goals_mod.baseline(conn)
         today = date.today().isoformat()
@@ -695,11 +698,15 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         sim = {"net": round(net, 2), "month": today[:7],
                "goals": [{"name": g.name, "missing": round(g.missing, 2)} for g in goals]}
         cut = [c for c in (base.categories[:8] if base else []) if c.variable >= 5]
-        return render(request, conn, "goals.html", base=base, base_net=net, goals=planned, sim=sim,
-                      cut_categories=cut, this_month=today[:7], goal_error=request.query_params.get("error", ""))
+        return dict(base=base, base_net=net, goals=planned, sim=sim, cut_categories=cut, this_month=today[:7],
+                    goal_error=request.query_params.get("error", ""))
+
+    @app.get("/goals")
+    def goals_page():
+        return RedirectResponse("/budgets#metas", status_code=303)
 
     def _goal_error(e: ValueError) -> RedirectResponse:
-        return RedirectResponse(f"/goals?error={quote(str(e).capitalize() + '.')}", status_code=303)
+        return RedirectResponse(f"/budgets?error={quote(str(e).capitalize() + '.')}#metas", status_code=303)
 
     @app.post("/goals")
     def goal_add(conn: DB, name: Annotated[str, Form()], target: Annotated[float, Form()],
@@ -708,7 +715,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             goals_mod.add_goal(conn, name, target, saved, deadline or None)
         except ValueError as e:
             return _goal_error(e)
-        return RedirectResponse("/goals", status_code=303)
+        return RedirectResponse("/budgets#metas", status_code=303)
 
     @app.post("/goals/{goal_id}/saved")
     def goal_saved(conn: DB, goal_id: int, saved: Annotated[float, Form()]):
@@ -716,12 +723,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             goals_mod.set_saved(conn, goal_id, saved)
         except ValueError as e:
             return _goal_error(e)
-        return RedirectResponse("/goals", status_code=303)
+        return RedirectResponse("/budgets#metas", status_code=303)
 
     @app.post("/goals/{goal_id}/delete")
     def goal_delete(conn: DB, goal_id: int):
         goals_mod.delete_goal(conn, goal_id)
-        return RedirectResponse("/goals", status_code=303)
+        return RedirectResponse("/budgets#metas", status_code=303)
 
     # ---------- gastos compartidos ----------
 
@@ -811,7 +818,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         as_of = periods.as_of_date(conn)
         current = as_of is not None and periods.month_of(as_of) == m
         return render(
-            request, conn, "budgets.html", month=m, **month_nav(conn, m), rows=rows, has_config=bool(limits_cfg),
+            request, conn, "plan.html", month=m, **goals_context(request, conn), **month_nav(conn, m), rows=rows, has_config=bool(limits_cfg),
             sin_limite=sin_limite, total_limit=sum(r.limit for r in rows),
             total_spent=sum(r.spent for r in rows),
             total_projected=sum((r.projected if r.projected is not None else r.spent) for r in rows),
