@@ -51,6 +51,15 @@ def test_paginas_principales_responden(client):
     assert r.status_code == 200 and "MERCADONA" in r.text
 
 
+def test_navegacion_movil(client):
+    """Barra inferior con cuatro accesos y «Más», que controla el menú completo y se marca fuera de ellos."""
+    r = client.get("/")
+    assert 'class="tabbar"' in r.text and 'aria-controls="side-nav"' in r.text and "viewport-fit=cover" in r.text
+    assert 'id="more-btn" class=""' in r.text
+    assert 'id="more-btn" class="active"' in client.get("/budgets").text
+    assert 'id="more-btn" class=""' in client.get("/transactions").text
+
+
 def test_correccion_de_categoria_aplica_a_movimientos(client):
     r = client.post("/merchants/TIENDA RARA XYZ/category", data={"category": "Compras", "flow_type": ""})
     assert r.status_code == 200

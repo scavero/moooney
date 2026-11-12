@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}moooney{% endblock %} · moooney</title>
   <script>
     // Tema antes de pintar, para que no parpadee: preferencia guardada (auto, claro, oscuro) o la del sistema.
@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=28">
+  <link rel="stylesheet" href="/static/app.css?v=33">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script>window.go = function (url) { window.location = url; };</script>
@@ -77,6 +77,22 @@
       <button type="button" id="theme-toggle" class="theme-toggle" onclick="cycleTheme()"><span aria-hidden="true">◐</span> <span class="tt-label">Tema automático</span></button>
     </div>
   </aside>
+  {# Móvil: cuatro accesos fijos abajo y «Más», que abre el menú completo (el mismo #side-nav). #}
+  {% set tab_paths = ['/trends', '/transactions', '/chat'] %}
+  {% set in_tabs = namespace(v = path == '/') %}
+  {% for p in tab_paths %}{% if path.startswith(p) %}{% set in_tabs.v = true %}{% endif %}{% endfor %}
+  <nav class="tabbar" aria-label="Accesos principales">
+    <a href="/" class="{{ 'active' if path == '/' else '' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Resumen</a>
+    <a href="/trends" class="{{ 'active' if path.startswith('/trends') else '' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-6 4 3 7-9"/><path d="M4 21h16"/></svg>Tendencias</a>
+    <a href="/transactions" class="{{ 'active' if path.startswith('/transactions') else '' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Movimientos</a>
+    <a href="/chat" class="{{ 'active' if path.startswith('/chat') else '' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H10l-5 4v-4H4z"/></svg>Pregunta</a>
+    <button type="button" id="more-btn" class="{{ '' if in_tabs.v else 'active' }}" aria-expanded="false" aria-controls="side-nav" onclick="toggleNav()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Más{% if merchants_counts.dudosas or alerts_counts.total %}<span class="dot" title="hay comercios o alertas por revisar"></span>{% endif %}</button>
+  </nav>
   <main class="content">
     {% if snapshot %}
     <div class="demo-bar"><span><strong>Demo de solo lectura</strong> · 14 meses inventados · los cambios no se guardan</span><a href="https://github.com/scavero/moooney">Úsalo con tus datos →</a></div>
@@ -92,6 +108,18 @@
 <script>
   window.addEventListener('DOMContentLoaded', () => window.applyTheme());  // etiqueta del botón y gráficos
   document.body.addEventListener('htmx:afterSettle', () => { window.applyTheme(); window.syncJobButtons(); });
+  // Menú del móvil: «Más» lo abre; se cierra al elegir, al tocar fuera, con Escape o al cambiar de página.
+  window.toggleNav = function (open) {
+    const root = document.documentElement, on = open === undefined ? !root.classList.contains('nav-open') : open;
+    root.classList.toggle('nav-open', on);
+    const b = document.getElementById('more-btn'); if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
+  };
+  document.addEventListener('click', (e) => {
+    if (!document.documentElement.classList.contains('nav-open') || e.target.closest('#more-btn')) return;
+    if (e.target.closest('#side-nav a') || !e.target.closest('#side-nav')) window.toggleNav(false);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.toggleNav(false); });
+  document.body.addEventListener('htmx:beforeSwap', (e) => { if (e.detail.target === document.body) window.toggleNav(false); });
   // Botones que lanzan trabajos: desactivados mientras uno corre, para que no choquen.
   window.syncJobButtons = function () {
     const running = !!document.querySelector('.job[data-job-status="running"], #job-ind .pill.run');
