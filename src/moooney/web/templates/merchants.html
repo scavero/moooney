@@ -64,7 +64,7 @@
 <div class="notice ok"><strong>Sin dudosas.</strong> Todas las claves tienen confianza ≥ 0,7 o están corregidas por ti.</div>
 {% endif %}
 {% if tail_n and queue_mode != 'all' %}
-<div class="notice" style="margin-top:-16px">{{ 'Quedan' if queue_total == 0 else 'Fuera de la cola:' }} <strong>{{ tail_n }} claves pequeñas</strong> (un solo movimiento y menos de 30 €) que suman {{ tail_total|eur }} en total. No merecen revisión una a una; si quieres, <a href="/merchants?mode={{ mode }}&queue=all">inclúyelas en la cola</a>. Para bajar las dudosas sin revisar a mano: <a href="/pipeline">Pipeline → Reintentar dudosas / Segunda opinión</a>.</div>
+<div class="notice" style="margin-top:-16px">{{ 'Quedan' if queue_total == 0 else 'Fuera de la cola:' }} <strong>{{ tail_n }} claves pequeñas</strong> (un solo movimiento y menos de 30 €) que suman {{ tail_total|eur }} en total. No merecen revisión una a una; si quieres, <a href="/merchants?mode={{ mode }}&queue=all">inclúyelas en la cola</a>. Para bajar las dudosas sin revisar a mano: <a href="/pipeline">Importar → Reintentar dudosas / Segunda opinión</a>.</div>
 {% endif %}
 
 <details class="all-keys" {% if open_table %}open{% endif %}>

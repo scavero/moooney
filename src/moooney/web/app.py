@@ -1026,7 +1026,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     @app.get("/pipeline/jobs/current", response_class=HTMLResponse)
     def job_indicator(request: Request, was: str | None = None):
         """Indicador de la barra lateral: se ve en todas las páginas mientras hay un trabajo. Si
-        termina mientras miras otra página, avisa con un toast que lleva a Pipeline."""
+        termina mientras miras otra página, avisa con un toast que lleva a Importar."""
         job = state.jobs.latest()
         resp = templates.TemplateResponse(request, "partials/job_indicator.html", {"request": request, "job": job})
         on_pipeline = "/pipeline" in request.headers.get("HX-Current-URL", "")

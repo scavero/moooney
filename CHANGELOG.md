@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.8.1 · 2026-11-12
+
+- La página *Pipeline* pasa a llamarse *Importar*, como su pestaña en *Datos*. La dirección `/pipeline` no cambia.
+
 ## 1.8.0 · 2026-11-12
 
 - **Periodos**: el Resumen ya no es solo mensual. Un selector *Mes · Trimestre · Año · Rango* enseña

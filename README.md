@@ -36,7 +36,7 @@ No hace falta ningún modelo para probarla. Si prefieres Docker, mira la secció
 ## Con tus datos
 
 1. **Exporta** los movimientos de tu cuenta a Excel desde la web del banco. Luego súbelos en la página
-   *Pipeline* (arrastrar o elegir) o déjalos en `data/excel/`:
+   *Importar* (arrastrar o elegir) o déjalos en `data/excel/`:
    - **Santander**: Cuentas → Movimientos → filtro de fechas amplio → Descargar → Excel.
    - **BBVA**: Cuentas → Movimientos → Exportar → Excel («Últimos movimientos»).
    - **Tarjeta de crédito del Santander**: sus movimientos en Excel («Fecha operación», «Concepto»,
@@ -50,7 +50,7 @@ No hace falta ningún modelo para probarla. Si prefieres Docker, mira la secció
 3. **Reglas propias (opcional)**: copia `config/rules.local.example.yaml` a `config/rules.local.yaml` y añade
    los comercios de tu zona o los servicios que pagas. Ese fichero no entra en git y manda sobre las reglas
    generales.
-4. **Arranca** la web y usa la página *Pipeline*:
+4. **Arranca** la web y usa la página *Importar*:
 
 ```powershell
 uv run moooney web
@@ -60,7 +60,7 @@ uv run moooney web
    *Comercios*) → Presupuestos → Alertas → Informe. Cada paso tiene su botón, su registro en pantalla y su
    equivalente en la CLI; la página muestra de un vistazo qué paso pide acción.
 
-5. **Cada mes**: exporta el mes nuevo y súbelo en *Pipeline*: se importa y categoriza al momento. También
+5. **Cada mes**: exporta el mes nuevo y súbelo en *Importar*: se importa y categoriza al momento. También
    puedes dejarlo en `data/excel/` y pulsar *Importar*. Nada se duplica. Si prefieres
    olvidarte, `uv run moooney watch` vigila la carpeta y corre la pipeline sola (o una tarea programada, más abajo).
 
@@ -115,7 +115,7 @@ La web tiene siete secciones; las páginas que comparten sección son pestañas 
   movimientos o 30 € o más) aparece como titular con su evidencia (los últimos movimientos, la categoría actual
   con su confianza y lo que dice la web), tres sugerencias con tecla (1-3), Enter para confirmar y S para
   saltar. Una corrección se aplica a todos los movimientos del comercio para siempre. La tabla completa de
-  claves, con fuente, confianza y filtros, queda plegada debajo. Antes de revisar a mano, *Pipeline* ofrece
+  claves, con fuente, confianza y filtros, queda plegada debajo. Antes de revisar a mano, *Importar* ofrece
   **Reintentar dudosas** (el decider vuelve a preguntar con el tipo de operación y el resumen web) y
   **Segunda opinión** (el modelo de texto revisa por lotes y solo sustituye si está seguro). En **Tus reglas**
   creas una regla sin tocar YAML («empieza por» / «contiene» → categoría), con vista previa de a qué afecta.
@@ -133,7 +133,7 @@ La web tiene siete secciones; las páginas que comparten sección son pestañas 
 - **Pregunta**: un asistente al que preguntas por tus gastos o pides consejo. Las cifras salen de
   consultas deterministas sobre tus totales (nunca movimientos sueltos) y el modelo de texto las
   redacta; cada respuesta dice qué ha consultado.
-- **Importar** (la página *Pipeline*): todos los pasos con un botón, vista previa y activación del enriquecimiento, auditoría de
+- **Importar**: todos los pasos con un botón, vista previa y activación del enriquecimiento, auditoría de
   lo que ha salido a modelos e Internet, historial de importaciones y trabajos.
 - **Ajustes**: la clave del proxy (y la de Google Places, opcional) sin tocar ficheros, con prueba de
   conexión, y el interruptor de modo offline. Las claves nunca se muestran enteras.
@@ -171,7 +171,7 @@ Diagramas en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md); diseño y decisiones 
   La clave guardada desde *Ajustes* vive en `data/.env`, con permisos solo del usuario en Linux.
 - A los modelos van claves de comercio limpias (sin IBAN, saldos, nombres de personas ni referencias) o
   agregados mensuales. Una barrera (`llm/anonymize.py`) rechaza cualquier texto con forma de IBAN, tarjeta o
-  referencia larga antes de enviarlo. Todo queda en `llm_calls` y `web_calls`, visibles en *Pipeline*.
+  referencia larga antes de enviarlo. Todo queda en `llm_calls` y `web_calls`, visibles en *Importar*.
 - La web solo escucha en `127.0.0.1` y no tiene cuentas: es para tu máquina.
 - `MOOONEY_OFFLINE=1` bloquea toda llamada a modelos y a Internet; todo lo demás sigue funcionando.
 - Las librerías y las fuentes de la web (htmx, Chart.js, Fraunces, Work Sans) se sirven desde el propio repo:

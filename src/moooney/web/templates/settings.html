@@ -46,7 +46,7 @@
     </form>
 
     <h2 style="margin:32px 0 4px">Google Places <span class="concept" style="font-size:14px">opcional</span></h2>
-    <div class="concept" style="margin-bottom:12px">Solo para el enriquecimiento web, si lo activas en Pipeline con Google como proveedor.</div>
+    <div class="concept" style="margin-bottom:12px">Solo para el enriquecimiento web, si lo activas en Importar con Google como proveedor.</div>
     {% set g = keys.GOOGLE_PLACES_API_KEY %}
     <dl class="kv" style="margin-bottom:12px">
       <dt>Estado</dt><dd>{% if g.set %}<span class="tag ok">configurada</span> <span class="muted">{{ g.hint }} · {{ g.source_label }}</span>{% else %}<span class="tag info">sin configurar</span>{% endif %}</dd>

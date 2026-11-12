@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Pipeline{% endblock %}
+{% block title %}Importar{% endblock %}
 {% block content %}
 <div class="topbar" id="pipeline-head">
-  <div><h1>Pipeline</h1><div class="subtitle">{{ status.transactions }} movimientos, del <strong title="{{ status.date_min }}">{{ status.date_min|fecha }} {{ (status.date_min or '')[:4] }}</strong> al <strong title="{{ status.date_max }}">{{ status.date_max|fecha }} {{ (status.date_max or '')[:4] }}</strong>. {{ status.uncategorized }} sin categoría, {{ status.imports }} importaciones.</div></div>
+  <div><h1>Importar</h1><div class="subtitle">{{ status.transactions }} movimientos, del <strong title="{{ status.date_min }}">{{ status.date_min|fecha }} {{ (status.date_min or '')[:4] }}</strong> al <strong title="{{ status.date_max }}">{{ status.date_max|fecha }} {{ (status.date_max or '')[:4] }}</strong>. {{ status.uncategorized }} sin categoría, {{ status.imports }} importaciones.</div></div>
 </div>
 
 {% if offline %}<div class="notice warn">Modo offline: no se llama a ningún modelo ni proveedor externo. <a href="/settings">Cambiarlo en Ajustes →</a></div>{% endif %}
