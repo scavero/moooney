@@ -1,0 +1,37 @@
+{# Gasto compartido de un movimiento, dentro del desplegable «···» de Movimientos.
+   Recibe `t` (el movimiento) y `sh` (shared_context() en app.py). `next_url` devuelve a la misma lista. #}
+{% set off = 'disabled' if snapshot else '' %}
+{% if t.id in sh.link_of %}
+  {% set l = sh.link_of[t.id] %}
+  Es la parte que te devolvieron de <a href="/transactions?key={{ l.expense_key|urlencode }}"><strong>{{ l.expense_key }}</strong></a>
+  (<span title="{{ l.expense_date }}">{{ l.expense_date|fecha }}</span>, {{ (-l.expense_amount)|eur(2) }}): resta de ese gasto y no cuenta como ingreso.
+  <form method="post" action="/shared/unlink" style="display:inline">
+    <input type="hidden" name="income_id" value="{{ t.id }}"><input type="hidden" name="next" value="{{ next_url }}">
+    <button class="btn ghost small" type="submit" {{ off }}>Deshacer</button>
+  </form>
+{% elif t.id in sh.refunds_of %}
+  {% set r = sh.refunds_of[t.id] %}
+  Te devolvieron <strong class="pos">{{ r.total|eur(2) }}</strong>; pusiste de verdad <strong>{{ r.net|eur(2) }}</strong>.
+  <div class="actions" style="margin-top:6px">
+    {% for l in r.rows %}
+    <form method="post" action="/shared/unlink" style="display:inline">
+      <input type="hidden" name="income_id" value="{{ l.income_id }}"><input type="hidden" name="next" value="{{ next_url }}">
+      <button class="btn ghost small" type="submit" {{ off }} title="deshacer: vuelve a contar como ingreso">{{ l.income_key }} · {{ l.income_date|fecha }} · +{{ l.income_amount|eur(2) }} ×</button>
+    </form>
+    {% endfor %}
+  </div>
+{% elif t.id in sh.suggest_of %}
+  ¿Es la parte que te devuelve alguien de un gasto que pagaste tú? Si lo es, el gasto cuenta neto y esto deja de ser un ingreso.
+  <div class="actions" style="margin-top:6px">
+    {% for c in sh.suggest_of[t.id].candidates %}
+    <form method="post" action="/shared/link" style="display:inline">
+      <input type="hidden" name="income_id" value="{{ t.id }}"><input type="hidden" name="expense_id" value="{{ c.expense.id }}"><input type="hidden" name="next" value="{{ next_url }}">
+      <button class="btn ghost small" type="submit" {{ off }} title="{{ c.expense.category or 'sin categoría' }}">Es de {{ c.expense.concept_clean }} · {{ c.expense.date|fecha }} · {{ (-c.expense.amount)|eur(2) }}{% if c.parts %} · entre {{ c.parts }}{% endif %}</button>
+    </form>
+    {% endfor %}
+    <form method="post" action="/shared/dismiss" style="display:inline">
+      <input type="hidden" name="income_id" value="{{ t.id }}"><input type="hidden" name="next" value="{{ next_url }}">
+      <button class="btn ghost small" type="submit" style="color:var(--ink-3)" {{ off }}>No es una devolución</button>
+    </form>
+  </div>
+{% endif %}

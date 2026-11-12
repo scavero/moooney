@@ -193,7 +193,7 @@ def period_url(p: Period, path: str = "/") -> str:
 SECTIONS: list[tuple[str, str, list[tuple[str, str]]]] = [
     ("Resumen", "/", []),
     ("Tendencias", "/trends", []),
-    ("Movimientos", "/transactions", [("Todos", "/transactions"), ("Compartidos", "/shared")]),
+    ("Movimientos", "/transactions", []),
     ("Pregunta", "/chat", [("Asistente", "/chat"), ("Informe mensual", "/report")]),
     ("Plan", "/budgets", [("Presupuestos", "/budgets"), ("Metas", "/goals")]),
     ("Avisos", "/alerts", [("Alertas", "/alerts"), ("Recurrentes", "/recurring")]),
@@ -468,13 +468,38 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     def tx_dates(p: Period | None) -> tuple[str, str] | None:
         return (p.start, p.end) if p and p.kind != "month" else None
 
+    def shared_context(conn: sqlite3.Connection) -> dict:
+        """Gastos compartidos para pintarlos en Movimientos: de qué gasto es cada devolución emparejada,
+        qué devoluciones tiene cada gasto y qué ingresos podrían ser la parte de alguien."""
+        links = shared_mod.linked(conn)
+        refunds: dict[int, dict] = {}
+        for r in links:
+            g = refunds.setdefault(r["expense_id"], {"rows": [], "total": 0.0, "net": -float(r["expense_amount"])})
+            g["rows"].append(r)
+            g["total"] += float(r["income_amount"])
+            g["net"] -= float(r["income_amount"])
+        return {"link_of": {r["income_id"]: r for r in links}, "refunds_of": refunds,
+                "suggest_of": {s.income["id"]: s for s in shared_mod.suggestions(conn)}}
+
+    def shared_ids(sh: dict, shared: str | None) -> list[int] | None:
+        """Filtro «Compartidos» de Movimientos: `1` los ya emparejados, `review` los que faltan por mirar."""
+        if shared == "review":
+            return list(sh["suggest_of"])
+        if shared == "1":
+            return [*sh["link_of"], *sh["refunds_of"]]
+        return None
+
     @app.get("/transactions", response_class=HTMLResponse)
     def transactions(request: Request, conn: DB, month: str | None = None, category: str | None = None,
                      flow: str | None = None, key: str | None = None, q: str | None = None,
                      account: str | None = None, tag: str | None = None, page: int = 1,
-                     period: str | None = None, start: str | None = None, end: str | None = None):
+                     period: str | None = None, start: str | None = None, end: str | None = None,
+                     shared: str | None = None):
         p = tx_period(period, month, start, end)
+        sh = shared_context(conn)
+        shared = shared if shared in ("1", "review") else ""
         filters = {"month": p.key if p and p.kind == "month" else None, "dates": tx_dates(p),
+                   "only_ids": shared_ids(sh, shared),
                    "category": category or None, "flow": flow or None,
                    "key": key or None, "q": q or None, "account": account or None, "tag": tag or None}
         pg = queries.transactions_page(conn, page=page, **filters)
@@ -486,6 +511,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             end=(end or "") if not p or p.kind == "range" else "",
             quarters=list(dict.fromkeys(periods.period_containing("quarter", f"{m}-01").key for m in months)),
             years=list(dict.fromkeys(m[:4] for m in months)),
+            sh=sh, shared=shared, next_url=str(request.url.path) + ("?" + request.url.query if request.url.query else ""),
             flow=flow or "", key=key or "", q=q or "", account=account or "", tag=tag or "",
             totals=queries.transactions_totals(conn, **filters), taxonomy=taxonomy(),
             accounts=repo.accounts(conn), tags=repo.tags_summary(conn),
@@ -515,11 +541,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     def transactions_export(conn: DB, month: str | None = None, category: str | None = None,
                             flow: str | None = None, key: str | None = None, q: str | None = None,
                             account: str | None = None, tag: str | None = None, period: str | None = None,
-                            start: str | None = None, end: str | None = None):
+                            start: str | None = None, end: str | None = None, shared: str | None = None):
         """CSV de los movimientos del filtro actual (separador ;, UTF-8 con BOM para Excel)."""
         p = tx_period(period, month, start, end)
         texto, _n = transactions_csv(
             conn, month=p.key if p and p.kind == "month" else None, dates=tx_dates(p),
+            only_ids=shared_ids(shared_context(conn), shared),
             category=category or None, flow=flow or None,
             key=key or None, q=q or None, account=account or None, tag=tag or None,
         )
@@ -698,31 +725,38 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
 
     # ---------- gastos compartidos ----------
 
-    @app.get("/shared", response_class=HTMLResponse)
-    def shared_page(request: Request, conn: DB):
-        links = shared_mod.linked(conn)
-        recovered = sum(float(r["income_amount"]) for r in links)
-        paid = {r["expense_id"]: -float(r["expense_amount"]) for r in links}
-        return render(request, conn, "shared.html", suggestions=shared_mod.suggestions(conn), links=links,
-                      recovered=recovered, net=sum(paid.values()) - recovered)
+    # Los gastos compartidos viven en Movimientos (decisión 2026-11-12): cada movimiento enseña en su
+    # desplegable de qué gasto es devolución, o qué le han devuelto, y desde ahí se empareja o se deshace.
+
+    def shared_back(conn: sqlite3.Connection, nxt: str = "") -> RedirectResponse:
+        """Vuelve a la lista desde la que se pulsó (solo direcciones de Movimientos)."""
+        if not nxt.startswith("/transactions"):
+            nxt = "/transactions?shared=" + ("review" if shared_mod.suggestions(conn, limit=1) else "1")
+        return RedirectResponse(nxt, status_code=303)
+
+    @app.get("/shared")
+    def shared_page(conn: DB):
+        """Dirección de la antigua página «Compartidos»."""
+        return shared_back(conn)
 
     @app.post("/shared/link")
-    def shared_link(conn: DB, income_id: Annotated[int, Form()], expense_id: Annotated[int, Form()]):
+    def shared_link(conn: DB, income_id: Annotated[int, Form()], expense_id: Annotated[int, Form()],
+                    next: Annotated[str, Form()] = ""):  # noqa: A002  (nombre del campo del formulario)
         try:
             shared_mod.link(conn, income_id, expense_id)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
-        return RedirectResponse("/shared", status_code=303)
+        return shared_back(conn, next)
 
     @app.post("/shared/unlink")
-    def shared_unlink(conn: DB, income_id: Annotated[int, Form()]):
+    def shared_unlink(conn: DB, income_id: Annotated[int, Form()], next: Annotated[str, Form()] = ""):  # noqa: A002
         shared_mod.unlink(conn, income_id)
-        return RedirectResponse("/shared", status_code=303)
+        return shared_back(conn, next)
 
     @app.post("/shared/dismiss")
-    def shared_dismiss(conn: DB, income_id: Annotated[int, Form()]):
+    def shared_dismiss(conn: DB, income_id: Annotated[int, Form()], next: Annotated[str, Form()] = ""):  # noqa: A002
         shared_mod.dismiss(conn, income_id)
-        return RedirectResponse("/shared", status_code=303)
+        return shared_back(conn, next)
 
     # ---------- recurrentes ----------
 

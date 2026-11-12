@@ -135,7 +135,8 @@ def test_siete_secciones_con_pestanas(client):
     home = client.get("/").text
     nav = home[home.index('<nav id="side-nav">'):home.index("</nav>")]
     assert nav.count("<a href=") == 7 and 'class="section-tabs"' not in home
-    for path, seccion, pestana in [("/shared", "Movimientos", "Compartidos"), ("/report", "Pregunta", "Informe mensual"),
+    assert 'class="section-tabs"' not in client.get("/transactions").text
+    for path, seccion, pestana in [("/report", "Pregunta", "Informe mensual"),
                                    ("/goals", "Plan", "Metas"), ("/recurring", "Avisos", "Recurrentes"),
                                    ("/merchants", "Datos", "Comercios"), ("/settings", "Datos", "Ajustes")]:
         t = client.get(path).text

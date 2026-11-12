@@ -26,10 +26,11 @@ def transactions_csv(
     conn: sqlite3.Connection, *, month: str | None = None, category: str | None = None,
     flow: str | None = None, key: str | None = None, q: str | None = None,
     account: str | None = None, tag: str | None = None, dates: tuple[str, str] | None = None,
+    only_ids: list[int] | None = None,
 ) -> tuple[str, int]:
     """Devuelve (texto CSV, número de filas) de los movimientos que cumplen el filtro."""
     rows = transactions_all(conn, month=month, category=category, flow=flow, key=key, q=q,
-                            account=account, tag=tag, dates=dates)
+                            account=account, tag=tag, dates=dates, only_ids=only_ids)
     etiquetas = repo.tags_for(conn, [int(t["id"]) for t in rows])
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";", lineterminator="\n")

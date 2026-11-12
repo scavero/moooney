@@ -30,7 +30,7 @@ HERE = Path(__file__).resolve().parent
 
 # Solo lo que está en git: nada de rules.local.yaml ni budgets.yaml del usuario.
 CONFIG_FILES = ("settings.yaml", "categories.yaml", "rules.yaml", "llm.yaml", "enrichment.yaml")
-SEED_PATHS = ("/", "/trends", "/transactions", "/merchants", "/recurring", "/shared", "/budgets", "/goals", "/chat", "/alerts",
+SEED_PATHS = ("/", "/trends", "/transactions", "/merchants", "/recurring", "/budgets", "/goals", "/chat", "/alerts",
               "/report", "/pipeline", "/settings")
 PAGE_NAMES = {"/": "index.html"} | {p: p.strip("/") + ".html" for p in SEED_PATHS if p != "/"}
 LINK_ATTR = re.compile(r'(href|src)="(/[^"]*)"')
@@ -135,6 +135,7 @@ def _seeds(months: list[str]) -> list[str]:
         seeds += [f"/?month={m}", f"/budgets?month={m}", f"/report?month={m}", f"/transactions?month={m}"]
         seeds += [f"/transactions?month={m}&category={c}" for c in sorted(cats)]
     seeds += [f"/trends?category={c}" for c in sorted(cats)]
+    seeds += ["/transactions?shared=1", "/transactions?shared=review"]  # el filtro es un desplegable, no un enlace
     # trimestres y años: el desplegable de periodo no es un enlace, así que se siembran aquí
     quarters = {f"{m[:4]}-Q{(int(m[5:7]) - 1) // 3 + 1}" for m in months}
     seeds += [f"/?period={k}" for k in sorted(quarters | {m[:4] for m in months})]

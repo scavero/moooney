@@ -3,9 +3,12 @@
 {% block content %}
 <div class="topbar">
   <div><h1>Movimientos</h1><div class="subtitle">{{ totals.n }} movimientos · ingresos <strong class="pos">{{ totals.income|eur }}</strong> · gastos <strong class="neg">{{ totals.expenses|eur }}</strong> · neto <strong class="{{ 'pos' if totals.net >= 0 else 'neg' }}">{{ '%+.0f'|format(totals.net) }} €</strong></div></div>
-  {% set base = '/transactions?month=' ~ month ~ '&start=' ~ start ~ '&end=' ~ end ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) ~ '&account=' ~ (account|urlencode) ~ '&tag=' ~ (tag|urlencode) %}
+  {% set base = '/transactions?month=' ~ month ~ '&start=' ~ start ~ '&end=' ~ end ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) ~ '&account=' ~ (account|urlencode) ~ '&tag=' ~ (tag|urlencode) ~ '&shared=' ~ shared %}
   <a class="btn ghost" href="{{ base|replace('/transactions?', '/transactions/export.csv?') }}" hx-boost="false" title="los {{ totals.n }} movimientos del filtro, para Excel">Exportar CSV</a>
 </div>
+{% if sh.suggest_of and shared != 'review' %}
+<div class="notice"><strong>{{ sh.suggest_of|length }} {{ 'ingreso podría' if sh.suggest_of|length == 1 else 'ingresos podrían' }}</strong> ser la parte que te devuelve alguien de un gasto que pagaste tú. <a href="/transactions?shared=review">Revisar →</a></div>
+{% endif %}
 <div class="card">
   <div class="filters">
     {# Los selects aplican al cambiar; el buscador al pulsar Enter o al salir del campo. #}
@@ -34,11 +37,16 @@
       {% if tags %}<label for="f-tag" style="position:absolute;left:-9999px">Etiqueta</label>
       <select id="f-tag" name="tag"><option value="">Todas las etiquetas</option>
         {% for g in tags %}<option value="{{ g.tag }}" {{ 'selected' if g.tag == tag else '' }}>{{ g.tag }} ({{ g.n }})</option>{% endfor %}</select>{% endif %}
+      {% if sh.link_of or sh.suggest_of %}<label for="f-shared" style="position:absolute;left:-9999px">Gastos compartidos</label>
+      <select id="f-shared" name="shared"><option value="">Compartidos o no</option>
+        <option value="1" {{ 'selected' if shared == '1' else '' }}>Compartidos ({{ sh.link_of|length + sh.refunds_of|length }})</option>
+        <option value="review" {{ 'selected' if shared == 'review' else '' }}>Devoluciones por revisar ({{ sh.suggest_of|length }})</option></select>{% endif %}
       {% if key %}<input type="hidden" name="key" value="{{ key }}">{% endif %}
     </form>
   </div>
-  {% if month or start or category or flow or q or key or account or tag %}
+  {% if month or start or category or flow or q or key or account or tag or shared %}
   <div class="chips">
+    {% if shared %}<a class="chip" href="{{ base|replace('shared=' ~ shared, 'shared=') }}" title="quitar filtro">{{ 'compartidos' if shared == '1' else 'devoluciones por revisar' }} ×</a>{% endif %}
     {% if account %}<a class="chip" href="{{ base|replace('account=' ~ (account|urlencode), 'account=') }}" title="quitar filtro">cuenta {{ account }} ×</a>{% endif %}
     {% if tag %}<a class="chip" href="{{ base|replace('tag=' ~ (tag|urlencode), 'tag=') }}" title="quitar filtro">etiqueta «{{ tag }}» ×</a>{% endif %}
     {% if period %}<a class="chip" href="{{ base|replace('month=' ~ month, 'month=')|replace('start=' ~ start, 'start=')|replace('end=' ~ end, 'end=') }}" title="quitar filtro" style="text-transform:capitalize">{{ period|periodo }} ×</a>{% endif %}
@@ -49,7 +57,8 @@
     <a class="link-btn" href="/transactions">Limpiar filtros</a>
   </div>
   {% endif %}
-  <div class="concept" style="margin-bottom:8px">Cambiar la categoría de una fila corrige el comercio en todos sus movimientos. El botón «···» abre flujo, origen, etiquetas y cuenta.</div>
+  {% if shared %}<div class="concept" style="margin-bottom:8px">{% if shared == 'review' %}Bizums y transferencias recibidos con un gasto tuyo mayor poco antes. Di de qué gasto es cada uno, o que no es una devolución.{% else %}Gastos que pagaste tú y lo que te devolvieron: el gasto cuenta neto y la devolución no cuenta como ingreso. Los totales de arriba ya lo descuentan.{% endif %}</div>{% endif %}
+  <div class="concept" style="margin-bottom:8px">Cambiar la categoría de una fila corrige el comercio en todos sus movimientos. El botón «···» abre flujo, origen, etiquetas, cuenta y gastos compartidos.</div>
   <div class="scroll-x">
   <table class="tx-table">
     <tr><th>Concepto</th><th style="width:220px">Categoría</th><th class="num">Importe</th><th class="num col-balance">Saldo</th><th style="width:40px"></th></tr>
@@ -59,10 +68,12 @@
     {% set conf = t.confidence if t.confidence is not none else 1 %}
     {% set doubt = t.source and conf < 0.7 %}
     {% set row_tags = tags_by_id.get(t.id, []) %}
+    {% set is_shared = t.id in sh.link_of or t.id in sh.refunds_of or t.id in sh.suggest_of %}
+    {% set opened = shared == 'review' and is_shared %}
     <tr id="tx-{{ t.id }}">
       <td style="min-width:0">
         <a class="name" href="/merchants?mode=all&q={{ t.concept_clean|urlencode }}" title="ver el comercio">{{ t.concept_clean }}</a>
-        <div class="raw" title="{{ t.concept }}">{% if doubt %}<span class="doubt {{ 'low' if conf < 0.5 else '' }}">Categoría dudosa ({{ SOURCE_LABEL.get(t.source, t.source) }}, {{ '%.2f'|format(conf)|replace('.', ',') }})</span> · {% endif %}{% if row_tags %}<span class="inline-tags">{% for x in row_tags %}<a href="/transactions?tag={{ x|urlencode }}">{{ x }}</a>{{ ', ' if not loop.last else '' }}{% endfor %}</span> · {% endif %}{{ t.concept }}</div>
+        <div class="raw" title="{{ t.concept }}">{% if t.id in sh.link_of %}<span class="inline-tags">devolución de {{ sh.link_of[t.id].expense_key }}</span> · {% elif t.id in sh.refunds_of %}<span class="inline-tags">compartido · te devolvieron {{ sh.refunds_of[t.id].total|eur(2) }}</span> · {% elif t.id in sh.suggest_of %}<span class="doubt">¿la parte de alguien?</span> · {% endif %}{% if doubt %}<span class="doubt {{ 'low' if conf < 0.5 else '' }}">Categoría dudosa ({{ SOURCE_LABEL.get(t.source, t.source) }}, {{ '%.2f'|format(conf)|replace('.', ',') }})</span> · {% endif %}{% if row_tags %}<span class="inline-tags">{% for x in row_tags %}<a href="/transactions?tag={{ x|urlencode }}">{{ x }}</a>{{ ', ' if not loop.last else '' }}{% endfor %}</span> · {% endif %}{{ t.concept }}</div>
       </td>
       <td>
         {# Corrige la memoria del comercio para todos sus movimientos; la respuesta (fila de comercio) se descarta y se avisa con un toast. #}
@@ -76,15 +87,16 @@
       </td>
       <td class="num col-amount {{ 'inc' if t.amount > 0 else 'exp' }}">{{ t.amount|eur(2) }}</td>
       <td class="num col-balance">{{ t.balance|eur(2) if t.balance is not none else '—' }}</td>
-      <td><button type="button" class="more" aria-label="Más opciones del movimiento" aria-expanded="false" aria-controls="more-{{ t.id }}"
+      <td><button type="button" class="more" aria-label="Más opciones del movimiento" aria-expanded="{{ 'true' if opened else 'false' }}" aria-controls="more-{{ t.id }}"
           onclick="const r=document.getElementById('more-{{ t.id }}'); const o=r.classList.toggle('open'); this.setAttribute('aria-expanded', o); this.closest('tr').classList.toggle('selected', o)">···</button></td>
     </tr>
-    <tr class="tx-more" id="more-{{ t.id }}">
+    <tr class="tx-more{{ ' open' if opened else '' }}" id="more-{{ t.id }}">
       <td colspan="5">
         <dl class="kv">
           <dt>Fecha</dt><dd>{{ t.date }}{% if accounts|length > 1 %} · cuenta {{ t.account }}{% endif %}</dd>
           <dt>Flujo</dt><dd>{{ FLOW_LABEL.get(t.flow_type, t.flow_type or '—') }}</dd>
           <dt>Origen</dt><dd>{% if t.source %}<span class="conf {{ 'low' if conf < 0.5 else 'mid' if conf < 0.7 else '' }}" title="confianza {{ '%.2f'|format(conf) }}"><i><b style="width:{{ (conf * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(t.source, t.source) }} · confianza {{ '%.2f'|format(conf)|replace('.', ',') }}</span>{% else %}sin categorizar{% endif %}</dd>
+          {% if is_shared %}<dt>Compartido</dt><dd>{% include "partials/shared_cell.html" %}</dd>{% endif %}
           <dt>Etiquetas</dt><dd>{% with tx_id=t.id, tags=row_tags %}{% include "partials/tags_cell.html" %}{% endwith %}</dd>
         </dl>
       </td>

@@ -88,9 +88,25 @@ def test_pagina(tmp_path, monkeypatch):
     inc, exp = _id(conn, "BIZUM RECIBIDO INVENTADO"), _id(conn, "CENA INVENTADA")
     conn.close()
     with TestClient(create_app(settings_path)) as c:
-        r = c.get("/shared")
-        assert r.status_code == 200 and "CENA INVENTADA" in r.text and "entre 3" in r.text
-        r = c.post("/shared/link", data={"income_id": inc, "expense_id": exp})
-        assert r.status_code == 200 and "Emparejados" in r.text
-        r = c.post("/shared/unlink", data={"income_id": inc})
-        assert "Emparejados" not in r.text
+        # la antigua página lleva a Movimientos, donde cada devolución se resuelve en su propia fila
+        r = c.get("/shared", follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/transactions?shared=review"
+        r = c.get("/transactions?shared=review")
+        assert "BIZUM RECIBIDO INVENTADO" in r.text and "Es de CENA INVENTADA" in r.text and "entre 3" in r.text
+        assert f'<tr class="tx-more open" id="more-{inc}">' in r.text and "¿la parte de alguien?" in r.text
+        assert 'class="section-tabs"' not in r.text  # Movimientos es una sola página
+        vuelta = "/transactions?month=2025-03"
+        r = c.post("/shared/link", data={"income_id": inc, "expense_id": exp, "next": vuelta}, follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == vuelta
+        r = c.get(vuelta)
+        assert "devolución de CENA INVENTADA" in r.text and "compartido · te devolvieron 30,00 €" in r.text
+        assert "pusiste de verdad <strong>60,00 €</strong>" in r.text
+        r = c.get("/transactions?shared=1")
+        assert "2 movimientos ·" in r.text and "CENA INVENTADA" in r.text
+        assert len(c.get("/transactions/export.csv?shared=1").text.strip().splitlines()) == 3
+        # «next» solo admite direcciones de Movimientos
+        r = c.post("/shared/unlink", data={"income_id": inc, "next": "https://example.invalid/"}, follow_redirects=False)
+        assert r.headers["location"].startswith("/transactions?shared=")
+        assert "devolución de CENA INVENTADA" not in c.get(vuelta).text
+        r = c.post("/shared/dismiss", data={"income_id": inc}, follow_redirects=False)
+        assert r.status_code == 303 and "BIZUM RECIBIDO INVENTADO" not in c.get("/transactions?shared=review").text

@@ -92,7 +92,7 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
 ## Qué verás
 
 La web tiene siete secciones; las páginas que comparten sección son pestañas dentro de ella:
-**Resumen**, **Tendencias**, **Movimientos** (y Compartidos), **Pregunta** (e Informe mensual), **Plan**
+**Resumen**, **Tendencias**, **Movimientos**, **Pregunta** (e Informe mensual), **Plan**
 (Presupuestos y Metas), **Avisos** (Alertas y Recurrentes) y **Datos** (Importar, Comercios y Ajustes).
 
 - **Resumen**: abre con la cifra de ahorro neto del mes y un **veredicto en una frase**, calculado sin modelo
@@ -121,7 +121,7 @@ La web tiene siete secciones; las páginas que comparten sección son pestañas 
   creas una regla sin tocar YAML («empieza por» / «contiene» → categoría), con vista previa de a qué afecta.
 - **Recurrentes**: abre con **lo que te ha subido** (cuotas que cambian de precio y recibos al alza, con su
   coste al año) y sigue con el calendario de cargos de los próximos 30 días.
-- **Compartidos**: empareja el Bizum que te devuelve un amigo con el gasto que pagaste tú; el gasto cuenta
+- **Gastos compartidos** (dentro de Movimientos, en el «···» de cada fila y con su filtro): empareja el Bizum que te devuelve un amigo con el gasto que pagaste tú; el gasto cuenta
   neto y la devolución deja de ser ingreso. Propone los repartos a partes iguales.
 - **Presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con proyección).
 - **Metas**: cuánto quieres juntar y para cuándo, cuándo llegas a tu ritmo y un simulador «qué pasaría si»

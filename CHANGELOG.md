@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.8.2 · 2026-11-12
+
+- **Compartidos, dentro de Movimientos**: desaparece como página y pestaña. Cada movimiento enseña
+  en su fila si es la devolución de un gasto o cuánto le han devuelto, y en «···» se empareja, se
+  descarta o se deshace. Un aviso en Movimientos dice cuántos ingresos podrían ser la parte de
+  alguien y el filtro *Compartidos* enseña los ya emparejados o los que faltan por revisar (con
+  sus propuestas ya abiertas). La dirección `/shared` lleva a ese filtro.
+
 ## 1.8.1 · 2026-11-12
 
 - La página *Pipeline* pasa a llamarse *Importar*, como su pestaña en *Datos*. La dirección `/pipeline` no cambia.
