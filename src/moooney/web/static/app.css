@@ -134,7 +134,7 @@ h3 { font-family: var(--font-body); font-weight: 700; font-size: 12px; letter-sp
 .month-nav { display: flex; align-items: center; gap: var(--s1); }
 
 /* ---------- controles ---------- */
-select, input[type=text], input[type=number], input[type=search], input[type=password], input[type=month] {
+select, input[type=text], input[type=number], input[type=search], input[type=password], input[type=month], input[type=date] {
   font: inherit; font-size: 15px; font-weight: 500; min-height: var(--control); padding: 0 12px; border: 1px solid var(--line); border-radius: 6px;
   background: var(--surface); color: var(--ink); }
 select:focus, input:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -147,7 +147,7 @@ select:focus, input:focus, button:focus-visible, a:focus-visible { outline: 2px 
 .btn.danger:hover { background: var(--accent-soft); }
 .btn.ghost { border-color: var(--line-soft); }
 .btn.small { min-height: 32px; padding: 0 12px; font-size: 13px; }
-.btn[disabled], .btn[disabled]:hover { color: var(--ink-3); border-color: var(--line-soft); background: transparent; cursor: not-allowed; }  /* sin opacidad: el texto sigue en 4,5:1 */
+.btn[disabled], .btn[disabled]:hover, .btn[aria-disabled=true], .btn[aria-disabled=true]:hover { color: var(--ink-3); border-color: var(--line-soft); background: transparent; cursor: not-allowed; }  /* sin opacidad: el texto sigue en 4,5:1 */
 
 /* ---------- rejillas y bloques ---------- */
 .grid { display: grid; gap: var(--s4) var(--s5); }
@@ -452,6 +452,7 @@ th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
 
 /* ---------- tablas anchas: scroll propio, nunca desbordar la página ---------- */
 .scroll-x { overflow: auto; min-width: 0; }
+.grid > * { min-width: 0; } /* una tabla ancha no ensancha la rejilla: se desplaza dentro de su tarjeta */
 .grid.two, .grid.three { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
 .grid.three > :first-child { grid-column: span 1; }
 @media (min-width: 1200px) { .grid.three { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
@@ -496,6 +497,15 @@ th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
 .chat-suggest p { width: 100%; margin: 0; }
 .chat-wait { color: var(--ink-2); font-size: 14px; margin-bottom: var(--s2); align-items: center; gap: var(--s1); }
 .chat-wait.htmx-request { display: flex; }
+
+/* ---------- secciones con pestañas y selector de periodo ---------- */
+.section-tabs { display: flex; gap: var(--s3); border-bottom: 1px solid var(--hair); margin-bottom: var(--s4); overflow-x: auto; scrollbar-width: none; }
+.section-tabs a { flex: 0 0 auto; min-height: var(--control); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-weight: 500; color: var(--ink-2); border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.section-tabs a:hover { text-decoration: none; color: var(--ink); }
+.section-tabs a.on { color: var(--ink); font-weight: 700; border-bottom-color: var(--accent); }
+.period-nav { display: flex; align-items: center; gap: var(--s1) var(--s2); flex-wrap: wrap; justify-content: flex-end; }
+.range-form label, .date-field { font-size: 14px; color: var(--ink-2); display: inline-flex; align-items: center; gap: var(--s1); }
 
 /* Los bloques de pantalla estrecha van al final del fichero: así ganan a las reglas base sin subir especificidad. */
 /* ---------- estrecho ---------- */
@@ -617,4 +627,18 @@ th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
   .budget-table tr > td:nth-child(4) { text-align: right; }
   .budget-table tr > td:nth-child(3)::before { content: "Queda "; color: var(--ink-3); font-weight: 400; }
   .budget-table tr > td:nth-child(4)::before { content: "Proyección "; color: var(--ink-3); font-weight: 400; }
+}
+
+/* ---------- móvil: pestañas de sección, periodo y fechas ---------- */
+@media (max-width: 1000px) {
+  .section-tabs { margin-bottom: var(--s3); }
+  .period-nav { width: 100%; justify-content: flex-start; }
+  .period-nav .month-nav { flex: 1 1 100%; }
+  .range-form { flex-wrap: wrap; }
+  .range-form .date-field { flex: 1 1 40%; }
+  .range-form .btn { flex: 1 1 100%; }
+  .sidebar nav a.in-tabbar { display: none; } /* ya están en la barra inferior: «Más» solo enseña el resto */
+  .date-field { flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; }
+  .date-field input { width: 100%; min-width: 0; }
+  .filters #f-month { grid-column: 1 / -1; } /* periodo a todo el ancho; debajo, desde y hasta en pareja */
 }

@@ -1,0 +1,24 @@
+{# Selector de periodo del Resumen: tipo (mes, trimestre, año, rango) y, dentro del tipo, anterior · lista · siguiente.
+   `pnav` viene de period_nav() en app.py. En la demo estática no hay rango: no hay servidor que lo calcule. #}
+{% set unidad = 'mes' if pnav.kind == 'month' else 'periodo' %}
+<div class="period-nav">
+  <div class="segmented" role="group" aria-label="Tipo de periodo">
+    {% for kind, label, url in pnav.kinds %}{% if not (snapshot and kind == 'range') %}<a class="{{ 'on' if kind == pnav.kind else '' }}" href="{{ url }}"{% if kind == pnav.kind %} aria-current="true"{% endif %}>{{ label }}</a>{% endif %}{% endfor %}
+  </div>
+  {% if pnav.kind == 'range' %}
+  <form class="month-nav range-form" method="get" action="/">
+    <label class="date-field">Desde <input type="date" name="start" value="{{ pnav.period.start }}" min="{{ pnav.first }}" max="{{ pnav.as_of }}" required></label>
+    <label class="date-field">Hasta <input type="date" name="end" value="{{ pnav.period.end }}" min="{{ pnav.first }}" max="{{ pnav.as_of }}" required></label>
+    <button class="btn" type="submit">Ver</button>
+  </form>
+  {% else %}
+  <div class="month-nav">
+    {% if pnav.prev %}<a class="btn ghost" href="{{ period_url(pnav.prev) }}" aria-label="{{ unidad }} anterior" title="{{ unidad }} anterior">‹</a>{% else %}<span class="btn ghost" aria-disabled="true" title="no hay datos anteriores">‹</span>{% endif %}
+    <label for="period-select" style="position:absolute;left:-9999px">{{ {'month': 'Mes', 'quarter': 'Trimestre', 'year': 'Año'}[pnav.kind] }}</label>
+    <select id="period-select" onchange="go(this.value)">
+      {% for o in pnav.options %}<option value="{{ period_url(o) }}" {{ 'selected' if o.key == pnav.period.key else '' }} style="text-transform:capitalize">{{ o|periodo }}</option>{% endfor %}
+    </select>
+    {% if pnav.next %}<a class="btn ghost" href="{{ period_url(pnav.next) }}" aria-label="{{ unidad }} siguiente" title="{{ unidad }} siguiente">›</a>{% else %}<span class="btn ghost" aria-disabled="true" title="es el último {{ unidad }} con datos">›</span>{% endif %}
+  </div>
+  {% endif %}
+</div>

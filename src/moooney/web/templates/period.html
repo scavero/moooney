@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Resumen {{ p|periodo }}{% endblock %}
+{# Resumen de un trimestre, un año o un rango: los totales del periodo frente al anterior equivalente. #}
+{% set prev_name = ('los ' ~ p.days ~ ' días anteriores' if p.kind == 'range' else ps.prev|periodo) if ps and ps.prev else '' %}
+{% macro delta(cur, prev, good_up=true) -%}
+{%- if prev is not none and prev -%}
+{%- set d = (cur / prev - 1) * 100 -%}
+{% if d|abs < 0.5 %}igual que {{ prev_name }}{% else %}<span class="{{ 'pos' if (d >= 0) == good_up else 'neg' }}" style="font-weight:500">{{ '%+.0f'|format(d) }} %</span> frente a {{ prev_name }}{% endif %}
+{%- else -%}sin periodo anterior completo para comparar{%- endif -%}
+{%- endmacro %}
+{% set tx_filter = ('start=' ~ p.start ~ '&end=' ~ p.end) if p.kind == 'range' else ('month=' ~ p.key) %}
+{% block content %}
+<div class="topbar">
+  <div>
+    <h1>{{ p|periodo }}</h1>
+    <div class="subtitle">
+      {%- if p.kind == 'quarter' %}<span style="text-transform:capitalize">{{ p.months[0]|mes }}</span> a {{ p.months[-1]|mes }} · {% endif -%}
+      {%- if ps and ps.partial %}En curso, hasta el <strong title="{{ ps.cutoff }}">{{ ps.cutoff|fecha }}</strong>{% if ps.prev %}; {{ prev_name }} se corta a la misma altura para comparar{% endif %} · {% elif p.kind != 'range' %}Periodo cerrado · {% endif -%}
+      {{ ps.n_tx if ps else 0 }} movimientos
+    </div>
+  </div>
+  {% include "partials/period_nav.html" %}
+</div>
+
+{% if not ps %}
+<div class="notice">No hay movimientos en este periodo.</div>
+{% else %}
+{% set t, pt = ps.totals, ps.prev_totals %}
+<div class="grid kpis section">
+  <div class="card kpi"><div class="label">Ingresos</div><div class="value pos">{{ t.income|eur }}</div><div class="hint">{{ delta(t.income, pt.income if pt else none) }}</div></div>
+  <div class="card kpi"><div class="label">Gastos</div><div class="value neg">{{ t.expenses|eur }}</div><div class="hint">{{ delta(t.expenses, pt.expenses if pt else none, false) }}</div></div>
+  <div class="card kpi"><div class="label">Ahorro</div><div class="value {{ 'pos' if t.net >= 0 else 'neg' }}">{{ t.net|eur }}</div>
+    <div class="hint">{% if t.savings_rate is not none %}{{ '%.0f'|format(t.savings_rate * 100) }} % de lo que entró{% endif %}{% if pt %} · {{ pt.net|eur }} en {{ prev_name }}{% endif %}</div></div>
+  <div class="card kpi"><div class="label">Invertido</div><div class="value">{{ t.investment|eur }}</div><div class="hint">aparte del ahorro{% if pt %} · {{ pt.investment|eur }} en {{ prev_name }}{% endif %}</div></div>
+</div>
+
+{% set hi, lo = ps.costliest, ps.cheapest %}
+{% if hi %}
+<div class="notice section">El mes más caro fue <strong>{{ hi.month|mes }}</strong>, con {{ hi.expenses|eur }}{% if hi.top_category %} (sobre todo {{ hi.top_category }}, {{ hi.top_amount|eur }}){% endif %}.{% if lo and lo.month != hi.month %} El más barato, <strong>{{ lo.month|mes }}</strong>, con {{ lo.expenses|eur }}.{% endif %}</div>
+{% endif %}
+
+<div class="grid two section">
+  <div class="card">
+    <h2 style="margin-bottom:4px">Por categoría</h2>
+    <div class="concept" style="margin-bottom:8px">Gasto del periodo{% if pt %} frente a {{ prev_name }}{% endif %}. Pulsa una categoría para ver sus movimientos.</div>
+    <div class="scroll-x">
+    <table>
+      <tr><th>Categoría</th><th class="num">{{ p|periodo if p.kind != 'range' else 'Este rango' }}</th>{% if pt %}<th class="num">{{ prev_name if p.kind != 'range' else 'Antes' }}</th><th class="num">Diferencia</th>{% endif %}</tr>
+      {% for c in ps.categories %}
+      <tr>
+        <td><a href="/transactions?{{ tx_filter }}&category={{ c.category|urlencode }}" style="font-weight:500">{{ c.category }}</a></td>
+        <td class="num">{{ c.amount|eur }}</td>
+        {% if pt %}
+        <td class="num" style="color:var(--ink-2);font-weight:400">{{ c.prev|eur if c.prev is not none else '—' }}</td>
+        <td class="num {{ 'neg' if (c.delta or 0) > 0 else 'pos' }}">{% if c.delta is not none %}{{ '%+.0f'|format(c.delta) }} €{% if c.delta_pct is not none %} <span class="concept">{{ '%+.0f'|format(c.delta_pct) }} %</span>{% endif %}{% else %}nuevo{% endif %}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+  <div>
+    <div class="card section">
+      <h2 style="margin-bottom:4px">Mes a mes</h2>
+      <div class="concept" style="margin-bottom:8px">Pulsa un mes para abrir su resumen. Los meses a medias no cuentan para el más caro ni el más barato.</div>
+      <div class="scroll-x">
+      <table>
+        <tr><th>Mes</th><th class="num">Ingresos</th><th class="num">Gasto</th>{% if p.kind == 'year' %}<th class="num">{{ p.key|int - 1 }}</th>{% endif %}<th>Lo que más</th></tr>
+        {% for m in ps.months %}
+        <tr>
+          <td style="text-transform:capitalize;font-weight:500"><a href="/?month={{ m.month }}">{{ m.month|mes }}</a>{% if m.has_data and not m.full %} <span class="concept" style="text-transform:none">· a medias</span>{% endif %}</td>
+          <td class="num">{{ m.income|eur if m.has_data else '—' }}</td>
+          <td class="num">{{ m.expenses|eur if m.has_data else '—' }}</td>
+          {% if p.kind == 'year' %}<td class="num" style="color:var(--ink-2);font-weight:400">{{ m.prev_expenses|eur if m.prev_expenses is not none else '—' }}</td>{% endif %}
+          <td class="concept">{{ m.top_category or '' }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Dónde más se gasta</h2>
+      <table>
+        {% for m in ps.merchants %}
+        <tr>
+          <td><a href="/transactions?{{ tx_filter }}&key={{ m.key|urlencode }}">{{ m.key }}</a><div class="concept">{{ m.category or '—' }} · {{ m.n }} veces</div></td>
+          <td class="num neg">{{ m.total|eur(2) }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

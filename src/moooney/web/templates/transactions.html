@@ -3,7 +3,7 @@
 {% block content %}
 <div class="topbar">
   <div><h1>Movimientos</h1><div class="subtitle">{{ totals.n }} movimientos · ingresos <strong class="pos">{{ totals.income|eur }}</strong> · gastos <strong class="neg">{{ totals.expenses|eur }}</strong> · neto <strong class="{{ 'pos' if totals.net >= 0 else 'neg' }}">{{ '%+.0f'|format(totals.net) }} €</strong></div></div>
-  {% set base = '/transactions?month=' ~ month ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) ~ '&account=' ~ (account|urlencode) ~ '&tag=' ~ (tag|urlencode) %}
+  {% set base = '/transactions?month=' ~ month ~ '&start=' ~ start ~ '&end=' ~ end ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) ~ '&account=' ~ (account|urlencode) ~ '&tag=' ~ (tag|urlencode) %}
   <a class="btn ghost" href="{{ base|replace('/transactions?', '/transactions/export.csv?') }}" hx-boost="false" title="los {{ totals.n }} movimientos del filtro, para Excel">Exportar CSV</a>
 </div>
 <div class="card">
@@ -12,8 +12,15 @@
     <form method="get" action="/transactions" hx-get="/transactions" hx-trigger="change, keyup[key=='Enter'] from:find input[type=search]" hx-target="body" hx-push-url="true">
       <label for="f-q" style="position:absolute;left:-9999px">Buscar concepto o comercio</label>
       <input id="f-q" type="search" name="q" value="{{ q }}" placeholder="Buscar concepto o comercio" style="min-width:260px;flex:1 1 260px">
-      <label for="f-month" style="position:absolute;left:-9999px">Mes</label>
-      <select id="f-month" name="month"><option value="">Todos los meses</option>{% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}</select>
+      <label for="f-month" style="position:absolute;left:-9999px">Periodo</label>
+      {# `month` lleva la clave del periodo (2026-10, 2026-Q4 o 2026): es el nombre que ya usan los enlaces. #}
+      <select id="f-month" name="month" onchange="this.form.start.value = ''; this.form.end.value = ''"><option value="">{{ 'Rango elegido' if period and period.kind == 'range' else 'Todo el histórico' }}</option>
+        <optgroup label="Años">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y == month else '' }}>{{ y }}</option>{% endfor %}</optgroup>
+        <optgroup label="Trimestres">{% for k in quarters %}<option value="{{ k }}" {{ 'selected' if k == month else '' }}>T{{ k[-1] }} {{ k[:4] }}</option>{% endfor %}</optgroup>
+        <optgroup label="Meses">{% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}</optgroup></select>
+      {# Rango libre: elegir fechas vacía el desplegable de periodo, y al revés, para que no se pisen. #}
+      <label class="date-field">Desde <input type="date" name="start" value="{{ start }}" onchange="this.form.month.value = ''"></label>
+      <label class="date-field">Hasta <input type="date" name="end" value="{{ end }}" onchange="this.form.month.value = ''"></label>
       <label for="f-cat" style="position:absolute;left:-9999px">Categoría</label>
       <select id="f-cat" name="category"><option value="">Todas las categorías</option>
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}
@@ -30,11 +37,11 @@
       {% if key %}<input type="hidden" name="key" value="{{ key }}">{% endif %}
     </form>
   </div>
-  {% if month or category or flow or q or key or account or tag %}
+  {% if month or start or category or flow or q or key or account or tag %}
   <div class="chips">
     {% if account %}<a class="chip" href="{{ base|replace('account=' ~ (account|urlencode), 'account=') }}" title="quitar filtro">cuenta {{ account }} ×</a>{% endif %}
     {% if tag %}<a class="chip" href="{{ base|replace('tag=' ~ (tag|urlencode), 'tag=') }}" title="quitar filtro">etiqueta «{{ tag }}» ×</a>{% endif %}
-    {% if month %}<a class="chip" href="{{ base|replace('month=' ~ month, 'month=') }}" title="quitar filtro" style="text-transform:capitalize">{{ month|mes }} ×</a>{% endif %}
+    {% if period %}<a class="chip" href="{{ base|replace('month=' ~ month, 'month=')|replace('start=' ~ start, 'start=')|replace('end=' ~ end, 'end=') }}" title="quitar filtro" style="text-transform:capitalize">{{ period|periodo }} ×</a>{% endif %}
     {% if category %}<a class="chip" href="{{ base|replace('category=' ~ (category|urlencode), 'category=') }}" title="quitar filtro">{{ category }} ×</a>{% endif %}
     {% if flow %}<a class="chip" href="{{ base|replace('flow=' ~ flow, 'flow=') }}" title="quitar filtro">{{ FLOW_LABEL.get(flow, flow) }} ×</a>{% endif %}
     {% if key %}<a class="chip" href="{{ base|replace('key=' ~ (key|urlencode), 'key=') }}" title="quitar filtro">comercio: {{ key }} ×</a>{% endif %}

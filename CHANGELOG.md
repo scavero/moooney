@@ -1,5 +1,27 @@
 # Cambios
 
+## 1.8.0 · 2026-11-12
+
+- **Periodos**: el Resumen ya no es solo mensual. Un selector *Mes · Trimestre · Año · Rango* enseña
+  los totales del periodo (ingresos, gastos, ahorro, inversión), cada categoría, el gasto mes a mes y
+  los comercios donde más se gasta, frente al periodo anterior equivalente: el trimestre con el
+  trimestre anterior, el año con el año anterior y un rango con los mismos días de antes. Si el
+  periodo está en curso, el anterior se corta a la misma altura para que la comparación sea justa.
+  En Movimientos el filtro de mes pasa a ser de periodo (años, trimestres, meses) y hay *Desde* y
+  *Hasta* para un rango libre; Exportar CSV respeta el periodo. El asistente tiene una consulta
+  nueva para trimestres, años y rangos.
+- **Menos menú**: de trece entradas a siete. *Resumen* (con *Año* dentro, como un periodo más),
+  *Tendencias*, *Movimientos* (con *Compartidos*), *Pregunta* (con *Informe mensual*), *Plan*
+  (*Presupuestos* y *Metas*), *Avisos* (*Alertas* y *Recurrentes*) y *Datos* (*Importar*, antes
+  Pipeline; *Comercios* y *Ajustes*). Las páginas que comparten sección son pestañas dentro de
+  ella; no se ha quitado ninguna función y las direcciones de siempre siguen valiendo (`/year`
+  lleva al año en el Resumen). En el móvil, «Más» enseña solo lo que no está ya en la barra.
+- El calendario de cargos de Recurrentes ya no ensancha la página en pantallas medianas: se
+  desplaza dentro de su tarjeta.
+- Las flechas de mes (Resumen, Presupuestos, Informe) se paran en el primer y el último mes con
+  datos; ya no se puede ir a meses que no han ocurrido, y una dirección con un mes fuera de rango
+  vuelve al más cercano que sí tiene datos.
+
 ## 1.7.1 · 2026-11-12
 
 - **Móvil**: la navegación pasa a una barra inferior con cuatro accesos (Resumen, Tendencias,

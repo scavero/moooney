@@ -91,6 +91,10 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
 
 ## Qué verás
 
+La web tiene siete secciones; las páginas que comparten sección son pestañas dentro de ella:
+**Resumen**, **Tendencias**, **Movimientos** (y Compartidos), **Pregunta** (e Informe mensual), **Plan**
+(Presupuestos y Metas), **Avisos** (Alertas y Recurrentes) y **Datos** (Importar, Comercios y Ajustes).
+
 - **Resumen**: abre con la cifra de ahorro neto del mes y un **veredicto en una frase**, calculado sin modelo
   («Has ahorrado el 30 % de lo que entró; alimentación se dispara»); debajo, ingresos, gastos fijos y
   variables, ahorro neto, saldo (sumando todas las cuentas) y colchón en meses; **diagnóstico** con los euros
@@ -100,9 +104,10 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
   se gasta; presupuesto con la marca del día de hoy y alertas pendientes.
 - **Tendencias**: previsión a fin de mes y de los próximos tres, colchón en meses, saldo proyectado a un
   año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
-- **Año**: el año frente al anterior (cortado en el mismo día si está en curso): ingresos, gastos, ahorro,
-  cada categoría con su diferencia, el gasto mes a mes y el mes más caro y el más barato.
-- **Movimientos**: filtros por mes, categoría, flujo, cuenta, etiqueta y texto, totales del filtro; la
+- **Trimestre, año o rango** (selector de periodo del Resumen): los totales del periodo frente al anterior
+  equivalente (cortado a la misma altura si está en curso): ingresos, gastos, ahorro, cada categoría con su
+  diferencia, el gasto mes a mes, el mes más caro y el más barato y los comercios donde más se gasta.
+- **Movimientos**: filtros por periodo (mes, trimestre, año o un rango de fechas), categoría, flujo, cuenta, etiqueta y texto, totales del filtro; la
   categoría se corrige en la propia fila; **etiquetas libres** en movimientos sueltos (viaje, reforma…) para
   agrupar gastos de distintas categorías y ver lo que suman; **Exportar CSV** descarga el filtro completo listo
   para Excel. Con varios bancos, el saldo del resumen es la suma del último saldo de cada cuenta.
@@ -128,7 +133,7 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
 - **Pregunta**: un asistente al que preguntas por tus gastos o pides consejo. Las cifras salen de
   consultas deterministas sobre tus totales (nunca movimientos sueltos) y el modelo de texto las
   redacta; cada respuesta dice qué ha consultado.
-- **Pipeline**: todos los pasos con un botón, vista previa y activación del enriquecimiento, auditoría de
+- **Importar** (la página *Pipeline*): todos los pasos con un botón, vista previa y activación del enriquecimiento, auditoría de
   lo que ha salido a modelos e Internet, historial de importaciones y trabajos.
 - **Ajustes**: la clave del proxy (y la de Google Places, opcional) sin tocar ficheros, con prueba de
   conexión, y el interruptor de modo offline. Las claves nunca se muestran enteras.
@@ -248,7 +253,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 240 tests, todos con datos sintéticos
+uv run pytest        # 249 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```

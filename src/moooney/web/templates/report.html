@@ -4,12 +4,12 @@
 <div class="topbar">
   <div><h1>Informe y consejos</h1><div class="subtitle"><span style="text-transform:capitalize">{{ month|mes }}</span>. Acciones ordenadas por euros al mes; ningún movimiento sale de aquí.</div></div>
   <div class="month-nav">
-    <a class="btn ghost" href="/report?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>
+    {% if prev_month %}<a class="btn ghost" href="/report?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>{% else %}<span class="btn ghost" aria-disabled="true" title="no hay datos anteriores">‹</span>{% endif %}
     <label for="month-select" style="position:absolute;left:-9999px">Mes</label>
     <select id="month-select" onchange="go('/report?month='+this.value)">
       {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}
     </select>
-    <a class="btn ghost" href="/report?month={{ next_month }}" aria-label="mes siguiente" title="mes siguiente">›</a>
+    {% if next_month %}<a class="btn ghost" href="/report?month={{ next_month }}" aria-label="mes siguiente" title="mes siguiente">›</a>{% else %}<span class="btn ghost" aria-disabled="true" title="es el último mes con datos">›</span>{% endif %}
   </div>
 </div>
 

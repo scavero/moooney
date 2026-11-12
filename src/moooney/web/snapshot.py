@@ -30,7 +30,7 @@ HERE = Path(__file__).resolve().parent
 
 # Solo lo que está en git: nada de rules.local.yaml ni budgets.yaml del usuario.
 CONFIG_FILES = ("settings.yaml", "categories.yaml", "rules.yaml", "llm.yaml", "enrichment.yaml")
-SEED_PATHS = ("/", "/trends", "/year", "/transactions", "/merchants", "/recurring", "/shared", "/budgets", "/goals", "/chat", "/alerts",
+SEED_PATHS = ("/", "/trends", "/transactions", "/merchants", "/recurring", "/shared", "/budgets", "/goals", "/chat", "/alerts",
               "/report", "/pipeline", "/settings")
 PAGE_NAMES = {"/": "index.html"} | {p: p.strip("/") + ".html" for p in SEED_PATHS if p != "/"}
 LINK_ATTR = re.compile(r'(href|src)="(/[^"]*)"')
@@ -73,7 +73,8 @@ def _crawlable(key: str, months: set[str]) -> bool:
     if path.startswith(("/static/", "/pipeline/jobs/")):
         return False
     month = dict(parse_qsl(query)).get("month")
-    return month is None or month in months  # las flechas de mes siguen más allá de los datos
+    # meses con datos, o un trimestre o un año (el resumen ya los limita a los que tienen datos)
+    return month is None or month in months or re.fullmatch(r"\d{4}(-Q[1-4])?", month) is not None
 
 
 def _relative_css(css: Path, static_root: Path) -> None:
@@ -124,7 +125,7 @@ def _prepare_demo(client) -> None:
 
 
 def _months(client) -> list[str]:
-    return sorted(set(re.findall(r'<option value="(\d{4}-\d{2})"', client.get("/").text)))
+    return sorted(set(re.findall(r'<option value="(\d{4}-\d{2})"', client.get("/report").text)))
 
 
 def _seeds(months: list[str]) -> list[str]:
@@ -134,6 +135,9 @@ def _seeds(months: list[str]) -> list[str]:
         seeds += [f"/?month={m}", f"/budgets?month={m}", f"/report?month={m}", f"/transactions?month={m}"]
         seeds += [f"/transactions?month={m}&category={c}" for c in sorted(cats)]
     seeds += [f"/trends?category={c}" for c in sorted(cats)]
+    # trimestres y años: el desplegable de periodo no es un enlace, así que se siembran aquí
+    quarters = {f"{m[:4]}-Q{(int(m[5:7]) - 1) // 3 + 1}" for m in months}
+    seeds += [f"/?period={k}" for k in sorted(quarters | {m[:4] for m in months})]
     return seeds
 
 

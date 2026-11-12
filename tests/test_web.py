@@ -51,6 +51,19 @@ def test_paginas_principales_responden(client):
     assert r.status_code == 200 and "MERCADONA" in r.text
 
 
+def test_no_se_navega_a_meses_sin_datos(client):
+    """Las flechas se paran en el primer y el último mes con datos, y una URL fuera de rango vuelve dentro."""
+    for page in ("/", "/budgets", "/report"):
+        r = client.get(page)
+        assert "es el último mes con datos" in r.text and 'aria-label="mes siguiente"' not in r.text, page
+        assert 'aria-label="mes anterior"' in r.text
+        futuro = client.get(page, params={"month": "2031-01"})
+        assert futuro.status_code == 200 and "es el último mes con datos" in futuro.text, page
+        pasado = client.get(page, params={"month": "1999-01"})
+        assert "no hay datos anteriores" in pasado.text and 'aria-label="mes siguiente"' in pasado.text, page
+    assert client.get("/", params={"month": "basura"}).status_code == 200
+
+
 def test_navegacion_movil(client):
     """Barra inferior con cuatro accesos y «Más», que controla el menú completo y se marca fuera de ellos."""
     r = client.get("/")

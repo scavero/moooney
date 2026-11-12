@@ -173,7 +173,7 @@ flowchart TB
         ING["ingest/<br/>detect · parse_santander · banks<br/>load · upload · reset · watch"]
         CAT["categorize/<br/>normalize · keys · rules · web_rules · taxonomy<br/>embed · pipeline · evaluate"]
         ENRM["enrich/<br/>settings · query · providers · runner"]
-        ANA["analytics/<br/>periods · recurring · metrics · budgets · alerts<br/>insights · forecast · price_changes<br/>shared · yearly · goals"]
+        ANA["analytics/<br/>periods · recurring · metrics · budgets · alerts<br/>insights · forecast · price_changes<br/>shared · yearly · period_summary · goals"]
         REP["report/<br/>advice"]
         CHAT["chat/<br/>tools · agent"]
         WEB["web/<br/>app · queries · service · jobs<br/>templates · static"]

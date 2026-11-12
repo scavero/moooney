@@ -17,6 +17,7 @@ from moooney.analytics import alerts as alerts_mod
 from moooney.analytics import budgets as budgets_mod
 from moooney.analytics import forecast as forecast_mod
 from moooney.analytics import goals as goals_mod
+from moooney.analytics import period_summary as period_mod
 from moooney.analytics import periods, yearly
 from moooney.analytics.insights import build_insights
 from moooney.analytics.metrics import EXPENSE_FLOWS, build_report
@@ -259,6 +260,38 @@ def resumen_anio(ctx: Context, args: dict) -> dict:
     }
 
 
+def resumen_periodo(ctx: Context, args: dict) -> dict:
+    text = (args.get("periodo") or "").strip()
+    desde, hasta = (args.get("desde") or "").strip(), (args.get("hasta") or "").strip()
+    if not (text or desde or hasta):  # sin argumentos: el trimestre de los últimos datos
+        text = periods.period_containing("quarter", _as_of(ctx)).key
+    p = periods.range_period(desde, hasta) if desde and hasta else periods.parse_period(text)
+    if p is None:
+        raise ToolError("indica «periodo» (AAAA-Q1 a AAAA-Q4, AAAA o AAAA-MM) o «desde» y «hasta» (AAAA-MM-DD)")
+    ps = period_mod.period_summary(ctx.conn, p, merchants=10)
+    if ps is None:
+        raise ToolError(f"no hay datos en ese periodo; los hay del {periods.first_date(ctx.conn)} al {_as_of(ctx)}")
+
+    def tot(t):
+        return None if t is None else {"ingresos": _r(t.income), "gastos": _r(t.expenses), "ahorro": _r(t.net),
+                                       "inversion": _r(t.investment)}
+
+    out: dict = {"periodo": p.key, "desde": ps.start, "hasta": ps.cutoff, "en_curso": ps.partial,
+                 "totales": tot(ps.totals), "periodo_anterior": None}
+    if ps.prev is not None:
+        out["periodo_anterior"] = {"desde": ps.prev.start, "hasta": ps.prev_cutoff} | tot(ps.prev_totals)
+    else:
+        out["nota"] = "sin comparación: el periodo anterior no tiene datos desde su primer mes"
+    return out | {
+        "categorias": [{"categoria": c.category, "importe": _r(c.amount), "periodo_anterior": _r(c.prev),
+                        "diferencia": _r(c.delta)} for c in ps.categories[:15]],
+        "meses": [{"mes": x.month, "gastos": _r(x.expenses), "ingresos": _r(x.income), "completo": x.full}
+                  for x in ps.months if x.has_data],
+        "comercios": [{"comercio": r["key"], "categoria": r["category"], "cargos": r["n"],
+                       "total": _r(float(r["total"]), 2)} for r in ps.merchants],
+    }
+
+
 def metas(ctx: Context, args: dict) -> dict:
     base = goals_mod.baseline(ctx.conn)
     net = base.net if base else 0.0
@@ -337,6 +370,12 @@ TOOLS: list[Tool] = [
          "sin ingresos.", {"type": "object", "properties": {}}, prevision),
     Tool("resumen_anio", "Un año frente al anterior en el mismo periodo, por categoría y mes a mes.",
          {"type": "object", "properties": {"anio": {"type": "integer"}}}, resumen_anio),
+    Tool("resumen_periodo", "Totales de un trimestre, un año o un rango de fechas frente al periodo anterior "
+         "equivalente (cortado a la misma altura si está en curso), por categoría, mes a mes y por comercio.",
+         {"type": "object", "properties": {
+             "periodo": {"type": "string", "description": "AAAA-Q1…AAAA-Q4 (trimestre), AAAA (año) o AAAA-MM. Si se omite todo, el trimestre en curso."},
+             "desde": {"type": "string", "description": "Inicio de un rango libre, AAAA-MM-DD (con «hasta»)."},
+             "hasta": {"type": "string", "description": "Fin del rango, AAAA-MM-DD."}}}, resumen_periodo),
     Tool("metas", "Metas de ahorro del usuario, cuándo llega a cada una a su ritmo y su mes medio "
          "(gasto fijo y variable por categoría) para simular recortes.",
          {"type": "object", "properties": {}}, metas),

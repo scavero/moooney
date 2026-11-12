@@ -6,6 +6,7 @@ from pathlib import Path
 
 from moooney.analytics import periods
 from moooney.analytics.metrics import EXPENSE_FLOWS
+from moooney.analytics.period_summary import top_merchants_between
 from moooney.db import repo
 from moooney.ingest.detect import list_excel_files, sha256_file
 
@@ -49,10 +50,11 @@ def transactions_page(
     q: str | None = None,
     account: str | None = None,
     tag: str | None = None,
+    dates: tuple[str, str] | None = None,
     page: int = 1,
     per_page: int = PER_PAGE,
 ) -> Page:
-    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag)
+    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag, dates)
     total = conn.execute(
         f"SELECT COUNT(*) AS n FROM transactions t {sql_where}", params
     ).fetchone()["n"]
@@ -73,18 +75,7 @@ def transactions_page(
 
 def top_merchants(conn: sqlite3.Connection, month: str, *, limit: int = 12) -> list[sqlite3.Row]:
     first, last = periods.month_bounds(month)
-    ph = ",".join("?" for _ in EXPENSE_FLOWS)
-    return conn.execute(
-        f"""
-        SELECT concept_clean AS key, category, COUNT(*) AS n, -SUM(amount) AS total
-        FROM transactions
-        WHERE date BETWEEN ? AND ? AND flow_type IN ({ph}) AND amount < 0
-        GROUP BY concept_clean
-        ORDER BY total DESC
-        LIMIT ?
-        """,
-        (first, last, *EXPENSE_FLOWS, limit),
-    ).fetchall()
+    return top_merchants_between(conn, first, last, limit=limit)
 
 
 def category_series(conn: sqlite3.Connection, months: list[str]) -> dict[str, list[float]]:
@@ -281,7 +272,8 @@ def alerts_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return out
 
 
-def _transactions_where(month, category, flow, key, q, account=None, tag=None):
+def _transactions_where(month, category, flow, key, q, account=None, tag=None, dates=None):
+    """`dates` es un tramo (desde, hasta) de un trimestre, año o rango; `month`, un mes suelto."""
     where: list[str] = []
     params: list = []
     if account:
@@ -290,7 +282,10 @@ def _transactions_where(month, category, flow, key, q, account=None, tag=None):
     if tag:
         where.append("t.id IN (SELECT transaction_id FROM transaction_tags WHERE tag = ?)")
         params.append(repo.normalize_tag(tag))
-    if month:
+    if dates:
+        where.append("t.date BETWEEN ? AND ?")
+        params += list(dates)
+    elif month:
         first, last = periods.month_bounds(month)
         where.append("t.date BETWEEN ? AND ?")
         params += [first, last]
@@ -313,9 +308,9 @@ def _transactions_where(month, category, flow, key, q, account=None, tag=None):
 
 
 def transactions_all(conn: sqlite3.Connection, *, month=None, category=None, flow=None, key=None,
-                     q=None, account=None, tag=None) -> list[sqlite3.Row]:
+                     q=None, account=None, tag=None, dates=None) -> list[sqlite3.Row]:
     """Todas las filas del filtro, en orden cronológico (para exportar)."""
-    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag)
+    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag, dates)
     return conn.execute(
         f"""
         SELECT t.id, t.date, t.concept, t.concept_clean, t.amount, t.balance, t.category, t.subcategory,
@@ -329,9 +324,9 @@ def transactions_all(conn: sqlite3.Connection, *, month=None, category=None, flo
 
 
 def transactions_totals(conn: sqlite3.Connection, *, month=None, category=None, flow=None, key=None, q=None,
-                        account=None, tag=None) -> dict:
+                        account=None, tag=None, dates=None) -> dict:
     """Ingresos, gastos y neto de TODO el filtro (no solo de la página visible)."""
-    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag)
+    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag, dates)
     ph = ",".join("?" for _ in EXPENSE_FLOWS)
     row = conn.execute(
         f"""

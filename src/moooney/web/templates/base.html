@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=33">
+  <link rel="stylesheet" href="/static/app.css?v=39">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script>window.go = function (url) { window.location = url; };</script>
@@ -40,32 +40,15 @@
   <aside class="sidebar">
     <a class="brand" href="/">moooney</a>
     <nav id="side-nav">
-      <div class="group">Ver</div>
-      <a href="/" class="{{ 'active' if path == '/' else '' }}">Resumen</a>
-      <a href="/trends" class="{{ 'active' if path.startswith('/trends') else '' }}">Tendencias</a>
-      <a href="/year" class="{{ 'active' if path.startswith('/year') else '' }}">Año</a>
-      <a href="/transactions" class="{{ 'active' if path.startswith('/transactions') else '' }}">Movimientos</a>
-      <a href="/chat" class="{{ 'active' if path.startswith('/chat') else '' }}">Pregunta</a>
-      <div class="group">Mantener</div>
-      <a href="/merchants" class="{{ 'active' if path.startswith('/merchants') else '' }}">
-        Comercios
-        {% if merchants_counts.dudosas %}<span class="pill soft" title="dudosas por revisar">{{ merchants_counts.dudosas }}</span>{% endif %}
+      {# Siete secciones (SECTIONS en app.py); las páginas que comparten sección son pestañas dentro. #}
+      {% for name, href, tabs in SECTIONS %}
+      <a href="{{ href }}" class="{{ 'active' if section == name else '' }}{{ ' in-tabbar' if loop.index <= 4 else '' }}"{% if section == name %} aria-current="page"{% endif %}>
+        {{ name }}
+        {% if name == 'Avisos' and alerts_counts.total %}<span class="pill {{ 'crit' if alerts_counts.critical else 'soft' }}" title="alertas pendientes">{{ alerts_counts.total }}</span>{% endif %}
+        {% if name == 'Datos' %}{% if merchants_counts.dudosas %}<span class="pill soft" title="comercios dudosos por revisar">{{ merchants_counts.dudosas }}</span>{% endif %}
+        {% if not snapshot %}{% with job=job_latest %}{% include "partials/job_indicator.html" %}{% endwith %}{% endif %}{% endif %}
       </a>
-      <a href="/recurring" class="{{ 'active' if path.startswith('/recurring') else '' }}">Recurrentes</a>
-      <a href="/shared" class="{{ 'active' if path.startswith('/shared') else '' }}">Compartidos</a>
-      <a href="/budgets" class="{{ 'active' if path.startswith('/budgets') else '' }}">Presupuestos</a>
-      <a href="/goals" class="{{ 'active' if path.startswith('/goals') else '' }}">Metas</a>
-      <a href="/alerts" class="{{ 'active' if path.startswith('/alerts') else '' }}">
-        Alertas
-        {% if alerts_counts.total %}<span class="pill {{ 'crit' if alerts_counts.critical else 'soft' }}">{{ alerts_counts.total }}</span>{% endif %}
-      </a>
-      <div class="group">Sistema</div>
-      <a href="/report" class="{{ 'active' if path.startswith('/report') else '' }}">Informe</a>
-      <a href="/pipeline" class="{{ 'active' if path.startswith('/pipeline') else '' }}">
-        Pipeline
-        {% if not snapshot %}{% with job=job_latest %}{% include "partials/job_indicator.html" %}{% endwith %}{% endif %}
-      </a>
-      <a href="/settings" class="{{ 'active' if path.startswith('/settings') else '' }}">Ajustes</a>
+      {% endfor %}
     </nav>
     <div class="sidebar-foot">
       {% if as_of %}<div>datos hasta <strong title="{{ as_of }}">{{ as_of|fecha }} {{ as_of[:4] }}</strong></div>{% endif %}
@@ -78,19 +61,16 @@
     </div>
   </aside>
   {# Móvil: cuatro accesos fijos abajo y «Más», que abre el menú completo (el mismo #side-nav). #}
-  {% set tab_paths = ['/trends', '/transactions', '/chat'] %}
-  {% set in_tabs = namespace(v = path == '/') %}
-  {% for p in tab_paths %}{% if path.startswith(p) %}{% set in_tabs.v = true %}{% endif %}{% endfor %}
   <nav class="tabbar" aria-label="Accesos principales">
-    <a href="/" class="{{ 'active' if path == '/' else '' }}">
+    <a href="/" class="{{ 'active' if section == 'Resumen' else '' }}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Resumen</a>
-    <a href="/trends" class="{{ 'active' if path.startswith('/trends') else '' }}">
+    <a href="/trends" class="{{ 'active' if section == 'Tendencias' else '' }}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-6 4 3 7-9"/><path d="M4 21h16"/></svg>Tendencias</a>
-    <a href="/transactions" class="{{ 'active' if path.startswith('/transactions') else '' }}">
+    <a href="/transactions" class="{{ 'active' if section == 'Movimientos' else '' }}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Movimientos</a>
-    <a href="/chat" class="{{ 'active' if path.startswith('/chat') else '' }}">
+    <a href="/chat" class="{{ 'active' if section == 'Pregunta' else '' }}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H10l-5 4v-4H4z"/></svg>Pregunta</a>
-    <button type="button" id="more-btn" class="{{ '' if in_tabs.v else 'active' }}" aria-expanded="false" aria-controls="side-nav" onclick="toggleNav()">
+    <button type="button" id="more-btn" class="{{ '' if section in ('Resumen', 'Tendencias', 'Movimientos', 'Pregunta') else 'active' }}" aria-expanded="false" aria-controls="side-nav" onclick="toggleNav()">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Más{% if merchants_counts.dudosas or alerts_counts.total %}<span class="dot" title="hay comercios o alertas por revisar"></span>{% endif %}</button>
   </nav>
   <main class="content">
@@ -100,6 +80,15 @@
     <div class="demo-bar"><span><strong>Datos de demostración</strong> · 14 meses inventados · nada sale de tu equipo</span><a href="/pipeline">Importar mis movimientos →</a></div>
     {% endif %}
     <div class="page">
+    {% if section_tabs %}
+    <nav class="section-tabs" aria-label="{{ section }}">
+      {% for label, href in section_tabs %}
+      <a href="{{ href }}" class="{{ 'on' if path.startswith(href) else '' }}"{% if path.startswith(href) %} aria-current="page"{% endif %}>{{ label }}
+        {%- if href == '/alerts' and alerts_counts.total %} <span class="pill {{ 'crit' if alerts_counts.critical else 'soft' }}">{{ alerts_counts.total }}</span>{% endif %}
+        {%- if href == '/merchants' and merchants_counts.dudosas %} <span class="pill soft" title="dudosas por revisar">{{ merchants_counts.dudosas }}</span>{% endif %}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
     {% block content %}{% endblock %}
     </div>
   </main>

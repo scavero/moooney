@@ -8,6 +8,7 @@ vista) responden con fragmentos HTML que HTMX intercambia en la página.
 
 import html
 import os
+import re
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -27,9 +28,11 @@ from moooney.analytics import budgets as budgets_mod
 from moooney.analytics import forecast as forecast_mod
 from moooney.analytics import goals as goals_mod
 from moooney.analytics import insights as insights_mod
-from moooney.analytics import periods, yearly
+from moooney.analytics import period_summary as period_mod
+from moooney.analytics import periods
 from moooney.analytics import shared as shared_mod
 from moooney.analytics.metrics import full_months_before_safe
+from moooney.analytics.periods import Period
 from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
 from moooney.categorize import web_rules
@@ -166,6 +169,47 @@ def mes(value: str | None, short: bool = False) -> str:
     return f"{name[:3]} {value[2:4]}" if short else f"{name} {value[:4]}"
 
 
+def periodo(p: Period, short: bool = False) -> str:
+    """Nombre de un periodo: 'octubre 2026', 'T4 2026', '2026' o '15 ene 2026 – 10 mar 2026'."""
+    if p.kind == "month":
+        return mes(p.key, short)
+    if p.kind == "quarter":
+        return f"T{p.key[-1]} {p.key[:4]}"
+    if p.kind == "year":
+        return p.key
+    return f"{fecha(p.start)} {p.start[:4]} – {fecha(p.end)} {p.end[:4]}"
+
+
+def period_url(p: Period, path: str = "/") -> str:
+    if p.kind == "month":
+        return f"{path}?month={p.key}"
+    if p.kind == "range":
+        return f"{path}?start={p.start}&end={p.end}"
+    return f"{path}?period={p.key}"
+
+
+# Siete secciones (decisión 2026-11-12). Las páginas de siempre siguen en su dirección; las que
+# comparten sección se enseñan como pestañas dentro de ella. (nombre, destino, pestañas)
+SECTIONS: list[tuple[str, str, list[tuple[str, str]]]] = [
+    ("Resumen", "/", []),
+    ("Tendencias", "/trends", []),
+    ("Movimientos", "/transactions", [("Todos", "/transactions"), ("Compartidos", "/shared")]),
+    ("Pregunta", "/chat", [("Asistente", "/chat"), ("Informe mensual", "/report")]),
+    ("Plan", "/budgets", [("Presupuestos", "/budgets"), ("Metas", "/goals")]),
+    ("Avisos", "/alerts", [("Alertas", "/alerts"), ("Recurrentes", "/recurring")]),
+    ("Datos", "/pipeline", [("Importar", "/pipeline"), ("Comercios", "/merchants"), ("Ajustes", "/settings")]),
+]
+
+
+def section_of(path: str) -> tuple[str, list[tuple[str, str]]]:
+    """Sección a la que pertenece una ruta y sus pestañas (vacías si la sección es una sola página)."""
+    for name, href, tabs in SECTIONS:
+        for target in [href, *(h for _, h in tabs)]:
+            if path == target or (target != "/" and path.startswith(target)):
+                return name, tabs
+    return "Resumen", []
+
+
 def build_verdict(summary, insights, *, day: int | None = None) -> str:
     """Una frase en castellano que responde a la pregunta del mes. Determinista."""
     prefix = f"A día {day}, " if day and not summary.full_month else ""
@@ -202,9 +246,11 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     templates.env.filters["fecha"] = fecha
     templates.env.filters["fecha_larga"] = fecha_larga
     templates.env.filters["mes"] = mes
+    templates.env.filters["periodo"] = periodo
     templates.env.globals.update(
         FLOW_LABEL=FLOW_LABEL, SOURCE_LABEL=SOURCE_LABEL, SEVERITY_LABEL=SEVERITY_LABEL,
         ALERT_TYPE_LABEL=ALERT_TYPE_LABEL, ALERT_EXPLAIN=ALERT_EXPLAIN, snapshot=snapshot,
+        SECTIONS=SECTIONS, period_url=period_url,
     )
 
     _demo_cache: dict[str, Active] = {}
@@ -228,9 +274,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     DB = Annotated[sqlite3.Connection, Depends(get_db)]
 
     def render(request: Request, conn: sqlite3.Connection, template: str, **ctx) -> HTMLResponse:
+        section, section_tabs = section_of(request.url.path)
         base = {
             "request": request,
             "path": request.url.path,
+            "section": section,
+            "section_tabs": section_tabs,
             "months": queries.months_available(conn),
             "alerts_counts": queries.alerts_counts(conn),
             "merchants_counts": queries.merchants_summary(conn),
@@ -250,7 +299,60 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         as_of = periods.as_of_date(conn)
         if as_of is None:
             return None
-        return month or periods.month_of(as_of)
+        if not month or not re.fullmatch(r"\d{4}-\d{2}", month):
+            return periods.month_of(as_of)
+        # solo meses con datos: ni antes del primer movimiento ni después del último
+        first = periods.first_date(conn) or as_of
+        return min(max(month, periods.month_of(first)), periods.month_of(as_of))
+
+    def month_nav(conn: sqlite3.Connection, month: str) -> dict:
+        """Mes anterior y siguiente para las flechas; None donde ya no hay datos."""
+        as_of = periods.as_of_date(conn)
+        first = periods.first_date(conn) or as_of
+        prev, nxt = periods.prev_month(month), periods.next_month(month)
+        return {"prev_month": prev if prev >= periods.month_of(first) else None,
+                "next_month": nxt if nxt <= periods.month_of(as_of) else None}
+
+    def resolve_period(conn: sqlite3.Connection, *, period: str | None = None, month: str | None = None,
+                       start: str | None = None, end: str | None = None) -> Period | None:
+        """Periodo pedido en la URL, llevado a donde hay datos. Sin nada (o con basura), el último mes."""
+        as_of = periods.as_of_date(conn)
+        if as_of is None:
+            return None
+        first = periods.first_date(conn) or as_of
+        p = periods.range_period(start, end) if start and end else periods.parse_period(period or month)
+        if p is None or p.kind == "month":
+            return periods.month_period(resolve_month(conn, p.key if p else None))
+        if p.kind == "range":
+            a, b = max(p.start, first), min(p.end, as_of)
+            return periods.range_period(a, b) if a <= b else periods.month_period(periods.month_of(as_of))
+        if p.end < first:
+            return periods.period_containing(p.kind, first)
+        return periods.period_containing(p.kind, as_of) if p.start > as_of else p
+
+    def period_nav(conn: sqlite3.Connection, p: Period) -> dict:
+        """Lo que pinta el selector de periodo: tipos, anterior y siguiente (None sin datos) y opciones."""
+        as_of = periods.as_of_date(conn)
+        first = periods.first_date(conn) or as_of
+
+        def con_datos(x: Period) -> Period | None:
+            return x if x.start <= as_of and x.end >= first else None
+
+        anchor = min(p.end, as_of)
+        months = queries.months_available(conn)
+        options: list[Period] = []
+        if p.kind != "range":
+            keys = dict.fromkeys(periods.period_containing(p.kind, f"{m}-01").key for m in months)
+            options = [periods.parse_period(k) for k in keys]
+        libre = periods.range_period(max(p.start, first), anchor)
+        return {
+            "period": p, "kind": p.kind, "options": options, "first": first, "as_of": as_of,
+            "prev": con_datos(periods.shift_period(p, -1)), "next": con_datos(periods.shift_period(p, 1)),
+            "kinds": [("month", "Mes", period_url(periods.period_containing("month", anchor))),
+                      ("quarter", "Trimestre", period_url(periods.period_containing("quarter", anchor))),
+                      ("year", "Año", period_url(periods.period_containing("year", anchor))),
+                      ("range", "Rango", period_url(libre))],
+        }
 
     def today_pct(conn: sqlite3.Connection, month: str) -> float:
         """Porcentaje del mes transcurrido (100 si el mes ya está cerrado)."""
@@ -262,10 +364,15 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     # ---------- resumen ----------
 
     @app.get("/", response_class=HTMLResponse)
-    def dashboard(request: Request, conn: DB, month: str | None = None):
-        m = resolve_month(conn, month)
-        if m is None:
+    def dashboard(request: Request, conn: DB, month: str | None = None, period: str | None = None,
+                  start: str | None = None, end: str | None = None):
+        p = resolve_period(conn, period=period, month=month, start=start, end=end)
+        if p is None:
             return render(request, conn, "empty.html")
+        if p.kind != "month":  # trimestre, año o rango: totales del periodo frente al anterior
+            return render(request, conn, "period.html", p=p, pnav=period_nav(conn, p),
+                          ps=period_mod.period_summary(conn, p))
+        m = p.key
         service.refresh_recurring(conn)
         insights, report = insights_mod.build_insights(conn, m)
         series_months = [s.month for s in report.series]
@@ -281,7 +388,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         fme = forecast_mod.forecast_month_end(conn, report.as_of, first=first) if m == periods.month_of(report.as_of) else None
         return render(
             request, conn, "dashboard.html",
-            month=m, prev_month=periods.prev_month(m), next_month=periods.next_month(m),
+            month=m, pnav=period_nav(conn, p),
             report=report, top=queries.top_merchants(conn, m, limit=8),
             chart_months=series_months,
             chart_series=[{"label": c, "data": v} for c, v in top_cats]
@@ -304,13 +411,11 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
 
     # ---------- tendencias y previsión ----------
 
-    @app.get("/year", response_class=HTMLResponse)
-    def year_page(request: Request, conn: DB, year: int | None = None):
-        years = yearly.years_available(conn)
-        if not years:
-            return render(request, conn, "empty.html")
-        y = yearly.year_summary(conn, year if year in years else years[0])
-        return render(request, conn, "year.html", y=y, years=years)
+    @app.get("/year")
+    def year_page(conn: DB, year: int | None = None):
+        """Dirección antigua de la página «Año»: ahora es un periodo más del resumen."""
+        p = resolve_period(conn, period=str(year) if year else (periods.as_of_date(conn) or "")[:4])
+        return RedirectResponse(period_url(p) if p else "/", status_code=307)
 
     @app.get("/trends", response_class=HTMLResponse)
     def trends(request: Request, conn: DB, category: str | None = None):
@@ -353,15 +458,34 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
 
     # ---------- movimientos ----------
 
+    def tx_period(period: str | None, month: str | None, start: str | None, end: str | None) -> Period | None:
+        """Filtro de fechas de Movimientos: un rango (desde y hasta) o la clave de un mes, trimestre o año.
+        `month` admite cualquier clave de periodo: es el nombre que ya llevan los enlaces de toda la web."""
+        if start and end:
+            return periods.range_period(start, end)
+        return periods.parse_period(period or month)
+
+    def tx_dates(p: Period | None) -> tuple[str, str] | None:
+        return (p.start, p.end) if p and p.kind != "month" else None
+
     @app.get("/transactions", response_class=HTMLResponse)
     def transactions(request: Request, conn: DB, month: str | None = None, category: str | None = None,
                      flow: str | None = None, key: str | None = None, q: str | None = None,
-                     account: str | None = None, tag: str | None = None, page: int = 1):
-        filters = {"month": month or None, "category": category or None, "flow": flow or None,
+                     account: str | None = None, tag: str | None = None, page: int = 1,
+                     period: str | None = None, start: str | None = None, end: str | None = None):
+        p = tx_period(period, month, start, end)
+        filters = {"month": p.key if p and p.kind == "month" else None, "dates": tx_dates(p),
+                   "category": category or None, "flow": flow or None,
                    "key": key or None, "q": q or None, "account": account or None, "tag": tag or None}
         pg = queries.transactions_page(conn, page=page, **filters)
+        months = queries.months_available(conn)
         return render(
-            request, conn, "transactions.html", page=pg, month=month or "", category=category or "",
+            request, conn, "transactions.html", page=pg, category=category or "",
+            month=p.key if p and p.kind != "range" else "", period=p,
+            start=(start or "") if not p or p.kind == "range" else "",
+            end=(end or "") if not p or p.kind == "range" else "",
+            quarters=list(dict.fromkeys(periods.period_containing("quarter", f"{m}-01").key for m in months)),
+            years=list(dict.fromkeys(m[:4] for m in months)),
             flow=flow or "", key=key or "", q=q or "", account=account or "", tag=tag or "",
             totals=queries.transactions_totals(conn, **filters), taxonomy=taxonomy(),
             accounts=repo.accounts(conn), tags=repo.tags_summary(conn),
@@ -390,13 +514,16 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     @app.get("/transactions/export.csv")
     def transactions_export(conn: DB, month: str | None = None, category: str | None = None,
                             flow: str | None = None, key: str | None = None, q: str | None = None,
-                            account: str | None = None, tag: str | None = None):
+                            account: str | None = None, tag: str | None = None, period: str | None = None,
+                            start: str | None = None, end: str | None = None):
         """CSV de los movimientos del filtro actual (separador ;, UTF-8 con BOM para Excel)."""
+        p = tx_period(period, month, start, end)
         texto, _n = transactions_csv(
-            conn, month=month or None, category=category or None, flow=flow or None,
+            conn, month=p.key if p and p.kind == "month" else None, dates=tx_dates(p),
+            category=category or None, flow=flow or None,
             key=key or None, q=q or None, account=account or None, tag=tag or None,
         )
-        nombre = export_filename(month=month or None, category=category or None)
+        nombre = export_filename(month=p.key.replace("..", "-a-") if p else None, category=category or None)
         return Response(
             content="\ufeff" + texto, media_type="text/csv; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
@@ -650,8 +777,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         as_of = periods.as_of_date(conn)
         current = as_of is not None and periods.month_of(as_of) == m
         return render(
-            request, conn, "budgets.html", month=m, prev_month=periods.prev_month(m),
-            next_month=periods.next_month(m), rows=rows, has_config=bool(limits_cfg),
+            request, conn, "budgets.html", month=m, **month_nav(conn, m), rows=rows, has_config=bool(limits_cfg),
             sin_limite=sin_limite, total_limit=sum(r.limit for r in rows),
             total_spent=sum(r.spent for r in rows),
             total_projected=sum((r.projected if r.projected is not None else r.spent) for r in rows),
@@ -740,8 +866,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         limits = budgets_mod.load_budgets_config(active().paths.budgets)
         payload = advice.build_payload(conn, m, budgets_limits=limits or None)
         return render(
-            request, conn, "report.html", month=m, prev_month=periods.prev_month(m),
-            next_month=periods.next_month(m), report=row, report_html=html,
+            request, conn, "report.html", month=m, **month_nav(conn, m), report=row, report_html=html,
             has_llm=llm is not None, model_name=(llm.models.get("redaccion") if llm else "—"),
             payload_json=json.dumps(payload, ensure_ascii=False, indent=1),
         )

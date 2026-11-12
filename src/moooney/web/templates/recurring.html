@@ -67,6 +67,7 @@
     <h2 style="margin-bottom:4px">Calendario de cargos</h2>
     <div class="concept" style="margin-bottom:8px">Próximos 30 días, con el saldo que iría quedando tras cada cargo.</div>
     {% if calendar %}
+    <div class="scroll-x">
     <table class="cal-table">
       <tr><th>Día</th><th>Cargo</th><th class="num">Importe</th><th class="num">Queda</th></tr>
       {% for r, running in calendar %}
@@ -78,6 +79,7 @@
       </tr>
       {% endfor %}
     </table>
+    </div>
     {% else %}
     <p class="muted">Nada previsto en los próximos 30 días.</p>
     {% endif %}

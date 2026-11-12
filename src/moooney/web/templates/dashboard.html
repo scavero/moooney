@@ -7,14 +7,7 @@
     <h1 style="text-transform:capitalize">{{ month|mes }}</h1>
     <div class="subtitle">{% if not s.full_month %}A día <strong>{{ day }} de {{ days_in_month }}</strong> · {% else %}Mes cerrado · {% endif %}{{ s.n_tx }} movimientos · ¿a dónde se va el dinero?</div>
   </div>
-  <div class="month-nav">
-    <a class="btn ghost" href="/?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>
-    <label for="month-select" style="position:absolute;left:-9999px">Mes</label>
-    <select id="month-select" onchange="go('/?month='+this.value)">
-      {% for m in months %}<option value="{{ m }}" {{ 'selected' if m == month else '' }} style="text-transform:capitalize">{{ m|mes }}</option>{% endfor %}
-    </select>
-    <a class="btn ghost" href="/?month={{ next_month }}" aria-label="mes siguiente" title="mes siguiente">›</a>
-  </div>
+  {% include "partials/period_nav.html" %}
 </div>
 
 <div class="verdict section">
