@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.10.2 · 2026-11-13
+
+- **Asistente**: las sugerencias para seguir ya no vuelven a las genéricas cuando la respuesta no
+  consulta nada nuevo (siguen el hilo de la última consulta), y las listas que el modelo escribe
+  pegadas a un párrafo se muestran como listas.
+
 ## 1.10.1 · 2026-11-13
 
 - **Informe sin modelo, en castellano**: el mes por su nombre («octubre de 2026»), importes con

@@ -702,6 +702,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         """Markdown del modelo a HTML, sin dejar pasar HTML propio de la respuesta."""
         import markdown as md
 
+        # el modelo pega las listas al párrafo anterior y Markdown exige una línea en blanco antes
+        text = re.sub(r"(?m)^(?!\s*(?:[-*+]|\d+\.) )(\S.*)\n(?=\s*(?:[-*+]|\d+\.) )", r"\1\n\n", text)
         return md.markdown(text.replace("&", "&amp;").replace("<", "&lt;"))
 
     def chat_ctx() -> dict:
@@ -717,12 +719,15 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
                 for r in chat_agent.history(conn)]
         last = msgs[-1] if msgs and msgs[-1]["role"] == "assistant" and not msgs[-1]["error"] else None
         return render(request, conn, "chat.html", messages=msgs, suggestions=chat_agent.SUGGESTIONS,
-                      followups=chat_next(conn, last["tools"]) if last else [],
+                      followups=chat_next(conn) if last else [],
                       ideas=chat_followups.ideas(conn, list(taxonomy().categories)), **chat_ctx())
 
-    def chat_next(conn: sqlite3.Connection, tools_used: list[str]) -> list[str]:
-        asked = [r["content"] for r in chat_agent.history(conn) if r["role"] == "user"]
-        return chat_followups.followups(conn, tools_used, asked)
+    def chat_next(conn: sqlite3.Connection) -> list[str]:
+        rows = chat_agent.history(conn)
+        asked = [r["content"] for r in rows if r["role"] == "user"]
+        # si la última respuesta no consultó nada, sigue valiendo el hilo de la última que sí
+        tools = next((r["tools"].split(",") for r in reversed(rows) if r["role"] == "assistant" and r["tools"]), [])
+        return chat_followups.followups(conn, tools, asked)
 
     @app.post("/chat", response_class=HTMLResponse)
     def chat_post(request: Request, conn: DB, question: Annotated[str, Form()] = ""):
@@ -737,7 +742,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
                  "tools": list(dict.fromkeys(answer.tools_used))}
         return templates.TemplateResponse(request, "partials/chat_turn.html", {
             "question": " ".join(question.split()), "reply": reply, "oob": not answer.error,
-            "followups": [] if answer.error else chat_next(conn, reply["tools"]), **chat_ctx()})
+            "followups": [] if answer.error else chat_next(conn), **chat_ctx()})
 
     @app.post("/chat/clear")
     def chat_clear(conn: DB):

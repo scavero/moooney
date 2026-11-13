@@ -155,6 +155,12 @@ def test_pagina(demo, monkeypatch):
         r = c.get("/chat")
         assert "Nueva conversación" in r.text and "<strong>bien</strong>" in r.text
         assert "Puedes seguir con:" in r.text and 'list="chat-ideas"' in r.text and "¿Cuánto gasto al mes en " in r.text
+        # una respuesta sin consultas no pierde el hilo, y una lista pegada al párrafo sale como lista
+        monkeypatch.setattr(service, "chat_ask", lambda conn, paths, q: (
+            agent.save(conn, "user", q), agent.save(conn, "assistant", "x"),
+            agent.Answer(content="Tus recibos:\n- Luz\n- Agua", tools_used=[]))[-1])
+        r = c.post("/chat", data={"question": "¿y la luz?"})
+        assert "<li>Luz</li>" in r.text and "¿Cómo acabaré el mes a este ritmo?" in r.text
         r = c.post("/chat/clear", follow_redirects=True)
         assert "Nueva conversación" not in r.text
 
