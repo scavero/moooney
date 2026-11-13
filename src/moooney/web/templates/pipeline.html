@@ -89,6 +89,7 @@
       <a class="btn ghost" href="/merchants?mode=dudosas">Revisar {{ merchants.dudosas }} dudosas</a>
       <button class="btn ghost" hx-post="/pipeline/jobs/categorize-retry" hx-target="#job-panel" hx-swap="innerHTML" title="vuelve a preguntar al decider por las dudosas, con el tipo de operación y el resumen web">Reintentar dudosas</button>
       <button class="btn ghost" hx-post="/pipeline/jobs/second-opinion" hx-target="#job-panel" hx-swap="innerHTML" title="el modelo de texto revisa por lotes las dudosas que sigan siéndolo; solo sustituye si está seguro">Segunda opinión</button>
+      <button class="btn ghost" hx-post="/pipeline/jobs/fill-subcategories" hx-target="#job-panel" hx-swap="innerHTML" title="pregunta al decider la subcategoría de los comercios ya categorizados que no la tienen; no cambia la categoría">Rellenar subcategorías</button>
     </div>
     <details style="margin-top:12px"><summary>Mantenimiento ↓</summary>
       <div class="concept" style="margin:8px 0">Tras editar las reglas o cambiar la normalización de conceptos.</div>

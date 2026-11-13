@@ -212,6 +212,16 @@ def test_pipeline_enriquecimiento_preview_y_toggle(client):
         time.sleep(0.05)
     assert "modo offline" in r.text
     client.post("/pipeline/enrichment/toggle", data={"enabled": 0})
+    # el botón de subcategorías: en offline el trabajo termina y lo dice, sin llamar al modelo
+    assert "/pipeline/jobs/fill-subcategories" in client.get("/pipeline").text
+    r = client.post("/pipeline/jobs/fill-subcategories")
+    job_id = r.text.split('id="job-')[1].split('"')[0]
+    for _ in range(50):
+        r = client.get(f"/pipeline/jobs/{job_id}")
+        if "terminado" in r.text:
+            break
+        time.sleep(0.05)
+    assert "subcategorías omitidas: modo offline" in r.text
 
 
 def test_sin_datos_reales_se_sirve_la_demo_y_desaparece_al_importar(tmp_path, monkeypatch):

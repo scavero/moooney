@@ -228,7 +228,7 @@ def job_ingest(settings: Settings, log: Logger) -> None:
 
 def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: bool = False,
                    refresh: bool = False, rebuild: bool = False, retry: bool = False,
-                   second_opinion: bool = False) -> None:
+                   second_opinion: bool = False, fill_subs: bool = False) -> None:
     taxonomy = taxonomy_for(paths)
     rules = load_rules(paths.rules, taxonomy=taxonomy)
     conn = repo.connect(settings.paths.db_path, check_same_thread=False)
@@ -292,6 +292,19 @@ def job_categorize(settings: Settings, paths: Paths, log: Logger, *, no_llm: boo
                     ss = run_second_opinion(conn, cliente, llm, taxonomy, on_progress=lambda k, m: log(f"  {k}: {m}"))
                     log(f"segunda opinión: {ss.examined} dudosas, {ss.changed} cambian, {ss.confirmed} confirmadas, "
                         f"{ss.kept} se quedan, {ss.failed} fallidas")
+        if fill_subs:
+            if llm is None or offline_enabled():
+                log("subcategorías omitidas: " + ("modo offline" if offline_enabled() else "sin config/llm.yaml"))
+            else:
+                from moooney.categorize.pipeline import fill_subcategories
+
+                if recorder is None:
+                    recorder = CallRecorder(conn)
+                report(log, "Preguntando la subcategoría de los comercios que no la tienen")
+                n_exam, n_ok, n_ko = fill_subcategories(
+                    conn, build_decider(llm, LLMClient(llm, recorder=recorder)), taxonomy,
+                    max_workers=llm.max_concurrency)
+                log(f"subcategorías: {n_exam} comercios sin ella, {n_ok} rellenados, {n_ko} sin respuesta válida")
         repo.mark_card_settlements(conn)
         sin = conn.execute("SELECT COUNT(*) AS n FROM transactions WHERE category IS NULL").fetchone()["n"]
         log(f"movimientos sin categoría: {sin}")

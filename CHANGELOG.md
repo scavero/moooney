@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.11.2 · 2026-11-13
+
+- Botón **Rellenar subcategorías** en Importar, junto a «Segunda opinión»: lo mismo que
+  `moooney categorize --fill-subcategories`, desde la web.
+
 ## 1.11.1 · 2026-11-13
 
 - `moooney categorize --fill-subcategories` pregunta al modelo la subcategoría de los comercios
