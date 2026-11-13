@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.13.2 · 2026-11-13
+
+- **Asistente**: el autocompletado ya no aparece mientras se espera una respuesta (pasaba al
+  pulsar Enter justo después de teclear), y en una conversación vacía las ideas para empezar se
+  apartan cuando hay propuestas de autocompletado.
+
 ## 1.13.1 · 2026-11-13
 
 - **Asistente**: al borrar lo escrito vuelven las sugerencias para seguir (antes se quedaban los

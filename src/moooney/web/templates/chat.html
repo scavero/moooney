@@ -32,7 +32,8 @@
     {% endfor %}
   </div>
 
-  <div id="chat-next" class="chat-suggest"{% if followups and has_llm and not snapshot %} hx-get="/chat/next" hx-trigger="load" hx-swap="innerHTML"{% endif %}>{% include "partials/chat_next.html" %}</div>
+  <div id="chat-next" class="chat-suggest"
+       hx-on::after-settle="if (!document.querySelector('#chat-log > *')) document.getElementById('chat-suggest').hidden = !!this.querySelector('button')"{% if followups and has_llm and not snapshot %} hx-get="/chat/next" hx-trigger="load" hx-swap="innerHTML"{% endif %}>{% include "partials/chat_next.html" %}</div>
 
   <div id="chat-wait" class="chat-wait htmx-indicator"><span class="spinner"></span> Consultando tus datos y redactando… suele tardar unos segundos.</div>
 
@@ -43,7 +44,9 @@
     <input id="chat-q" type="text" name="question" required maxlength="600" autocomplete="off"
            placeholder="p. ej. ¿cuánto gasto al mes en supermercado?" {% if snapshot or not has_llm %}disabled{% else %}
            hx-post="/chat/complete" hx-trigger="input changed delay:450ms" hx-target="#chat-next" hx-swap="innerHTML"
-           hx-sync="this:replace" hx-indicator="#chat-next" hx-disabled-elt="#chat-next"{% endif %}>
+           hx-sync="this:replace" hx-indicator="#chat-next" hx-disabled-elt="#chat-next"
+           hx-on::before-request="if (document.getElementById('chat-wait').classList.contains('htmx-request')) event.preventDefault()"
+           hx-on::before-swap="if (document.getElementById('chat-wait').classList.contains('htmx-request')) event.detail.shouldSwap = false"{% endif %}>
     <button class="btn primary" type="submit" {% if snapshot or not has_llm %}disabled{% endif %}>Preguntar</button>
   </form>
   <p class="concept" style="margin-top:12px">Responde {{ model_name }} a través de tu proxy de modelos. Cada llamada queda en la auditoría. No es un asesor financiero.</p>
