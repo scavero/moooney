@@ -99,19 +99,27 @@ def test_llm_connection(paths: Paths, *, transport=None) -> dict:
 
 
 def set_merchant_category(
-    conn: sqlite3.Connection, taxonomy: Taxonomy, key: str, category: str, flow_type: str | None
+    conn: sqlite3.Connection, taxonomy: Taxonomy, key: str, category: str, flow_type: str | None,
+    subcategory: str | None = None,
 ) -> int:
-    """Corrección manual: source=user, confianza 1. Devuelve transacciones afectadas."""
+    """Corrección manual: source=user, confianza 1. Devuelve transacciones afectadas.
+
+    Sin subcategoría válida se conserva la que tenía el comercio, si la categoría no cambia."""
     if category not in taxonomy.categories:
         raise ValueError(f"categoría desconocida: {category}")
     if not flow_type or flow_type not in taxonomy.flow_types:
         flow_type = taxonomy.default_flow_type(category)
+    subs = taxonomy.categories[category].subcategories
+    if subcategory not in subs:
+        old = repo.get_merchant(conn, key)
+        keep = old is not None and old["category"] == category and old["subcategory"] in subs
+        subcategory = old["subcategory"] if keep else None
     repo.upsert_merchant(
-        conn, key=key, category=category, subcategory=None, flow_type=flow_type,
+        conn, key=key, category=category, subcategory=subcategory, flow_type=flow_type,
         source="user", confidence=1.0, updated_at=_now(),
     )
     return repo.propagate_to_transactions(
-        conn, key=key, category=category, subcategory=None, flow_type=flow_type, confidence=1.0
+        conn, key=key, category=category, subcategory=subcategory, flow_type=flow_type, confidence=1.0
     )
 
 

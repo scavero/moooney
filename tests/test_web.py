@@ -349,3 +349,53 @@ def test_modo_oscuro_selector_y_colores_en_variables(client):
     resto = css[:css.index(":root {")] + css[css.index("}", oscuro_ini):]
     resto = re.sub(r"/\*.*?\*/", "", resto, flags=re.S)
     assert not re.findall(r"#[0-9a-fA-F]{3,6}\b|rgba\(14", resto)
+
+
+def test_subcategorias(tmp_path):
+    """El modelo elige subcategoría en una segunda pregunta, se corrige a mano y se ve en el Resumen."""
+    from moooney.categorize.pipeline import decide_all, subcategory_of
+    from moooney.categorize.taxonomy import load_taxonomy
+    from moooney.llm.client import LLMError
+    from moooney.llm.decide import Answer
+
+    tx = load_taxonomy(REPO_CONFIG / "categories.yaml")
+    asked = []
+
+    class Fake:
+        def __init__(self, sub):
+            self.sub = sub
+
+        def decide(self, state, questions):
+            asked.append(list(questions))
+            if "subcategory" in questions:
+                if self.sub is None:
+                    raise LLMError("caído")
+                assert set(questions["subcategory"]["criteria"]) == set(tx.categories["Alimentacion"].subcategories)
+                return {"subcategory": Answer(choice=self.sub, confidence=0.9)}
+            return {"category": Answer(choice="Alimentacion", confidence=0.8)}
+
+    spec = tx.categories["Alimentacion"]
+    assert subcategory_of(decide_all(Fake("restaurantes"), "x", {"category": {}}, tx), spec) == "restaurantes"
+    assert asked == [["category"], ["subcategory"]]
+    # una subcategoría inventada o un fallo del modelo no pierden la categoría
+    assert subcategory_of(decide_all(Fake("inventada"), "x", {"category": {}}, tx), spec) is None
+    assert subcategory_of(decide_all(Fake(None), "x", {"category": {}}, tx), spec) is None
+    assert subcategory_of({}, tx.categories["Otros"]) == "otros"
+
+    from moooney.db import repo
+    from moooney.web import queries, service
+
+    settings_path = build_demo(tmp_path / "demo", source_config=REPO_CONFIG, months=8)
+    with TestClient(create_app(settings_path)) as c:
+        r = c.get("/")
+        assert "Supermercado <strong>" in r.text and "Restaurantes <strong>" in r.text
+    conn = repo.connect(tmp_path / "demo" / "moooney.db")
+    key = conn.execute("SELECT key FROM merchants WHERE subcategory = 'supermercado' LIMIT 1").fetchone()["key"]
+    service.set_merchant_category(conn, tx, key, "Alimentacion", None, "restaurantes")
+    assert repo.get_merchant(conn, key)["subcategory"] == "restaurantes"
+    service.set_merchant_category(conn, tx, key, "Alimentacion", None)  # sin decirla, se conserva
+    assert repo.get_merchant(conn, key)["subcategory"] == "restaurantes"
+    service.set_merchant_category(conn, tx, key, "Ocio", None, "restaurantes")  # no vale para Ocio
+    assert repo.get_merchant(conn, key)["subcategory"] is None
+    assert "Ocio" in queries.subcategories_by_category(conn, "2000-01-01", "2100-01-01")
+    conn.close()

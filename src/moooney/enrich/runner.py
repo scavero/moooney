@@ -15,7 +15,13 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from moooney.categorize.pipeline import KeyJob, build_state, pending_jobs_for_keys
+from moooney.categorize.pipeline import (
+    KeyJob,
+    build_state,
+    decide_all,
+    pending_jobs_for_keys,
+    subcategory_of,
+)
 from moooney.categorize.taxonomy import Taxonomy
 from moooney.db import repo
 from moooney.enrich.providers import Enrichment, Provider, ProviderError
@@ -161,7 +167,7 @@ def second_round(
 ) -> tuple[bool, bool]:
     """Vuelve a preguntar con contexto. Devuelve (mejoró, cambió_categoría)."""
     state = build_enriched_state(job, enrichment, max_summary_chars)
-    answers = decider.decide(state, questions)
+    answers = decide_all(decider, state, questions, taxonomy)
     category = answers.get("category")
     if category is None or category.choice not in taxonomy.categories:
         return False, False
@@ -174,7 +180,7 @@ def second_round(
         else taxonomy.default_flow_type(category.choice)
     )
     spec = taxonomy.categories[category.choice]
-    subcategory = "otros" if "otros" in spec.subcategories else None
+    subcategory = subcategory_of(answers, spec)
     saved = repo.upsert_merchant(
         conn,
         key=job.key,

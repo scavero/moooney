@@ -20,6 +20,13 @@
       <select id="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="category" class="quiet {{ 'doubt' if mdoubt and not saved else '' }}" style="width:100%;max-width:none">
         {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == m.category else '' }}>{{ c }}</option>{% endfor %}
       </select>
+      {% set subs = taxonomy.categories[m.category].subcategories if m.category in taxonomy.categories else [] %}
+      {% if subs|length > 1 %}
+      <select name="subcategory" class="quiet muted" aria-label="Subcategoría de {{ m.key }}" style="width:100%;max-width:none">
+        <option value="">sin subcategoría</option>
+        {% for s in subs %}<option value="{{ s }}" {{ 'selected' if s == m.subcategory else '' }}>{{ s }}</option>{% endfor %}
+      </select>
+      {% endif %}
     </form>
   </td>
   <td>

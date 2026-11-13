@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 
-from moooney.categorize.pipeline import KeyJob, build_state, dudosa_jobs
+from moooney.categorize.pipeline import KeyJob, build_state, decide_all, dudosa_jobs, subcategory_of
 from moooney.categorize.taxonomy import Taxonomy
 from moooney.db import repo
 from moooney.enrich.providers import Enrichment
@@ -66,7 +66,7 @@ def reask_dudosas(
     states = {j.key: state_for(conn, j, max_summary_chars=max_summary_chars) for j in jobs}
 
     def ask(job: KeyJob):
-        return decider.decide(states[job.key][0], questions)
+        return decide_all(decider, states[job.key][0], questions, taxonomy)
 
     with ThreadPoolExecutor(max_workers=max(1, min(max_workers, len(jobs)))) as pool:
         futures = {pool.submit(ask, job): job for job in jobs}
@@ -94,7 +94,7 @@ def reask_dudosas(
                 else taxonomy.default_flow_type(category.choice)
             )
             spec = taxonomy.categories[category.choice]
-            subcategory = "otros" if "otros" in spec.subcategories else None
+            subcategory = subcategory_of(answers, spec)
             source = SOURCE_WEB if states[job.key][1] else "clef"
             repo.upsert_merchant(
                 conn, key=job.key, category=category.choice, subcategory=subcategory,

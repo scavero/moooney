@@ -172,6 +172,36 @@ def build_questions(taxonomy: Taxonomy) -> dict:
     }
 
 
+def decide_all(decider: Decider, state: str, questions: dict, taxonomy: Taxonomy) -> dict[str, Answer]:
+    """Categoría y, ya decidida, su subcategoría en una segunda pregunta corta (2 a 6 opciones)."""
+    answers = decider.decide(state, questions)
+    category = answers.get("category")
+    spec = taxonomy.categories.get(category.choice) if category else None
+    if spec and len(spec.subcategories) > 1:
+        question = {"subcategory": {
+            "type": "choice",
+            "instructions": f"Subcategoria del movimiento dentro de {category.choice}",
+            "criteria": {s: s for s in spec.subcategories},
+        }}
+        try:
+            sub = decider.decide(state, question).get("subcategory")
+        except (LLMError, ValueError):
+            sub = None  # sin subcategoría antes que perder la categoría ya decidida
+        if sub is not None:
+            answers["subcategory"] = sub
+    return answers
+
+
+def subcategory_of(answers: dict[str, Answer], spec) -> str | None:
+    """La subcategoría elegida si es válida; si no, la única posible, «otros» o ninguna."""
+    sub = answers.get("subcategory")
+    if sub is not None and sub.choice in spec.subcategories:
+        return sub.choice
+    if len(spec.subcategories) == 1:
+        return spec.subcategories[0]
+    return "otros" if "otros" in spec.subcategories else None
+
+
 def _save(
     conn: sqlite3.Connection,
     *,
@@ -293,7 +323,7 @@ def apply_decider(
         return 0, 0
 
     def ask(job: KeyJob) -> dict[str, Answer]:
-        return decider.decide(build_state(job), questions)
+        return decide_all(decider, build_state(job), questions, taxonomy)
 
     resueltas = fallidas = 0
     with ThreadPoolExecutor(max_workers=max(1, min(max_workers, len(jobs)))) as pool:
@@ -337,7 +367,7 @@ def _save_answers(
         else taxonomy.default_flow_type(category.choice)
     )
     spec = taxonomy.categories[category.choice]
-    subcategory = "otros" if "otros" in spec.subcategories else None
+    subcategory = subcategory_of(answers, spec)
     return _save(
         conn,
         key=job.key,

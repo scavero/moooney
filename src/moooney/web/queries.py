@@ -363,6 +363,25 @@ def spend_by_day(conn: sqlite3.Connection, first: str, last: str) -> dict[str, d
     return out
 
 
+def subcategories_by_category(conn: sqlite3.Connection, first: str, last: str) -> dict[str, list[dict]]:
+    """{categoría: gasto por subcategoría} entre dos fechas, de mayor a menor."""
+    ph = ",".join("?" for _ in EXPENSE_FLOWS)
+    rows = conn.execute(
+        f"""
+        SELECT COALESCE(category, '(sin categoría)') AS c, COALESCE(subcategory, 'sin detalle') AS s, -SUM(amount) AS total
+        FROM transactions
+        WHERE date BETWEEN ? AND ? AND flow_type IN ({ph}) AND amount < 0
+        GROUP BY c, s
+        ORDER BY total DESC
+        """,
+        (first, last, *EXPENSE_FLOWS),
+    ).fetchall()
+    out: dict[str, list[dict]] = {}
+    for r in rows:
+        out.setdefault(r["c"], []).append({"sub": r["s"], "total": float(r["total"])})
+    return out
+
+
 def merchants_by_category(conn: sqlite3.Connection, first: str, last: str, *, per: int = 6) -> dict[str, list[dict]]:
     """{categoría: comercios donde más se gasta} entre dos fechas, los `per` primeros de cada una."""
     ph = ",".join("?" for _ in EXPENSE_FLOWS)

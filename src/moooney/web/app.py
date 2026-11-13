@@ -421,7 +421,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             ps = period_mod.period_summary(conn, p)
             return render(request, conn, "period.html", p=p, pnav=period_nav(conn, p), ps=ps,
                           explorer=period_explorer(conn, p, ps) if ps else None,
-                          cat_merchants=queries.merchants_by_category(conn, ps.start, ps.cutoff) if ps else {})
+                          cat_merchants=queries.merchants_by_category(conn, ps.start, ps.cutoff) if ps else {},
+                          cat_subs=queries.subcategories_by_category(conn, ps.start, ps.cutoff) if ps else {})
         m = p.key
         service.refresh_recurring(conn)
         insights, report = insights_mod.build_insights(conn, m)
@@ -444,6 +445,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
                       "amounts": {c.category: round(c.amount, 2) for c in report.categories if c.amount > 0}},
             cat_merchants=queries.merchants_by_category(conn, periods.month_bounds(m)[0],
                                                         min(periods.month_bounds(m)[1], report.as_of)),
+            cat_subs=queries.subcategories_by_category(conn, periods.month_bounds(m)[0],
+                                                       min(periods.month_bounds(m)[1], report.as_of)),
             chart_months=series_months,
             chart_series=[{"label": c, "data": v} for c, v in top_cats]
             + ([{"label": "Resto", "data": resto}] if any(resto) else []),
@@ -683,11 +686,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
 
     @app.post("/merchants/{key:path}/category", response_class=HTMLResponse)
     def merchant_set_category(request: Request, conn: DB, key: str,
-                              category: Annotated[list[str], Form()], flow_type: Annotated[str, Form()] = ""):
+                              category: Annotated[list[str], Form()], flow_type: Annotated[str, Form()] = "",
+                              subcategory: Annotated[str, Form()] = ""):
         # La cola de dudosas manda un hidden vacío y el botón pulsado: vale el último valor no vacío.
         chosen = next((c for c in reversed(category) if c), "")
         try:
-            n = service.set_merchant_category(conn, taxonomy(), key, chosen, flow_type or None)
+            n = service.set_merchant_category(conn, taxonomy(), key, chosen, flow_type or None, subcategory or None)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
         row = queries.merchant_row(conn, key)

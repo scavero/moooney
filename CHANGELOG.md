@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.11.0 · 2026-11-13
+
+- **Subcategorías de verdad**: hasta ahora solo las ponían las reglas. El modelo elige ahora la
+  subcategoría en una segunda pregunta corta, ya dentro de la categoría decidida (supermercado o
+  restaurantes, combustible o peajes…); si esa pregunta falla, la categoría se guarda igual.
+  Se corrige a mano en Comercios, bajo la categoría, y corregir solo la categoría ya no borra
+  la subcategoría. Al elegir una categoría en el Resumen se ve su reparto por subcategoría.
+  Nuevas: «mascotas» en Salud y «regalos» en Ocio. Lo ya categorizado no cambia hasta que se
+  vuelva a preguntar al modelo.
+
 ## 1.10.2 · 2026-11-13
 
 - **Asistente**: las sugerencias para seguir ya no vuelven a las genéricas cuando la respuesta no

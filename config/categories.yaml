@@ -22,11 +22,11 @@ categories:
   Salud:
     flow_type: expense
     description: "Gastos medicos no cubiertos por el seguro: farmacia, consultas, dentist, optica, veterinarias y productos para mascotas"
-    subcategories: [farmacia, medicina]
+    subcategories: [farmacia, medicina, mascotas]
   Ocio:
     flow_type: expense
     description: "Disfrute: viajes y hoteles, deporte (instalaciones, clases y eventos, no material deportivo), conciertos, cultura, regalos"
-    subcategories: [viajes, deporte, cultura]
+    subcategories: [viajes, deporte, cultura, regalos]
   Suscripciones:
     flow_type: expense
     description: "Cuotas periodicas de servicios digitales que reconoces (streaming, musica, software, nube, IA): un nombre que no reconoces no es una suscripcion, es Otros. La palabra SUSCRIPCION con un fondo o plan del banco es Ahorro e inversion"

@@ -2,6 +2,10 @@
    Recibe `cat_merchants`, `tx_filter` y `linked` (claves que la demo estática sí tiene guardadas). #}
 {% for c, rows in cat_merchants.items() %}
 <div data-cat-group="{{ c }}" hidden>
+  {% set subs = cat_subs.get(c, []) if cat_subs is defined else [] %}
+  {% if subs|length > 1 %}
+  <p class="muted" style="margin:0 0 var(--s2)">{% for s in subs %}{{ s.sub|capitalize }} <strong>{{ s.total|eur }}</strong>{{ ' · ' if not loop.last else '' }}{% endfor %}</p>
+  {% endif %}
   <table>
     {% for m in rows %}
     <tr>

@@ -145,6 +145,8 @@ def apply_opinion(conn: sqlite3.Connection, job: KeyJob, op: Opinion, taxonomy: 
         return "kept"
     spec = taxonomy.categories[op.category]
     subcategory = "otros" if "otros" in spec.subcategories else None
+    if op.category == existing["category"] and existing["subcategory"] in spec.subcategories:
+        subcategory = existing["subcategory"]
     repo.upsert_merchant(
         conn, key=job.key, category=op.category, subcategory=subcategory,
         flow_type=taxonomy.default_flow_type(op.category), source=SOURCE,
