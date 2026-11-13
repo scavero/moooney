@@ -398,4 +398,17 @@ def test_subcategorias(tmp_path):
     service.set_merchant_category(conn, tx, key, "Ocio", None, "restaurantes")  # no vale para Ocio
     assert repo.get_merchant(conn, key)["subcategory"] is None
     assert "Ocio" in queries.subcategories_by_category(conn, "2000-01-01", "2100-01-01")
+    # rellenar lo ya cargado: solo cambia la subcategoría; categoría, origen y confianza se quedan
+    from moooney.categorize.pipeline import fill_subcategories
+
+    class Viajes:
+        def decide(self, state, questions):
+            return {"subcategory": Answer(choice="viajes", confidence=0.9)}
+
+    exam, ok, ko = fill_subcategories(conn, Viajes(), tx)
+    m = repo.get_merchant(conn, key)
+    assert ok >= 1 and (m["subcategory"], m["category"], m["source"]) == ("viajes", "Ocio", "user")
+    assert conn.execute("SELECT COUNT(*) FROM transactions WHERE concept_clean = ? AND subcategory != 'viajes'",
+                        (key,)).fetchone()[0] == 0
+    assert fill_subcategories(conn, Viajes(), tx)[0] == ko  # idempotente: lo rellenado no se vuelve a preguntar
     conn.close()

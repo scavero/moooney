@@ -300,6 +300,10 @@ def categorize(
         False, "--second-opinion",
         help="Segunda opinión del modelo de texto, por lotes, sobre las dudosas que sigan siéndolo.",
     ),
+    fill_subs: bool = typer.Option(
+        False, "--fill-subcategories",
+        help="Pregunta al decider la subcategoría de los comercios ya categorizados que no la tienen.",
+    ),
     config: Path = CONFIG_OPTION,
 ) -> None:
     """Categoriza las claves nuevas en cascada: reglas -> embeddings -> Clef."""
@@ -396,6 +400,17 @@ def categorize(
                 if recorder is not None:
                     recorder.flush()
                 _run_enrich(conn, enr, llm, cliente, taxonomy, limit=None, force=False, key=None)
+
+        if fill_subs:
+            if cliente is None or no_llm:
+                console.print("[yellow]subcategorías omitidas: no hay modelo disponible[/yellow]")
+            else:
+                from moooney.categorize.pipeline import fill_subcategories
+
+                n_exam, n_ok, n_ko = fill_subcategories(
+                    conn, build_decider(llm, cliente), taxonomy, max_workers=llm.max_concurrency, limit=limit)
+                console.print(f"subcategorías: {n_exam} comercios sin ella, [green]{n_ok}[/green] rellenados, "
+                              f"{n_ko} sin respuesta válida")
 
         if retry_dudosas or second_opinion:
             if cliente is None or no_llm:

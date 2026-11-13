@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.11.1 · 2026-11-13
+
+- `moooney categorize --fill-subcategories` pregunta al modelo la subcategoría de los comercios
+  ya categorizados que no la tienen. Solo cambia la subcategoría: categoría, flujo, origen y
+  confianza se quedan como estaban.
+
 ## 1.11.0 · 2026-11-13
 
 - **Subcategorías de verdad**: hasta ahora solo las ponían las reglas. El modelo elige ahora la

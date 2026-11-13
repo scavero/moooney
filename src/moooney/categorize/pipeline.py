@@ -178,18 +178,65 @@ def decide_all(decider: Decider, state: str, questions: dict, taxonomy: Taxonomy
     category = answers.get("category")
     spec = taxonomy.categories.get(category.choice) if category else None
     if spec and len(spec.subcategories) > 1:
-        question = {"subcategory": {
-            "type": "choice",
-            "instructions": f"Subcategoria del movimiento dentro de {category.choice}",
-            "criteria": {s: s for s in spec.subcategories},
-        }}
         try:
-            sub = decider.decide(state, question).get("subcategory")
+            sub = decider.decide(state, sub_question(category.choice, spec)).get("subcategory")
         except (LLMError, ValueError):
             sub = None  # sin subcategoría antes que perder la categoría ya decidida
         if sub is not None:
             answers["subcategory"] = sub
     return answers
+
+
+def sub_question(category: str, spec) -> dict:
+    return {"subcategory": {
+        "type": "choice",
+        "instructions": f"Subcategoria del movimiento dentro de {category}",
+        "criteria": {s: s for s in spec.subcategories},
+    }}
+
+
+def fill_subcategories(conn: sqlite3.Connection, decider: Decider, taxonomy: Taxonomy, *,
+                       max_workers: int = 8, limit: int = 0) -> tuple[int, int, int]:
+    """Rellena la subcategoría de los comercios ya categorizados que no la tienen.
+
+    Solo hace la pregunta corta de subcategoría: categoría, flujo, origen y confianza no se tocan.
+    Devuelve (examinadas, rellenadas, fallidas).
+    """
+    pend: dict[str, str] = {}
+    for r in conn.execute("SELECT key, category, subcategory, source FROM merchants"):
+        spec = taxonomy.categories.get(r["category"])
+        if spec is None or len(spec.subcategories) < 2:
+            continue
+        por_defecto = r["subcategory"] == "otros" and r["source"] not in ("user", "rule")
+        if r["subcategory"] not in spec.subcategories or por_defecto:
+            pend[r["key"]] = r["category"]
+    jobs = pending_jobs_for_keys(conn, list(pend))
+    if limit:
+        jobs = jobs[:limit]
+    if not jobs:
+        return 0, 0, 0
+
+    def ask(job: KeyJob) -> Answer | None:
+        cat = pend[job.key]
+        return decider.decide(build_state(job), sub_question(cat, taxonomy.categories[cat])).get("subcategory")
+
+    hechas = fallidas = 0
+    with ThreadPoolExecutor(max_workers=max(1, min(max_workers, len(jobs)))) as pool:
+        futures = {pool.submit(ask, job): job for job in jobs}
+        for future, job in futures.items():
+            try:
+                sub = future.result()
+            except (LLMError, ValueError):
+                sub = None
+            if sub is None or sub.choice not in taxonomy.categories[pend[job.key]].subcategories:
+                fallidas += 1
+                continue
+            conn.execute("UPDATE merchants SET subcategory = ? WHERE key = ?", (sub.choice, job.key))
+            conn.execute("UPDATE transactions SET subcategory = ? WHERE concept_clean = ? AND category = ?",
+                         (sub.choice, job.key, pend[job.key]))
+            hechas += 1
+    conn.commit()
+    return len(jobs), hechas, fallidas
 
 
 def subcategory_of(answers: dict[str, Answer], spec) -> str | None:
