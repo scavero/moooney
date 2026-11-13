@@ -95,7 +95,7 @@
       <table>
         {% for m in ps.merchants %}
         <tr>
-          <td><a href="/transactions?{{ tx_filter }}&key={{ m.key|urlencode }}">{{ m.key }}</a><div class="concept">{{ m.category or '—' }} · {{ m.n }} veces</div></td>
+          <td><a href="/transactions?{{ tx_filter }}&key={{ m.key|urlencode }}">{{ m.key }}</a><div class="concept">{{ m.category or '—' }} · {{ m.n }} {{ 'vez' if m.n == 1 else 'veces' }}</div></td>
           <td class="num neg">{{ m.total|eur(2) }}</td>
         </tr>
         {% endfor %}

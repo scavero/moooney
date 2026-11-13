@@ -38,6 +38,7 @@ from moooney.analytics.recurring import load_recurring
 from moooney.categorize import web_rules
 from moooney.categorize.rules import Rule
 from moooney.chat import agent as chat_agent
+from moooney.chat import followups as chat_followups
 from moooney.config import Settings, load_settings
 from moooney.db import repo
 from moooney.db.backup import list_backups
@@ -196,12 +197,12 @@ SECTIONS: list[tuple[str, str, list[tuple[str, str]]]] = [
     ("Movimientos", "/transactions", []),
     ("Pregunta", "/chat", [("Asistente", "/chat"), ("Informe mensual", "/report")]),
     ("Plan", "/budgets", []),  # presupuestos y metas, en una página; /goals redirige aquí
-    ("Avisos", "/alerts", [("Alertas", "/alerts"), ("Recurrentes", "/recurring")]),
+    ("Avisos", "/alerts", []),  # alertas y recurrentes, en una página; /recurring redirige aquí
     ("Datos", "/pipeline", [("Importar", "/pipeline"), ("Comercios", "/merchants"), ("Ajustes", "/settings")]),
 ]
 
 # Direcciones que pertenecen a una sección sin ser una pestaña suya.
-EXTRA_PATHS = {"Plan": ["/goals"]}
+EXTRA_PATHS = {"Plan": ["/goals"], "Avisos": ["/recurring"]}
 
 
 def section_of(path: str) -> tuple[str, list[tuple[str, str]]]:
@@ -714,8 +715,14 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
                  else "", "text": r["content"], "error": bool(r["error"]),
                  "tools": (r["tools"] or "").split(",") if r["tools"] else []}
                 for r in chat_agent.history(conn)]
+        last = msgs[-1] if msgs and msgs[-1]["role"] == "assistant" and not msgs[-1]["error"] else None
         return render(request, conn, "chat.html", messages=msgs, suggestions=chat_agent.SUGGESTIONS,
-                      **chat_ctx())
+                      followups=chat_next(conn, last["tools"]) if last else [],
+                      ideas=chat_followups.ideas(conn, list(taxonomy().categories)), **chat_ctx())
+
+    def chat_next(conn: sqlite3.Connection, tools_used: list[str]) -> list[str]:
+        asked = [r["content"] for r in chat_agent.history(conn) if r["role"] == "user"]
+        return chat_followups.followups(conn, tools_used, asked)
 
     @app.post("/chat", response_class=HTMLResponse)
     def chat_post(request: Request, conn: DB, question: Annotated[str, Form()] = ""):
@@ -724,11 +731,13 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         except ValueError as e:
             return templates.TemplateResponse(request, "partials/chat_turn.html", {
                 "question": None, "reply": {"error": True, "text": str(e).capitalize() + ".", "tools": []}})
+        # si el modelo falla, se dejan las sugerencias que había: sirven para reintentar
         reply = {"error": bool(answer.error), "text": answer.error or answer.content,
                  "html": "" if answer.error else chat_html(answer.content),
                  "tools": list(dict.fromkeys(answer.tools_used))}
         return templates.TemplateResponse(request, "partials/chat_turn.html", {
-            "question": " ".join(question.split()), "reply": reply})
+            "question": " ".join(question.split()), "reply": reply, "oob": not answer.error,
+            "followups": [] if answer.error else chat_next(conn, reply["tools"]), **chat_ctx()})
 
     @app.post("/chat/clear")
     def chat_clear(conn: DB):
@@ -817,10 +826,14 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
 
     # ---------- recurrentes ----------
 
-    @app.get("/recurring", response_class=HTMLResponse)
-    def recurring(request: Request, conn: DB, all: int = 0):
+    @app.get("/recurring")
+    def recurring(all: int = 0):
+        """Dirección antigua de «Recurrentes»: ahora es la segunda mitad de Avisos."""
+        return RedirectResponse(f"/alerts{'?inactive=1' if all else ''}#recurrentes", status_code=303)
+
+    def recurring_context(conn: sqlite3.Connection, inactive: int) -> dict:
         service.refresh_recurring(conn)
-        rows = load_recurring(conn, active_only=not all)
+        rows = load_recurring(conn, active_only=not inactive)
         as_of = periods.as_of_date(conn)
         horizon = (date.fromisoformat(as_of) + timedelta(days=30)).isoformat() if as_of else None
         upcoming = sorted(
@@ -840,10 +853,10 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         )
         price_up = {p.key: p for p in detect_price_changes(conn)}
         next_income = min((r["next_expected"] for r in upcoming if r["flow_type"] == "income"), default=None)
-        return render(request, conn, "recurring.html", rows=rows, all=all, calendar=calendar, horizon=horizon,
-                      charges_total=charges_total, charges_n=sum(1 for r in upcoming if r["flow_type"] != "income"),
-                      balance=balance, after=balance - charges_total, monthly_fixed=monthly_fixed, as_of=as_of,
-                      price_up=price_up, next_income=next_income)
+        return dict(rows_rec=rows, inactive=inactive, calendar=calendar, horizon=horizon,
+                    charges_total=charges_total, charges_n=sum(1 for r in upcoming if r["flow_type"] != "income"),
+                    balance=balance, after=balance - charges_total, monthly_fixed=monthly_fixed, as_of=as_of,
+                    price_up=price_up, next_income=next_income)
 
     # ---------- presupuestos ----------
 
@@ -901,7 +914,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     # ---------- alertas ----------
 
     @app.get("/alerts", response_class=HTMLResponse)
-    def alerts(request: Request, conn: DB, all: int = 0, severity: str = ""):
+    def alerts(request: Request, conn: DB, all: int = 0, severity: str = "", inactive: int = 0):
         if all:
             rows = conn.execute(
                 "SELECT * FROM alerts ORDER BY acknowledged, CASE severity WHEN 'critical' THEN 0"
@@ -915,8 +928,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         groups: dict[str, list] = {}
         for a in rows:
             groups.setdefault(a["type"], []).append(a)
-        return render(request, conn, "alerts.html", rows=rows, groups=groups, all=all, severity=severity,
-                      counts=counts, total=sum(counts.values()))
+        return render(request, conn, "avisos.html", rows=rows, groups=groups, all=all, severity=severity,
+                      counts=counts, total=sum(counts.values()), **recurring_context(conn, inactive))
 
     @app.post("/alerts/refresh")
     def alerts_refresh(conn: DB):

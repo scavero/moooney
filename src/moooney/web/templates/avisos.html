@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Avisos{% endblock %}
+{# Alertas pendientes y, debajo, los recurrentes con su calendario de cargos: una sola página. #}
+{% block content %}
+<div class="topbar">
+  <div><h1>Avisos</h1><div class="subtitle">Lo que conviene mirar: alertas calculadas con reglas (no con el modelo) y, debajo, <a href="#recurrentes">los recurrentes y su calendario de cargos</a>.</div></div>
+  <div class="actions">
+    {% if alerts_counts.total %}<form method="post" action="/alerts/ack-all"><button class="btn ghost" type="submit">Marcar todas como vistas</button></form>{% endif %}
+    <form method="post" action="/alerts/refresh"><button class="btn primary" type="submit">Recalcular</button></form>
+  </div>
+</div>
+
+{% set keep = '&inactive=1' if inactive else '' %}
+{% set base = '/alerts?all=' ~ all ~ keep %}
+<div class="filters" style="margin-bottom:24px">
+  <div class="segmented" aria-label="Nivel">
+    <a class="{{ 'on' if not severity else '' }}" href="{{ base }}">Todas <span>{{ total }}</span></a>
+    <a class="{{ 'on' if severity == 'critical' else '' }}" href="{{ base }}&severity=critical">Críticas <span>{{ counts.critical }}</span></a>
+    <a class="{{ 'on' if severity == 'warning' else '' }}" href="{{ base }}&severity=warning">Avisos <span>{{ counts.warning }}</span></a>
+    <a class="{{ 'on' if severity == 'info' else '' }}" href="{{ base }}&severity=info">Datos <span>{{ counts.info }}</span></a>
+  </div>
+  <div class="segmented" aria-label="Qué alertas ver" style="margin-left:auto">
+    <a class="{{ '' if all else 'on' }}" href="/alerts?severity={{ severity }}{{ keep }}">Pendientes</a>
+    <a class="{{ 'on' if all else '' }}" href="/alerts?all=1&severity={{ severity }}{{ keep }}">Con las vistas</a>
+  </div>
+</div>
+
+{% if rows %}
+  {% for type, items in groups.items() %}
+  <div class="alert-group">
+    <div class="topbar" style="margin-bottom:4px;align-items:baseline">
+      <h2 style="margin:0">{{ ALERT_TYPE_LABEL.get(type, type) }} <span>{{ items|length }}</span></h2>
+      {% if items|rejectattr('acknowledged')|list %}<form method="post" action="/alerts/ack-type/{{ type }}"><button class="link-btn" type="submit" style="padding:0">Marcar el grupo como visto</button></form>{% endif %}
+    </div>
+    <div class="concept" style="margin-bottom:8px">{{ ALERT_EXPLAIN.get(type, '') }}</div>
+    <table class="alert-table">
+      <tr><th>Nivel</th><th>Fecha</th><th>Qué pasa</th><th></th></tr>
+      {% for a in items %}
+      {% set subject = a.message.split(':')[0] %}
+      {% set rest = a.message[subject|length:] %}
+      <tr class="{{ 'seen' if a.acknowledged else '' }}">
+        <td><span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ SEVERITY_LABEL[a.severity] }}</span></td>
+        <td class="when" title="{{ a.date }}">{{ a.date|fecha }}</td>
+        <td><span style="font-weight:500">{{ subject }}</span>{{ rest }}
+          {% if a.type.startswith('budget') %} <a href="/transactions?month={{ a.date[:7] }}&category={{ subject|urlencode }}" style="font-weight:700;white-space:nowrap">Ver movimientos →</a>
+          {% elif a.type in ('anomalous_amount', 'duplicate_charge', 'price_increase', 'new_recurring', 'missing_income') %} <a href="/transactions?key={{ subject|urlencode }}" style="font-weight:700;white-space:nowrap">Ver comercio →</a>
+          {% elif a.type == 'bank_fee' %} <a href="/transactions?month={{ a.date[:7] }}&category=Comisiones%20bancarias" style="font-weight:700;white-space:nowrap">Ver comisiones →</a>{% endif %}</td>
+        <td class="num">{% if not a.acknowledged %}<button class="btn small" hx-post="/alerts/{{ a.id }}/ack" hx-target="closest tr" hx-swap="outerHTML">Entendido</button>{% else %}<span class="concept">vista</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endfor %}
+{% elif severity or all %}
+<div class="notice ok">Nada que mostrar con este filtro. <a href="/alerts">Ver todas las pendientes</a>.</div>
+{% else %}
+<div class="notice ok"><strong>Nada pendiente.</strong> Pulsa <strong>Recalcular</strong> tras importar movimientos nuevos.</div>
+{% endif %}
+
+<div class="plan-part" id="recurrentes">
+  {% set n_active = rows_rec|selectattr('active')|list|length %}
+  <div class="topbar" style="margin-bottom:var(--s3)">
+    <div><h2 style="margin-bottom:4px">Recurrentes</h2><div class="subtitle">Cargos e ingresos que se repiten con un periodo reconocible. Datos hasta <strong title="{{ as_of }}">{{ as_of|fecha }}</strong>.</div></div>
+    <div class="segmented" aria-label="Qué recurrentes ver">
+      <a class="{{ '' if inactive else 'on' }}" href="/alerts?all={{ all }}&severity={{ severity }}#recurrentes">Activos</a>
+      <a class="{{ 'on' if inactive else '' }}" href="/alerts?all={{ all }}&severity={{ severity }}&inactive=1#recurrentes">Con inactivos</a>
+    </div>
+  </div>
+</div>
+
+<div class="grid kpis section">
+  <div class="card kpi"><div class="label">Gasto fijo mensual</div><div class="value neg">{{ monthly_fixed|eur }}</div><div class="hint">{{ n_active }} recurrentes activos, llevados a 30 días</div></div>
+  <div class="card kpi"><div class="label">Próximos 30 días</div><div class="value neg">{{ charges_total|eur }}</div><div class="hint">{{ charges_n }} cargos previstos antes del <span title="{{ horizon }}">{{ horizon|fecha }}</span></div></div>
+  <div class="card kpi"><div class="label">Saldo tras los cargos</div><div class="value {{ 'pos' if after >= 0 else 'neg' }}">{{ after|eur }}</div><div class="hint">saldo actual {{ balance|eur }}{% if next_income %} · sin contar el ingreso del <span title="{{ next_income }}">{{ next_income|fecha }}</span>{% endif %}</div></div>
+</div>
+
+{% if price_up %}
+{% set subidas = price_up.values()|list %}
+<div class="card section">
+  <h2 style="margin-bottom:4px">Lo que te ha subido</h2>
+  <div class="concept" style="margin-bottom:8px">{{ subidas|length }} {{ 'recibo cuesta' if subidas|length == 1 else 'recibos cuestan' }} más que antes: unos <strong style="color:var(--ink-2)">{{ subidas|sum(attribute='delta_year')|eur }} más al año</strong> si siguen así. Buen momento para revisar la tarifa o darlo de baja.</div>
+  <div class="scroll-x">
+  <table class="rec-table">
+    <tr><th>Recibo</th><th class="num">Antes</th><th class="num">Ahora</th><th class="num">Al año</th></tr>
+    {% for p in subidas %}
+    <tr>
+      <td style="min-width:0">
+        <a class="name" href="/transactions?key={{ p.key|urlencode }}" style="font-weight:500">{{ p.key }}</a>
+        <div class="concept" style="margin-top:2px">{% if p.kind == 'step' %}cuota {{ p.period_label }}, más cara desde el <span title="{{ p.since }}">{{ p.since|fecha }}</span>{% else %}media de los {{ p.n_since }} últimos recibos frente a los anteriores{% endif %}</div>
+      </td>
+      <td class="num" style="color:var(--ink-2);font-weight:400">{{ p.old|eur(2) }}</td>
+      <td class="num">{{ p.new|eur(2) }} <span class="flag">+{{ '%.0f'|format(p.pct) }} %</span></td>
+      <td class="num neg">+{{ p.delta_year|eur }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid three section">
+  <div class="card">
+    <h2 style="margin-bottom:4px">{{ 'Todos los recurrentes' if inactive else 'Recurrentes activos' }}</h2>
+    <div class="concept" style="margin-bottom:8px">{{ rows_rec|length }} en total. Pulsa una clave para ver sus movimientos.{% if price_up %} Los marcados en ámbar han subido de precio.{% endif %}</div>
+    <div class="scroll-x">
+    <table class="rec-table">
+      <tr><th>Clave</th><th>Periodo</th><th class="num">Importe</th><th class="num">Último</th><th class="num">Próximo</th></tr>
+      {% for r in rows_rec %}
+      <tr class="{{ '' if r.active else 'inactive' }}">
+        <td style="min-width:0">
+          <a class="name" href="/transactions?key={{ r.key|urlencode }}" style="font-weight:500">{{ r.key }}</a>
+          <div class="concept" style="margin-top:2px">{{ r.category or 'Sin categoría' }} · {{ 'importe fijo' if r.amount_cv <= 0.15 else 'importe variable' }}{% if not r.active %} · inactivo{% endif %}</div>
+        </td>
+        <td style="white-space:nowrap">{{ r.period_label }}</td>
+        <td class="num {{ 'pos' if r.amount_avg > 0 else '' }}">{{ r.amount_avg|eur(2) }}
+          {% if r.key in price_up %}{% set p = price_up[r.key] %}<div class="flag" style="margin-top:2px" title="{{ 'desde el ' ~ p.since }}">{{ p.old|eur(2) }} → {{ p.new|eur(2) }}</div>{% endif %}</td>
+        <td class="num" style="color:var(--ink-2);font-weight:400" title="{{ r.last_seen }}">{{ r.last_seen|fecha }}</td>
+        <td class="num" title="{{ r.next_expected }}">{{ r.next_expected|fecha }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Todavía no hay recurrentes detectados.</td></tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2 style="margin-bottom:4px">Calendario de cargos</h2>
+    <div class="concept" style="margin-bottom:8px">Próximos 30 días, con el saldo que iría quedando tras cada cargo.</div>
+    {% if calendar %}
+    <div class="scroll-x">
+    <table class="cal-table">
+      <tr><th>Día</th><th>Cargo</th><th class="num amt">Importe</th><th class="num">Queda</th></tr>
+      {% for r, running in calendar %}
+      <tr>
+        <td class="day" title="{{ r.next_expected }}">{{ r.next_expected|fecha }}</td>
+        <td class="k"><a href="/transactions?key={{ r.key|urlencode }}" style="font-weight:500">{{ r.key }}</a><div class="concept only-narrow {{ 'pos' if r.amount_avg > 0 else '' }}">{{ r.amount_avg|eur(2) }}</div></td>
+        <td class="num amt {{ 'inc' if r.amount_avg > 0 else 'exp' }}">{{ r.amount_avg|eur(2) }}</td>
+        <td class="num run {{ 'neg' if running < 0 else '' }}">{{ running|eur }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">Nada previsto en los próximos 30 días.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

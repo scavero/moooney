@@ -655,3 +655,13 @@ tr.on .cat-pick { font-weight: 700; }
 .sel-bar { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; padding: var(--s1) var(--s2); margin-bottom: var(--s2); border-radius: 6px; background: var(--dominant-soft); color: var(--ink); }
 .sel-bar[hidden] { display: none; }
 .sel-bar > span { flex: 1 1 240px; }
+
+/* ---------- retoques de la revisión por pantallas (2026-11-13) ---------- */
+.alert-group h2::first-letter { text-transform: uppercase; }
+.rec-table td:first-child { min-width: 150px; }
+.cal-table td.k { max-width: none; white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.cal-table td.run, .cal-table td.amt { white-space: nowrap; }
+main code { font-size: max(.9em, 12px); }
+.cal-table .amt { display: none; }  /* el importe va bajo el nombre: así «Queda» cabe siempre */
+@media (pointer: coarse), (max-width: 820px) { .chip.small { min-height: var(--control); } }
+.card .scroll-x > table { display: table; }  /* dentro de un contenedor que ya desplaza, la tabla ocupa todo el ancho */

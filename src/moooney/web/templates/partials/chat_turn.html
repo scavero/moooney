@@ -13,3 +13,5 @@
 </div>
 {% endif %}
 {% endif %}
+{# Tras una respuesta nueva, las sugerencias de debajo del chat se cambian por las que tocan ahora. #}
+{% if oob %}<div id="chat-next" class="chat-suggest" hx-swap-oob="true">{% include "partials/chat_next.html" %}</div>{% endif %}

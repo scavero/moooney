@@ -150,7 +150,28 @@ def test_pagina(demo, monkeypatch):
     with TestClient(create_app(settings_path)) as c:
         r = c.post("/chat", data={"question": "¿cómo voy?"})
         assert "<strong>bien</strong>" in r.text and "<script>" not in r.text and "resumen del mes" in r.text
+        # la respuesta trae, fuera de banda, con qué seguir: sale de la consulta usada y no repite lo preguntado
+        assert 'id="chat-next"' in r.text and 'hx-swap-oob="true"' in r.text and "¿Y frente al mes pasado?" in r.text
         r = c.get("/chat")
         assert "Nueva conversación" in r.text and "<strong>bien</strong>" in r.text
+        assert "Puedes seguir con:" in r.text and 'list="chat-ideas"' in r.text and "¿Cuánto gasto al mes en " in r.text
         r = c.post("/chat/clear", follow_redirects=True)
         assert "Nueva conversación" not in r.text
+
+
+def test_sugerencias_para_seguir(demo):
+    from moooney.chat import followups
+
+    _, conn = demo
+    cat = followups.focus_category(conn)
+    assert cat
+    tras = followups.followups(conn, ["resumen_mes", "gasto_por_categoria"], ["¿cómo voy?"])
+    assert len(tras) == 3 and any(cat in q for q in tras)  # manda la última consulta, con la categoría que se sale
+    assert tras[0] == followups.BY_TOOL["gasto_por_categoria"][0].format(cat=cat)
+    # no repite lo ya preguntado, aunque cambien mayúsculas o espacios
+    again = followups.followups(conn, ["metas"], ["¿qué tendría que recortar  para llegar antes?"])
+    assert "¿Qué tendría que recortar para llegar antes?" not in again and len(again) == 3
+    # sin consultas reconocibles, las ideas generales
+    assert followups.followups(conn, ["inventada"], []) == agent.SUGGESTIONS[:3]
+    pool = followups.ideas(conn, ["Ocio"])
+    assert "¿Cuánto gasto al mes en Ocio?" in pool and len(pool) == len(set(pool)) and not any("{cat}" in q for q in pool)

@@ -60,7 +60,8 @@ moooney/
     analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py  insights.py  forecast.py
                  price_changes.py  shared.py  yearly.py  period_summary.py  goals.py
     llm/         client.py  anonymize.py  prompts/
-    chat/        tools.py  agent.py   (asistente Pregunta: consultas deterministas + bucle con el modelo)
+    chat/        tools.py  agent.py  followups.py   (asistente Pregunta: consultas deterministas, bucle con el modelo
+                 y sugerencias para seguir, sin modelo)
     web/         app.py  queries.py  service.py  jobs.py  snapshot.py  templates/  static/
     demo.py
     export.py  envfile.py

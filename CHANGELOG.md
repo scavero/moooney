@@ -1,5 +1,22 @@
 # Cambios
 
+## 1.10.0 · 2026-11-13
+
+- **Avisos, en una sola página**: Alertas y Recurrentes dejan de ser dos pestañas. Arriba, las
+  alertas pendientes; debajo, los recurrentes, lo que ha subido y el calendario de cargos. La
+  dirección `/recurring` lleva a esa parte de la página.
+- **El asistente propone cómo seguir**: tras cada respuesta aparecen hasta tres preguntas para
+  continuar, elegidas según lo que acaba de consultar (si miró recurrentes, propone preguntar
+  cuáles han subido) y según la categoría que más se sale de su media; no repite lo ya
+  preguntado. Además, el campo de texto autocompleta: al escribir ofrece las preguntas que
+  encajan, también por categoría. Todo sin llamar al modelo.
+- **Revisión pantalla a pantalla** (12 pantallas en 5 tamaños, de móvil a escritorio ancho):
+  el calendario de cargos enseña siempre el saldo que queda (el importe va bajo el nombre); las
+  tablas ocupan todo el ancho en tablet; «Lo que te ha subido» ya no parte el nombre palabra a
+  palabra en el móvil; la lista de categorías del Resumen es más limpia; decimales con coma
+  («0,8 meses»), «1 vez» en singular, el neto de Movimientos con separador de miles y los títulos
+  de los grupos de alertas con mayúscula inicial.
+
 ## 1.9.0 · 2026-11-13
 
 - **Resumen con más gráficas y que responde**: un anillo reparte el gasto por categoría y, al

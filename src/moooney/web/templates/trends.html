@@ -10,7 +10,7 @@
     <div class="hint">llevas {{ fme.spent|eur }} · quedan {{ fme.fixed_pending|eur }} fijos y ≈{{ fme.variable_expected_rest|eur }} variables</div></div>
   <div class="card kpi"><div class="label">Ahorro previsto fin de mes</div><div class="value {{ 'pos' if fme.net >= 0 else 'neg' }}">{{ fme.net|eur }}</div>
     <div class="hint">con {{ fme.income|eur }} de ingresos previstos</div></div>
-  <div class="card kpi"><div class="label">Colchón</div><div class="value">{% if runway is not none %}{{ '%.1f'|format(runway) }} meses{% else %}—{% endif %}</div>
+  <div class="card kpi"><div class="label">Colchón</div><div class="value">{% if runway is not none %}{{ ('%.1f'|format(runway))|replace('.', ',') }} meses{% else %}—{% endif %}</div>
     <div class="hint">saldo {{ balance|eur }} entre el gasto medio mensual</div></div>
   <div class="card kpi"><div class="label">Ahorro medio · 6 meses</div><div class="value {{ 'pos' if avg_net >= 0 else 'neg' }}">{{ avg_net|eur }}</div>
     <div class="hint">al mes · {{ projection[-1][1]|eur }} de saldo dentro de un año si sigue igual</div></div>

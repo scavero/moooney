@@ -230,7 +230,7 @@ def savings_insights(conn: sqlite3.Connection, report: MetricsReport, as_of: str
             sev, txt = "good", "Colchón razonable."
         out.append(Insight(
             kind="runway", severity=sev,
-            title=f"Tu saldo cubre {runway:.1f} meses de gasto",
+            title=f"Tu saldo cubre {f'{runway:.1f}'.replace('.', ',')} meses de gasto",
             detail=txt, impact=0.0,
         ))
     return out

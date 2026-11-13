@@ -137,8 +137,12 @@ def test_siete_secciones_con_pestanas(client):
     assert nav.count("<a href=") == 7 and 'class="section-tabs"' not in home
     assert 'class="section-tabs"' not in client.get("/transactions").text
     assert 'class="section-tabs"' not in client.get("/budgets").text and section_of("/goals")[0] == "Plan"
+    avisos = client.get("/alerts").text
+    assert 'class="section-tabs"' not in avisos and 'id="recurrentes"' in avisos and "Calendario de cargos" in avisos
+    viejo = client.get("/recurring?all=1", follow_redirects=False)
+    assert viejo.status_code == 303 and viejo.headers["location"] == "/alerts?inactive=1#recurrentes"
+    assert section_of("/recurring")[0] == "Avisos" and "Todos los recurrentes" in client.get("/alerts?inactive=1").text
     for path, seccion, pestana in [("/report", "Pregunta", "Informe mensual"),
-                                   ("/recurring", "Avisos", "Recurrentes"),
                                    ("/merchants", "Datos", "Comercios"), ("/settings", "Datos", "Ajustes")]:
         t = client.get(path).text
         tabs = t[t.index('<nav class="section-tabs"'):]

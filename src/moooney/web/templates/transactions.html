@@ -2,7 +2,7 @@
 {% block title %}Movimientos{% endblock %}
 {% block content %}
 <div class="topbar">
-  <div><h1>Movimientos</h1><div class="subtitle">{{ totals.n }} movimientos · ingresos <strong class="pos">{{ totals.income|eur }}</strong> · gastos <strong class="neg">{{ totals.expenses|eur }}</strong> · neto <strong class="{{ 'pos' if totals.net >= 0 else 'neg' }}">{{ '%+.0f'|format(totals.net) }} €</strong></div></div>
+  <div><h1>Movimientos</h1><div class="subtitle">{{ totals.n }} movimientos · ingresos <strong class="pos">{{ totals.income|eur }}</strong> · gastos <strong class="neg">{{ totals.expenses|eur }}</strong> · neto <strong class="{{ 'pos' if totals.net >= 0 else 'neg' }}">{{ ('+' if totals.net > 0 else '') ~ (totals.net|eur) }}</strong></div></div>
   {% set base = '/transactions?month=' ~ month ~ '&start=' ~ start ~ '&end=' ~ end ~ '&category=' ~ (category|urlencode) ~ '&flow=' ~ flow ~ '&q=' ~ (q|urlencode) ~ '&key=' ~ (key|urlencode) ~ '&account=' ~ (account|urlencode) ~ '&tag=' ~ (tag|urlencode) ~ '&shared=' ~ shared %}
   <a class="btn ghost" href="{{ base|replace('/transactions?', '/transactions/export.csv?') }}" hx-boost="false" title="los {{ totals.n }} movimientos del filtro, para Excel">Exportar CSV</a>
 </div>

@@ -93,7 +93,7 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
 
 La web tiene siete secciones; las páginas que comparten sección son pestañas dentro de ella:
 **Resumen**, **Tendencias**, **Movimientos**, **Pregunta** (e Informe mensual), **Plan**
-(Presupuestos y Metas, en una misma página), **Avisos** (Alertas y Recurrentes) y **Datos** (Importar, Comercios y Ajustes).
+(Presupuestos y Metas, en una misma página), **Avisos** (Alertas y Recurrentes, también juntas) y **Datos** (Importar, Comercios y Ajustes).
 
 - **Resumen**: abre con la cifra de ahorro neto del mes y un **veredicto en una frase**, calculado sin modelo
   («Has ahorrado el 30 % de lo que entró; alimentación se dispara»); debajo, ingresos, gastos fijos y
@@ -255,7 +255,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 250 tests, todos con datos sintéticos
+uv run pytest        # 251 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```

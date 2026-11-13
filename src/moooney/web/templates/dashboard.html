@@ -25,7 +25,7 @@
     <div><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div><div class="hint">fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}</div></div>
     <div><div class="label">Ahorro neto</div><div class="value">{{ s.net|eur }}</div><div class="hint">tasa {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
     <div><div class="label">Saldo</div><div class="value">{{ balance|eur }}</div>{% if accounts|length > 1 %}<div class="hint">{% for a in accounts %}{{ a.account }} {{ a.last_balance|eur }}{{ ' · ' if not loop.last else '' }}{% endfor %}</div>{% endif %}</div>
-    <div><div class="label">Colchón</div><div class="value">{% if runway is not none %}{{ '%.1f'|format(runway) }} meses{% else %}—{% endif %}</div><div class="hint">de gasto medio, sin ingresos</div></div>
+    <div><div class="label">Colchón</div><div class="value">{% if runway is not none %}{{ ('%.1f'|format(runway))|replace('.', ',') }} meses{% else %}—{% endif %}</div><div class="hint">de gasto medio, sin ingresos</div></div>
   </div>
 </div>
 
@@ -38,7 +38,7 @@
 <div class="grid two section">
   <div class="card">
     <h2 style="margin-bottom:4px">En qué se va</h2>
-    <div class="concept" style="margin-bottom:12px">Pulsa una categoría, en el anillo o en la lista, para verla sola: cambian el ritmo del mes, los comercios y los 12 meses.</div>
+    <div class="concept" style="margin-bottom:12px">Pulsa una categoría, en el anillo o en la lista, para verla sola: cambian el ritmo del mes, los comercios y los 12 meses. «Vs media» compara con {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos.</div>
     <div class="donut-box"><canvas id="chart-donut" role="img" aria-label="Reparto del gasto del mes por categoría"></canvas>
       <div class="donut-center"><div class="label" id="donut-label">Gasto</div><div class="value" id="donut-value">{{ s.expenses|eur }}</div><div class="hint" id="donut-hint"></div></div></div>
     <div class="scroll-x">
@@ -47,10 +47,10 @@
       {% for c in report.categories %}
       <tr {% if c.amount > 0 %}data-cat-row="{{ c.category }}"{% endif %}>
         <td style="width:44%">{% if c.amount > 0 %}<button class="cat-pick" type="button" aria-pressed="false" title="ver solo {{ c.category }}"><i class="dot" style="background:var(--chart-{{ [loop.index, 9]|min }})"></i>{{ c.category }}</button>{% else %}<span style="font-weight:500">{{ c.category }}</span>{% endif %}
-          {% if c.fixed_amount > 0 %}<span class="concept" style="margin-left:6px">fijo {{ c.fixed_amount|eur }}</span>{% endif %}
+          {% if c.fixed_amount > 0 %}<span class="concept" style="margin-left:6px;white-space:nowrap">fijo {{ c.fixed_amount|eur }}</span>{% endif %}
           <div class="bar thin"><span style="width:{{ c.pct }}%"></span></div></td>
         <td class="num">{{ c.amount|eur }}<div class="concept">{{ '%.0f'|format(c.pct) }} % del gasto</div></td>
-        <td class="num {{ 'neg' if (c.delta_avg or 0) > 0 else 'pos' }}">{% if c.delta_avg is not none %}{{ '%+.0f'|format(c.delta_avg) }} €{% else %}—{% endif %}<div class="concept">media de {{ c.n_prev_months }} m.</div></td>
+        <td class="num {{ 'neg' if (c.delta_avg or 0) > 0 else 'pos' }}">{% if c.delta_avg is not none %}{{ '%+.0f'|format(c.delta_avg) }} €{% else %}—{% endif %}</td>
         <td class="num"><a href="/transactions?month={{ month }}&category={{ c.category|urlencode }}" aria-label="movimientos de {{ c.category }}" title="ver movimientos">→</a></td>
       </tr>
       {% endfor %}
@@ -69,7 +69,7 @@
       <table>
         {% for t in top %}
         <tr>
-          <td><a href="/transactions?month={{ month }}&key={{ t.key|urlencode }}">{{ t.key }}</a><div class="concept">{{ t.category or '—' }} · {{ t.n }} veces</div>
+          <td><a href="/transactions?month={{ month }}&key={{ t.key|urlencode }}">{{ t.key }}</a><div class="concept">{{ t.category or '—' }} · {{ t.n }} {{ 'vez' if t.n == 1 else 'veces' }}</div>
             <div class="bar thin"><span style="width:{{ (t.total / top[0].total * 100)|round(1) if top[0].total else 0 }}%"></span></div></td>
           <td class="num neg">{{ t.total|eur(2) }}</td>
         </tr>
