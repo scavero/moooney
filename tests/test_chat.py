@@ -154,7 +154,7 @@ def test_pagina(demo, monkeypatch):
         assert 'id="chat-next"' in r.text and 'hx-swap-oob="true"' in r.text and "¿Y frente al mes pasado?" in r.text
         r = c.get("/chat")
         assert "Nueva conversación" in r.text and "<strong>bien</strong>" in r.text
-        assert "Puedes seguir con:" in r.text and 'list="chat-ideas"' in r.text and "¿Cuánto gasto al mes en " in r.text
+        assert "Puedes seguir con:" in r.text and "chat-ideas" not in r.text
         # una respuesta sin consultas no pierde el hilo, y una lista pegada al párrafo sale como lista
         monkeypatch.setattr(service, "chat_ask", lambda conn, paths, q: (
             agent.save(conn, "user", q), agent.save(conn, "assistant", "x"),
@@ -179,8 +179,6 @@ def test_sugerencias_para_seguir(demo):
     assert "¿Qué tendría que recortar para llegar antes?" not in again and len(again) == 3
     # sin consultas reconocibles, las ideas generales
     assert followups.followups(conn, ["inventada"], []) == agent.SUGGESTIONS[:3]
-    pool = followups.ideas(conn, ["Ocio"])
-    assert "¿Cuánto gasto al mes en Ocio?" in pool and len(pool) == len(set(pool)) and not any("{cat}" in q for q in pool)
 
 
 def test_sugerencias_del_modelo_ligero(demo, monkeypatch):
@@ -210,3 +208,34 @@ def test_sugerencias_del_modelo_ligero(demo, monkeypatch):
     with TestClient(create_app(settings_path)) as c:  # offline: /chat/next cae en las deterministas
         r = c.get("/chat/next")
         assert r.status_code == 200 and "<html" not in r.text
+
+
+def test_autocompletado_del_modelo_ligero(demo, monkeypatch):
+    from moooney.chat import followups
+
+    settings_path, conn = demo
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        content = '{"sugerencias": ["¿Cuánto gasto en gasolina al mes?", "Otra cosa distinta", "¿cuánto gasto", 3]}'
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    client = LLMClient(SETTINGS, transport=httpx.MockTransport(handler))
+    monkeypatch.setenv("LITELLM_API_KEY", "clave-falsa")
+    monkeypatch.delenv("MOOONEY_OFFLINE")
+    # solo vale lo que empieza por lo tecleado (es lo único que enseña el desplegable) y añade algo
+    assert followups.model_completions(client, SETTINGS, [], "¿Cuánto  gasto") == ["¿Cuánto gasto en gasolina al mes?"]
+    assert "ha escrito hasta ahora: ¿Cuánto gasto" in seen[0]["messages"][1]["content"]
+    assert followups.model_completions(client, SETTINGS, [], "¿Cu") == [] and len(seen) == 1  # muy corto: no se llama
+    assert followups.model_completions(client, SETTINGS, [], "ES9121000418450200051332") == [] and len(seen) == 1
+    conn.close()
+    monkeypatch.setenv("MOOONEY_OFFLINE", "1")
+    with TestClient(create_app(settings_path)) as c:  # offline: sin propuestas no se cambia nada en la página
+        assert c.post("/chat/complete", data={"question": "¿Cuánto gasto"}).status_code == 204
+    from moooney.web import service
+
+    monkeypatch.setattr(service, "chat_complete", lambda conn, paths, typed: [typed + " en ocio?"])
+    with TestClient(create_app(settings_path)) as c:  # con propuestas: botones que envían la frase completa
+        r = c.post("/chat/complete", data={"question": "¿Cuánto gasto"})
+        assert "¿Quieres decir…?" in r.text and "¿Cuánto gasto en ocio?" in r.text and "<option" not in r.text

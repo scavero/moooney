@@ -2,7 +2,7 @@
 {% block title %}Pregunta{% endblock %}
 {% block content %}
 <div class="topbar">
-  <div><h1>Pregunta</h1><div class="subtitle">Pregunta por tus gastos o pide consejo. El asistente consulta tus totales por mes, categoría y comercio; nunca ve movimientos sueltos. Al escribir, el campo te propone preguntas.</div></div>
+  <div><h1>Pregunta</h1><div class="subtitle">Pregunta por tus gastos o pide consejo. El asistente consulta tus totales por mes, categoría y comercio; nunca ve movimientos sueltos. Mientras escribes, te propone cómo terminar la frase.</div></div>
   {% if messages %}
   <form method="post" action="/chat/clear"><button class="btn ghost" type="submit" {% if snapshot %}disabled{% endif %}>Nueva conversación</button></form>
   {% endif %}
@@ -38,13 +38,13 @@
 
   <form id="chat-form" class="chat-form" hx-post="/chat" hx-target="#chat-log" hx-swap="beforeend show:#chat-form:bottom"
         hx-indicator="#chat-wait" hx-disabled-elt="#chat-form button, #chat-suggest button, #chat-next button"
-        hx-on::after-request="if (event.detail.successful) { this.reset(); document.getElementById('chat-suggest').hidden = true; this.querySelector('input').focus(); }">
+        hx-on::after-request="if (event.detail.successful && event.detail.elt === this) { this.reset(); document.getElementById('chat-suggest').hidden = true; this.querySelector('input').focus(); }">
     <label for="chat-q" style="position:absolute;left:-9999px">Tu pregunta</label>
-    <input id="chat-q" type="text" name="question" required maxlength="600" autocomplete="off" list="chat-ideas"
-           placeholder="p. ej. ¿cuánto gasto al mes en supermercado?" {% if snapshot or not has_llm %}disabled{% endif %}>
+    <input id="chat-q" type="text" name="question" required maxlength="600" autocomplete="off"
+           placeholder="p. ej. ¿cuánto gasto al mes en supermercado?" {% if snapshot or not has_llm %}disabled{% else %}
+           hx-post="/chat/complete" hx-trigger="input changed delay:450ms" hx-target="#chat-next" hx-swap="innerHTML"
+           hx-sync="this:replace" hx-indicator="#chat-next" hx-disabled-elt="#chat-next"{% endif %}>
     <button class="btn primary" type="submit" {% if snapshot or not has_llm %}disabled{% endif %}>Preguntar</button>
-    {# autocompletado: al escribir, el campo propone las preguntas que encajan con lo tecleado #}
-    <datalist id="chat-ideas">{% for s in ideas %}<option value="{{ s }}"></option>{% endfor %}</datalist>
   </form>
   <p class="concept" style="margin-top:12px">Responde {{ model_name }} a través de tu proxy de modelos. Cada llamada queda en la auditoría. No es un asesor financiero.</p>
 </div>

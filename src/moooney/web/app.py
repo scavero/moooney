@@ -723,8 +723,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
                 for r in chat_agent.history(conn)]
         last = msgs[-1] if msgs and msgs[-1]["role"] == "assistant" and not msgs[-1]["error"] else None
         return render(request, conn, "chat.html", messages=msgs, suggestions=chat_agent.SUGGESTIONS,
-                      followups=chat_next(conn) if last else [],
-                      ideas=chat_followups.ideas(conn, list(taxonomy().categories)), **chat_ctx())
+                      followups=chat_next(conn) if last else [], **chat_ctx())
 
     def chat_next(conn: sqlite3.Connection) -> list[str]:
         rows = chat_agent.history(conn)
@@ -738,6 +737,16 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         """Las sugerencias del modelo ligero; si no responde, se quedan las deterministas."""
         return templates.TemplateResponse(request, "partials/chat_next.html", {
             "followups": service.chat_suggest(conn, active().paths) or chat_next(conn), **chat_ctx()})
+
+    @app.post("/chat/complete", response_class=HTMLResponse)
+    def chat_complete(request: Request, conn: DB, question: Annotated[str, Form()] = ""):
+        """Formas de terminar lo que se está escribiendo, como botones bajo el chat. Sin propuestas, 204:
+        htmx no cambia nada y se quedan las sugerencias que hubiera."""
+        opts = service.chat_complete(conn, active().paths, question)
+        if not opts:
+            return Response(status_code=204)
+        return templates.TemplateResponse(request, "partials/chat_next.html", {
+            "followups": opts, "typing": True, **chat_ctx()})
 
     @app.post("/chat", response_class=HTMLResponse)
     def chat_post(request: Request, conn: DB, question: Annotated[str, Form()] = ""):

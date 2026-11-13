@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.13.0 · 2026-11-13
+
+- **Autocompletado al escribir, con el modelo ligero**: tras una pausa de medio segundo (y al
+  menos 4 caracteres), `gemma-4-e2b` propone formas de terminar la frase teniendo en cuenta la
+  conversación. Salen como botones bajo el chat («¿Quieres decir…?») y al pulsar uno se envía.
+  Queda en `llm_calls` como `chat_complete`.
+- Desaparece el desplegable del campo de texto con la lista fija de preguntas.
+
 ## 1.12.0 · 2026-11-13
 
 - **El asistente infiere cómo seguir**: tras cada respuesta, el modelo ligero (`gemma-4-e2b`,

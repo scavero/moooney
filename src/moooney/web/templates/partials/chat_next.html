@@ -1,6 +1,6 @@
 {# Preguntas para seguir la conversación (chat/followups.py). Recibe `followups`. #}
 {% if followups %}
-<p class="muted">Puedes seguir con:</p>
+<p class="muted">{{ '¿Quieres decir…?' if typing else 'Puedes seguir con:' }}</p>
 {% for s in followups %}
 <button class="chip ghost" type="button" hx-post="/chat" hx-vals='{{ {"question": s}|tojson }}' hx-target="#chat-log"
         hx-swap="beforeend show:#chat-form:bottom" hx-indicator="#chat-wait" hx-disabled-elt="#chat-form button, #chat-next button"

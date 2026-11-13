@@ -534,3 +534,19 @@ def chat_suggest(conn: sqlite3.Connection, paths: Paths) -> list[str]:
     finally:
         client.close()
         recorder.flush()
+
+
+def chat_complete(conn: sqlite3.Connection, paths: Paths, typed: str) -> list[str]:
+    """Cómo terminar lo que se está escribiendo, según el modelo ligero. [] si no hay modelo."""
+    from moooney.chat import agent, followups
+
+    llm = llm_settings_or_none(paths)
+    if llm is None or offline_enabled() or len(typed.strip()) < followups.MIN_TYPED:
+        return []
+    recorder = CallRecorder(conn)
+    client = LLMClient(llm, recorder=recorder)
+    try:
+        return followups.model_completions(client, llm, agent.history_for_model(conn), typed)
+    finally:
+        client.close()
+        recorder.flush()

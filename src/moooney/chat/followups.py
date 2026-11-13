@@ -77,17 +77,6 @@ def followups(conn: sqlite3.Connection, tools_used: list[str], asked: list[str],
     return out
 
 
-def ideas(conn: sqlite3.Connection, categories: list[str]) -> list[str]:
-    """Todas las preguntas que el campo de texto ofrece al escribir (autocompletado)."""
-    out = list(SUGGESTIONS)
-    for pool in BY_TOOL.values():
-        out += [q for q in pool if "{cat}" not in q]
-    for c in categories:
-        out += [f"¿Cuánto gasto al mes en {c}?", f"¿En qué comercios se va lo de {c}?",
-                f"¿Cómo ha ido {c} en los últimos 12 meses?"]
-    return list(dict.fromkeys(out))
-
-
 # ---------- sugerencias inferidas por el modelo ligero ----------
 
 MODEL_SYSTEM = (
@@ -103,6 +92,59 @@ def suggest_model(settings: LLMSettings) -> str:
     return settings.models.get("sugerencias") or "gemma-4-e2b"
 
 
+def _transcript(turns: list[dict]) -> str:
+    return "\n".join(("Usuario: " if m["role"] == "user" else "Asistente: ") + " ".join(m["content"].split())[:700]
+                     for m in turns[-6:])
+
+
+def _ask_list(client: LLMClient, settings: LLMSettings, system: str, user: str, purpose: str) -> list:
+    """Pide al modelo ligero una lista JSON de sugerencias. [] si falla o no devuelve una lista."""
+    try:
+        raw = client.chat(
+            model=suggest_model(settings),
+            messages=[{"role": "system", "content": system},
+                      {"role": "user", "content": assert_safe_text(user, max_chars=6000)}],
+            purpose=purpose, max_tokens=200,
+        )
+        data = json.loads(re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip()))
+        items = data.get("sugerencias") if isinstance(data, dict) else data
+    except (LLMError, AnonymizeError, ValueError):
+        return []
+    return items if isinstance(items, list) else []
+
+
+COMPLETE_SYSTEM = (
+    "El usuario está escribiendo un mensaje para su asistente de finanzas personales. Complétalo: propón {n} "
+    "mensajes completos y breves (menos de 80 caracteres) que empiecen exactamente por lo que ya ha escrito y "
+    "encajen con la conversación. En español, con la voz del usuario y distintos entre sí. "
+    'Devuelve solo JSON: {{"sugerencias": ["...", "..."]}}'
+)
+MIN_TYPED = 4
+
+
+def model_completions(client: LLMClient, settings: LLMSettings, turns: list[dict], typed: str, *,
+                      limit: int = 4) -> list[str]:
+    """Formas de terminar lo que el usuario está escribiendo. Solo las que empiezan por lo tecleado,
+    que son las únicas que el desplegable del navegador enseña."""
+    typed = " ".join(typed.split())
+    if len(typed) < MIN_TYPED:
+        return []
+    try:
+        check_question(typed)
+    except ValueError:
+        return []
+    user = (_transcript(turns) + "\n\n" if turns else "") + "El usuario ha escrito hasta ahora: " + typed
+    out: list[str] = []
+    for s in _ask_list(client, settings, COMPLETE_SYSTEM.format(n=limit), user, "chat_complete"):
+        try:
+            q = check_question(s) if isinstance(s, str) else ""
+        except ValueError:
+            continue
+        if _norm(q).startswith(_norm(typed)) and _norm(q) != _norm(typed) and len(q) <= 120 and q not in out:
+            out.append(q)
+    return out[:limit]
+
+
 def model_followups(client: LLMClient, settings: LLMSettings, turns: list[dict], *, limit: int = 3) -> list[str]:
     """Siguientes mensajes posibles, inferidos por el modelo ligero a partir de la conversación.
 
@@ -111,22 +153,10 @@ def model_followups(client: LLMClient, settings: LLMSettings, turns: list[dict],
     """
     if not turns or turns[-1]["role"] != "assistant":
         return []
-    lines = [("Usuario: " if m["role"] == "user" else "Asistente: ") + " ".join(m["content"].split())[:700]
-             for m in turns[-6:]]
-    try:
-        raw = client.chat(
-            model=suggest_model(settings),
-            messages=[{"role": "system", "content": MODEL_SYSTEM.format(n=limit)},
-                      {"role": "user", "content": assert_safe_text("\n".join(lines), max_chars=6000)}],
-            purpose="chat_followups", max_tokens=200,
-        )
-        data = json.loads(re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip()))
-        items = data.get("sugerencias") if isinstance(data, dict) else data
-    except (LLMError, AnonymizeError, ValueError):
-        return []
+    items = _ask_list(client, settings, MODEL_SYSTEM.format(n=limit), _transcript(turns), "chat_followups")
     seen = {_norm(m["content"]) for m in turns if m["role"] == "user"}
     out: list[str] = []
-    for s in items if isinstance(items, list) else []:
+    for s in items:
         try:  # lo que se propone se podrá enviar tal cual: pasa la misma barrera que una pregunta
             q = check_question(s) if isinstance(s, str) else ""
         except ValueError:
