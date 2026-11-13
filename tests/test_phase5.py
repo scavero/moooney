@@ -69,6 +69,14 @@ def test_informe_con_modelo_falso_y_sin_modelo(demo, monkeypatch):
     assert "Datos del mes en JSON" in seen["user"] and '"mes":"2026-10"' in seen["user"]
     fallback = advice.fallback_report(payload)
     assert "## Qué haría yo" in fallback and "## Vigilar" in fallback
+    # en castellano: el mes por su nombre, miles con punto y, si el mes va a medias, hasta qué día
+    assert "octubre de 2026" in fallback and "2026-10" not in fallback.split("## Dónde")[0]
+    assert advice._eur(1234.4) == "1.234 €" and advice._eur(-56, sign=True) == "-56 €" and advice._eur(7, sign=True) == "+7 €"
+    cerrado = advice.fallback_report({**payload, "mes_completo": True, "resumen": {**payload["resumen"], "ingresos": 2372,
+                                      "gastos": 2500, "ahorro_neto": -128}})
+    assert "ingresaste 2.372 € y gastaste 2.500 €: gastaste 128 € más de lo que entró." in cerrado
+    if not payload["mes_completo"]:
+        assert "hasta el día " in fallback and "has ingresado" in fallback
     rid = advice.store_report(conn, month="2026-10", kind="modelo", model="qwen-test", content=md)
     assert rid > 0 and advice.latest_report(conn, "2026-10")["content"] == md
 

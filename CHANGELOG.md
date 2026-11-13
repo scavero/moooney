@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.10.1 · 2026-11-13
+
+- **Informe sin modelo, en castellano**: el mes por su nombre («octubre de 2026»), importes con
+  separador de miles y, si el mes va a medias, dice hasta qué día cuenta. Los informes ya
+  guardados no cambian hasta pulsar *Regenerar sin modelo*.
+- **Móvil apaisado**: con poca altura, la cabecera y la barra inferior se encogen (iconos y
+  nombres en una línea) y el contenido empieza antes.
+
 ## 1.10.0 · 2026-11-13
 
 - **Avisos, en una sola página**: Alertas y Recurrentes dejan de ser dos pestañas. Arriba, las

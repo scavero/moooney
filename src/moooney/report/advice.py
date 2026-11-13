@@ -133,18 +133,38 @@ def generate_report(client: LLMClient, settings: LLMSettings, payload: dict) -> 
     return content.strip()
 
 
+_MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+          "noviembre", "diciembre")
+
+
+def _eur(value: float, *, sign: bool = False) -> str:
+    """1234 → «1.234 €», como en el resto de la web. Con `sign`, el más por delante."""
+    n = round(value)
+    text = f"{abs(n):,}".replace(",", ".")
+    return f"{'-' if n < 0 else '+' if sign and n > 0 else ''}{text} €"
+
+
+def _mes(month: str) -> str:
+    """«2026-10» → «octubre de 2026»."""
+    return f"{_MESES[int(month[5:7]) - 1]} de {month[:4]}"
+
+
 def fallback_report(payload: dict, insights: list[Insight] | None = None) -> str:
     """Informe sin modelo: los hallazgos deterministas en Markdown. Sirve en modo offline."""
     r = payload["resumen"]
-    lines = [
-        "## En una frase",
-        f"En {payload['mes']} ingresaste {r['ingresos']} € y gastaste {r['gastos']} €: ahorro neto de {r['ahorro_neto']} €.",
-        "",
-        "## Dónde se va el dinero",
-    ]
+    net = r["ahorro_neto"]
+    saldo = f"ahorraste {_eur(net)}" if net >= 0 else f"gastaste {_eur(-net)} más de lo que entró"
+    if payload.get("mes_completo", True):
+        frase = f"En {_mes(payload['mes'])} ingresaste {_eur(r['ingresos'])} y gastaste {_eur(r['gastos'])}: {saldo}."
+    else:  # mes a medias: se dice hasta qué día, para no leerlo como un mes entero
+        dia = int(payload["datos_hasta"][8:10])
+        saldo = saldo.replace("ahorraste", "llevas ahorrados").replace("gastaste", "llevas gastados")
+        frase = (f"En {_mes(payload['mes'])}, hasta el día {dia}, has ingresado {_eur(r['ingresos'])} y gastado "
+                 f"{_eur(r['gastos'])}: {saldo}.")
+    lines = ["## En una frase", frase, "", "## Dónde se va el dinero"]
     for c in payload["categorias"][:5]:
-        vs = f" ({c['vs_media']:+} € frente a la media)" if c.get("vs_media") is not None else ""
-        lines.append(f"- {c['categoria']}: {c['importe']} € ({c['pct']} %){vs}")
+        vs = f" ({_eur(c['vs_media'], sign=True)} frente a la media)" if c.get("vs_media") is not None else ""
+        lines.append(f"- {c['categoria']}: {_eur(c['importe'])} ({c['pct']} %){vs}")
     lines += ["", "## Qué haría yo"]
     acciones = [h for h in payload["hallazgos"] if h["impacto_eur_mes"] > 0][:5]
     for h in acciones or payload["hallazgos"][:3]:
