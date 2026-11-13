@@ -32,7 +32,7 @@
     {% endfor %}
   </div>
 
-  <div id="chat-next" class="chat-suggest">{% include "partials/chat_next.html" %}</div>
+  <div id="chat-next" class="chat-suggest"{% if followups and has_llm and not snapshot %} hx-get="/chat/next" hx-trigger="load" hx-swap="innerHTML"{% endif %}>{% include "partials/chat_next.html" %}</div>
 
   <div id="chat-wait" class="chat-wait htmx-indicator"><span class="spinner"></span> Consultando tus datos y redactando… suele tardar unos segundos.</div>
 

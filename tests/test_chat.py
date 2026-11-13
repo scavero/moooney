@@ -231,9 +231,24 @@ def test_autocompletado_del_modelo_ligero(demo, monkeypatch):
     assert followups.model_completions(client, SETTINGS, [], "ES9121000418450200051332") == [] and len(seen) == 1
     conn.close()
     monkeypatch.setenv("MOOONEY_OFFLINE", "1")
-    with TestClient(create_app(settings_path)) as c:  # offline: sin propuestas no se cambia nada en la página
-        assert c.post("/chat/complete", data={"question": "¿Cuánto gasto"}).status_code == 204
     from moooney.web import service
+
+    with TestClient(create_app(settings_path)) as c:  # sin propuestas y sin conversación: nada que enseñar
+        r = c.post("/chat/complete", data={"question": "¿Cuánto gasto"})
+        assert r.status_code == 200 and "<button" not in r.text
+    # con conversación: las del modelo se piden una vez y vuelven al recargar o al vaciar el campo
+    conn = repo.connect(settings_path.parent.parent / "moooney.db")
+    agent.save(conn, "user", "¿cómo voy?")
+    agent.save(conn, "assistant", "Bien.", tools_used=["resumen_mes"])
+    conn.close()
+    calls = []
+    monkeypatch.setattr(service, "chat_suggest", lambda conn, paths: calls.append(1) or ["Sugerencia del modelo"])
+    with TestClient(create_app(settings_path)) as c:
+        assert "Sugerencia del modelo" not in c.get("/chat").text  # aún no se ha pedido: salen las fijas
+        assert "Sugerencia del modelo" in c.get("/chat/next").text
+        assert "Sugerencia del modelo" in c.get("/chat").text and "Sugerencia del modelo" in c.get("/chat/next").text
+        r = c.post("/chat/complete", data={"question": ""})
+        assert "Sugerencia del modelo" in r.text and "Puedes seguir con:" in r.text and len(calls) == 1
 
     monkeypatch.setattr(service, "chat_complete", lambda conn, paths, typed: [typed + " en ocio?"])
     with TestClient(create_app(settings_path)) as c:  # con propuestas: botones que envían la frase completa

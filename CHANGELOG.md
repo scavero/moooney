@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.13.1 · 2026-11-13
+
+- **Asistente**: al borrar lo escrito vuelven las sugerencias para seguir (antes se quedaban los
+  botones de «¿Quieres decir…?»), y al recargar la página salen las sugerencias del modelo
+  ligero, no las fijas; se guardan en memoria para la última respuesta y no se vuelven a pedir.
+
 ## 1.13.0 · 2026-11-13
 
 - **Autocompletado al escribir, con el modelo ligero**: tras una pausa de medio segundo (y al
