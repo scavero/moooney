@@ -344,3 +344,41 @@ def transactions_totals(conn: sqlite3.Connection, *, month=None, category=None, 
     return {"income": float(row["income"]), "expenses": float(row["expenses"]),
             "net": float(row["income"]) - float(row["expenses"]), "n": int(row["n"])}
 
+
+def spend_by_day(conn: sqlite3.Connection, first: str, last: str) -> dict[str, dict[str, float]]:
+    """{categoría: {fecha: gasto}} entre dos fechas. Una devolución resta, como en las métricas."""
+    ph = ",".join("?" for _ in EXPENSE_FLOWS)
+    rows = conn.execute(
+        f"""
+        SELECT COALESCE(category, '(sin categoría)') AS c, date AS d, -SUM(amount) AS g
+        FROM transactions
+        WHERE date BETWEEN ? AND ? AND flow_type IN ({ph})
+        GROUP BY c, d
+        """,
+        (first, last, *EXPENSE_FLOWS),
+    ).fetchall()
+    out: dict[str, dict[str, float]] = {}
+    for r in rows:
+        out.setdefault(r["c"], {})[r["d"]] = round(float(r["g"]), 2)
+    return out
+
+
+def merchants_by_category(conn: sqlite3.Connection, first: str, last: str, *, per: int = 6) -> dict[str, list[dict]]:
+    """{categoría: comercios donde más se gasta} entre dos fechas, los `per` primeros de cada una."""
+    ph = ",".join("?" for _ in EXPENSE_FLOWS)
+    rows = conn.execute(
+        f"""
+        SELECT COALESCE(category, '(sin categoría)') AS c, concept_clean AS key, COUNT(*) AS n, -SUM(amount) AS total
+        FROM transactions
+        WHERE date BETWEEN ? AND ? AND flow_type IN ({ph}) AND amount < 0
+        GROUP BY c, concept_clean
+        ORDER BY total DESC
+        """,
+        (first, last, *EXPENSE_FLOWS),
+    ).fetchall()
+    out: dict[str, list[dict]] = {}
+    for r in rows:
+        group = out.setdefault(r["c"], [])
+        if len(group) < per:
+            group.append({"key": r["key"], "n": r["n"], "total": float(r["total"])})
+    return out

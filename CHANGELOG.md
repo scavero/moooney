@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.9.0 · 2026-11-13
+
+- **Resumen con más gráficas y que responde**: un anillo reparte el gasto por categoría y, al
+  pulsar una (en el anillo o en la lista), toda la página se queda con ella: el *ritmo del mes*
+  (gasto acumulado día a día frente al mes anterior, con la frase «a día 10 llevas X, Y más que
+  en septiembre a estas alturas»), los comercios donde se va y los 12 meses. *Lo que entra y lo
+  que sale* pasa a barras con la línea del ahorro, y pulsar un mes abre su resumen. En trimestre,
+  año y rango hay el mismo anillo y una gráfica de ingresos y gastos mes a mes.
+
 ## 1.8.3 · 2026-11-12
 
 - **Plan, en una sola página**: Presupuestos y Metas dejan de ser dos pestañas. Arriba, el

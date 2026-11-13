@@ -163,3 +163,25 @@ def test_el_asistente_consulta_periodos(tmp_path, monkeypatch):
     assert "AAAA" in json.loads(agent.run_tool(ctx, "resumen_periodo", '{"periodo": "verano"}'))["error"]
     assert "no hay datos" in json.loads(agent.run_tool(ctx, "resumen_periodo", '{"periodo": "1999"}'))["error"]
     conn.close()
+
+
+def test_explorador_del_resumen(client):
+    import re
+
+    def datos(url: str) -> dict:
+        t = client.get(url).text
+        assert 'id="chart-donut"' in t and "data-cat-group" in t and "cat-pick" in t
+        return json.loads(re.search(r'<script id="explorer-data" type="application/json">(.*?)</script>', t, re.S).group(1))
+
+    mes = _ultimo_mes(client)
+    d = datos(f"/?month={mes}")
+    assert d["kind"] == "month" and d["cats"] and d["prev"] and len(d["prev"][next(iter(d["prev"]))]) == d["prev_days"]
+    # lo que suma el día a día es lo que enseña cada categoría
+    for c in d["cats"]:
+        assert sum(d["daily"][c]) == pytest.approx(d["amounts"][c], abs=0.01)
+        assert len(d["daily"][c]) == d["days"] and not any(d["daily"][c][d["cutoff"]:])
+    q = periods.period_containing("quarter", f"{mes}-01")
+    p = datos(f"/?period={q.key}")
+    assert p["kind"] == "period" and p["months"] == [m for m in q.months if m <= mes] and len(p["income"]) == len(p["months"])
+    for c in p["cats"]:
+        assert sum(p["by_month"][c]) == pytest.approx(p["amounts"][c], abs=0.01)

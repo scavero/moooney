@@ -29,6 +29,59 @@
   </div>
 </div>
 
+{% set tx_filter = 'month=' ~ month %}
+<div class="sel-bar" id="sel-bar" hidden aria-live="polite">
+  <span>Viendo solo <strong id="sel-name"></strong> en las gráficas de esta página.</span>
+  <button class="btn small" type="button" id="sel-link">Ver sus movimientos</button>
+  <button class="btn small" type="button" id="sel-clear">Quitar ×</button>
+</div>
+<div class="grid two section">
+  <div class="card">
+    <h2 style="margin-bottom:4px">En qué se va</h2>
+    <div class="concept" style="margin-bottom:12px">Pulsa una categoría, en el anillo o en la lista, para verla sola: cambian el ritmo del mes, los comercios y los 12 meses.</div>
+    <div class="donut-box"><canvas id="chart-donut" role="img" aria-label="Reparto del gasto del mes por categoría"></canvas>
+      <div class="donut-center"><div class="label" id="donut-label">Gasto</div><div class="value" id="donut-value">{{ s.expenses|eur }}</div><div class="hint" id="donut-hint"></div></div></div>
+    <div class="scroll-x">
+    <table class="cat-legend">
+      <tr><th></th><th class="num">este mes</th><th class="num">vs media</th><th></th></tr>
+      {% for c in report.categories %}
+      <tr {% if c.amount > 0 %}data-cat-row="{{ c.category }}"{% endif %}>
+        <td style="width:44%">{% if c.amount > 0 %}<button class="cat-pick" type="button" aria-pressed="false" title="ver solo {{ c.category }}"><i class="dot" style="background:var(--chart-{{ [loop.index, 9]|min }})"></i>{{ c.category }}</button>{% else %}<span style="font-weight:500">{{ c.category }}</span>{% endif %}
+          {% if c.fixed_amount > 0 %}<span class="concept" style="margin-left:6px">fijo {{ c.fixed_amount|eur }}</span>{% endif %}
+          <div class="bar thin"><span style="width:{{ c.pct }}%"></span></div></td>
+        <td class="num">{{ c.amount|eur }}<div class="concept">{{ '%.0f'|format(c.pct) }} % del gasto</div></td>
+        <td class="num {{ 'neg' if (c.delta_avg or 0) > 0 else 'pos' }}">{% if c.delta_avg is not none %}{{ '%+.0f'|format(c.delta_avg) }} €{% else %}—{% endif %}<div class="concept">media de {{ c.n_prev_months }} m.</div></td>
+        <td class="num"><a href="/transactions?month={{ month }}&category={{ c.category|urlencode }}" aria-label="movimientos de {{ c.category }}" title="ver movimientos">→</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+  <div>
+    <div class="card section">
+      <h2 style="margin-bottom:4px">Ritmo del mes</h2>
+      <div class="concept" id="pace-text" style="margin-bottom:12px">Gasto acumulado día a día, frente al mes anterior.</div>
+      <div class="chart-box small"><canvas id="chart-pace" role="img" aria-label="Gasto acumulado día a día, este mes y el anterior"></canvas></div>
+    </div>
+    <div class="card">
+      <h2 id="merch-title" data-all="Dónde más se gasta este mes">Dónde más se gasta este mes</h2>
+      <div data-cat-group="">
+      <table>
+        {% for t in top %}
+        <tr>
+          <td><a href="/transactions?month={{ month }}&key={{ t.key|urlencode }}">{{ t.key }}</a><div class="concept">{{ t.category or '—' }} · {{ t.n }} veces</div>
+            <div class="bar thin"><span style="width:{{ (t.total / top[0].total * 100)|round(1) if top[0].total else 0 }}%"></span></div></td>
+          <td class="num neg">{{ t.total|eur(2) }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      </div>
+      {% set linked = top|map(attribute='key')|list %}
+      {% include "partials/cat_merchants.html" %}
+    </div>
+  </div>
+</div>
+
 <div class="card section">
   <div class="topbar" style="margin-bottom:12px;align-items:baseline">
     <h2 style="margin:0">Diagnóstico</h2>
@@ -57,45 +110,16 @@
   {% else %}<p class="muted">Aún no hay meses completos suficientes para comparar.</p>{% endif %}
 </div>
 
-<div class="grid three section">
+<div class="grid two section">
   <div class="card">
     <h2 style="margin-bottom:4px">Gasto por categoría, 12 meses</h2>
     <div class="concept" style="margin-bottom:12px">Pulsa una barra para ver sus movimientos.</div>
     <div class="chart-box"><canvas id="chart-cats"></canvas></div>
   </div>
   <div class="card">
-    <h2 style="margin-bottom:4px">Categorías del mes</h2>
-    <div class="concept" style="margin-bottom:12px">Frente a la media de {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos. En rojo, más que antes.</div>
-    <table>
-      <tr><th></th><th class="num">este mes</th><th class="num">vs media</th></tr>
-      {% for c in report.categories %}
-      <tr>
-        <td style="width:40%"><a href="/transactions?month={{ month }}&category={{ c.category|urlencode }}" style="font-weight:500">{{ c.category }}</a>
-          {% if c.fixed_amount > 0 %}<span class="concept" style="margin-left:6px">fijo {{ c.fixed_amount|eur }}</span>{% endif %}
-          <div class="bar thin"><span style="width:{{ c.pct }}%"></span></div></td>
-        <td class="num">{{ c.amount|eur }}<div class="concept">{{ '%.0f'|format(c.pct) }} % del gasto</div></td>
-        <td class="num {{ 'neg' if (c.delta_avg or 0) > 0 else 'pos' }}">{% if c.delta_avg is not none %}{{ '%+.0f'|format(c.delta_avg) }} €{% else %}—{% endif %}<div class="concept">vs media</div></td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-</div>
-
-<div class="grid two section">
-  <div class="card">
-    <h2>Ingresos, gastos y ahorro</h2>
-    <div class="chart-box small"><canvas id="chart-flows"></canvas></div>
-  </div>
-  <div class="card">
-    <h2>Dónde más se gasta este mes</h2>
-    <table>
-      {% for t in top %}
-      <tr>
-        <td><a href="/transactions?month={{ month }}&key={{ t.key|urlencode }}">{{ t.key }}</a><div class="concept">{{ t.category or '—' }} · {{ t.n }} veces</div></td>
-        <td class="num neg">{{ t.total|eur(2) }}</td>
-      </tr>
-      {% endfor %}
-    </table>
+    <h2 style="margin-bottom:4px">Lo que entra y lo que sale</h2>
+    <div class="concept" style="margin-bottom:12px">La línea es el ahorro. Pulsa un mes para abrir su resumen.</div>
+    <div class="chart-box"><canvas id="chart-flows"></canvas></div>
   </div>
 </div>
 
@@ -133,6 +157,7 @@
   </div>
 </div>
 
+<script id="explorer-data" type="application/json">{{ explorer|tojson }}</script>
 <script>
 window.renderCharts = function () {
   const months = {{ chart_months|tojson }};
@@ -149,12 +174,22 @@ window.renderCharts = function () {
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } },
       scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: v => eur(v) }, grid } },
       onClick: (e, els) => { if (els.length) { const m = months[els[0].index]; const c = series[els[0].datasetIndex].label; if (c !== 'Resto') go('/transactions?month=' + m + '&category=' + encodeURIComponent(c)); } } } });
-  mk('chart-flows', { type: 'line',
-    data: { labels, datasets: [
-      { label: 'Ingresos', data: flows.ingresos, borderColor: palette[2], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5, pointRadius: 2 },
-      { label: 'Gastos', data: flows.gastos, borderColor: palette[5], backgroundColor: 'transparent', tension: .3, fill: false, borderWidth: 1.5, pointRadius: 2 },
-      { label: 'Ahorro', data: flows.ahorro, borderColor: palette[0], backgroundColor: palette[4] + '66', tension: .3, fill: true, borderWidth: 2, pointRadius: 2 } ] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } } } });
+  mk('chart-flows', { data: { labels, datasets: [
+      { type: 'line', label: 'Ahorro', data: flows.ahorro, borderColor: palette[0], backgroundColor: palette[0], tension: .3, borderWidth: 2, pointRadius: 3 },
+      { type: 'bar', label: 'Ingresos', data: flows.ingresos, backgroundColor: palette[2], borderRadius: 3 },
+      { type: 'bar', label: 'Gastos', data: flows.gastos, backgroundColor: palette[5], borderRadius: 3 } ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } },
+      scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
+      onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+      onClick: (e, els) => { if (els.length) go('/?month=' + months[els[0].index]); } } });
+  // la categoría elegida en el explorador se queda sola también en los 12 meses
+  window.highlightCategory = function (cat) {
+    const el = document.getElementById('chart-cats'); if (!el || !el._chart) return;
+    el._chart.data.datasets.forEach((ds, i) => { ds.backgroundColor = palette[i % palette.length] + (cat && ds.label !== cat ? '59' : ''); });
+    el._chart.update('none');
+  };
+  window.renderSummary();
 };
 </script>
 {% endblock %}

@@ -213,6 +213,50 @@ def section_of(path: str) -> tuple[str, list[tuple[str, str]]]:
     return "Resumen", []
 
 
+def month_explorer(conn: sqlite3.Connection, month: str, as_of: str, categories: list[str]) -> dict:
+    """Datos del explorador del Resumen mensual: gasto de cada día por categoría, este mes y el anterior."""
+    first_date = periods.first_date(conn) or as_of
+    a, b = periods.month_bounds(month)
+    cut = min(b, as_of)
+    days = periods.days_in_month(month)
+
+    def per_day(start: str, n: int, raw: dict[str, dict[str, float]]) -> dict[str, list[float]]:
+        return {c: [d.get(f"{start[:8]}{i:02d}", 0.0) for i in range(1, n + 1)] for c, d in raw.items()}
+
+    prev = periods.last_n_months(month, 1)[0]
+    pa, pb = periods.month_bounds(prev)
+    has_prev = periods.month_of(first_date) <= prev
+    return {
+        "kind": "month", "id": month, "tx": f"month={month}", "cats": categories,
+        "days": days, "cutoff": int(cut[8:10]), "partial": cut < b,
+        "daily": per_day(a, days, queries.spend_by_day(conn, a, cut)),
+        "prev": per_day(pa, periods.days_in_month(prev), queries.spend_by_day(conn, pa, pb)) if has_prev else None,
+        "prev_days": periods.days_in_month(prev), "label": mes(month).split(" ")[0],
+        "prev_label": mes(prev).split(" ")[0],
+    }
+
+
+def period_explorer(conn: sqlite3.Connection, p: periods.Period, ps) -> dict:
+    """Datos del explorador de un trimestre, un año o un rango: gasto de cada mes por categoría."""
+    by_day = queries.spend_by_day(conn, ps.start, ps.cutoff)
+    months = [m.month for m in ps.months]
+    idx = {m: i for i, m in enumerate(months)}
+    by_month: dict[str, list[float]] = {}
+    for c, d in by_day.items():
+        row = by_month.setdefault(c, [0.0] * len(months))
+        for day, g in d.items():
+            if day[:7] in idx:
+                row[idx[day[:7]]] += g
+    return {
+        "kind": "period", "id": p.key,
+        "tx": f"start={p.start}&end={p.end}" if p.kind == "range" else f"month={p.key}",
+        "cats": [c.category for c in ps.categories if c.amount > 0],
+        "amounts": {c.category: round(c.amount, 2) for c in ps.categories if c.amount > 0},
+        "months": months, "by_month": {c: [round(v, 2) for v in row] for c, row in by_month.items()},
+        "income": [round(m.income, 2) for m in ps.months],
+    }
+
+
 def build_verdict(summary, insights, *, day: int | None = None) -> str:
     """Una frase en castellano que responde a la pregunta del mes. Determinista."""
     prefix = f"A día {day}, " if day and not summary.full_month else ""
@@ -373,8 +417,10 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         if p is None:
             return render(request, conn, "empty.html")
         if p.kind != "month":  # trimestre, año o rango: totales del periodo frente al anterior
-            return render(request, conn, "period.html", p=p, pnav=period_nav(conn, p),
-                          ps=period_mod.period_summary(conn, p))
+            ps = period_mod.period_summary(conn, p)
+            return render(request, conn, "period.html", p=p, pnav=period_nav(conn, p), ps=ps,
+                          explorer=period_explorer(conn, p, ps) if ps else None,
+                          cat_merchants=queries.merchants_by_category(conn, ps.start, ps.cutoff) if ps else {})
         m = p.key
         service.refresh_recurring(conn)
         insights, report = insights_mod.build_insights(conn, m)
@@ -393,6 +439,10 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             request, conn, "dashboard.html",
             month=m, pnav=period_nav(conn, p),
             report=report, top=queries.top_merchants(conn, m, limit=8),
+            explorer={**month_explorer(conn, m, report.as_of, [c.category for c in report.categories if c.amount > 0]),
+                      "amounts": {c.category: round(c.amount, 2) for c in report.categories if c.amount > 0}},
+            cat_merchants=queries.merchants_by_category(conn, periods.month_bounds(m)[0],
+                                                        min(periods.month_bounds(m)[1], report.as_of)),
             chart_months=series_months,
             chart_series=[{"label": c, "data": v} for c, v in top_cats]
             + ([{"label": "Resto", "data": resto}] if any(resto) else []),

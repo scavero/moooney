@@ -104,6 +104,8 @@ La web tiene siete secciones; las páginas que comparten sección son pestañas 
   se gasta; presupuesto con la marca del día de hoy y alertas pendientes.
 - **Tendencias**: previsión a fin de mes y de los próximos tres, colchón en meses, saldo proyectado a un
   año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
+- **Explorador del Resumen**: anillo de gasto por categoría, ritmo del mes día a día frente al mes anterior y
+  comercios; al pulsar una categoría, todas las gráficas de la página se quedan con ella.
 - **Trimestre, año o rango** (selector de periodo del Resumen): los totales del periodo frente al anterior
   equivalente (cortado a la misma altura si está en curso): ingresos, gastos, ahorro, cada categoría con su
   diferencia, el gasto mes a mes, el mes más caro y el más barato y los comercios donde más se gasta.
@@ -253,7 +255,7 @@ y, si su concepto no lleva el tipo de operación delante como el del Santander, 
 ## Desarrollo
 
 ```powershell
-uv run pytest        # 249 tests, todos con datos sintéticos
+uv run pytest        # 250 tests, todos con datos sintéticos
 uv run ruff check .
 uv run moooney web --reload
 ```

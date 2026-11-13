@@ -1,0 +1,17 @@
+{# Comercios de la categoría elegida en el explorador (summary.js enseña un grupo u otro).
+   Recibe `cat_merchants`, `tx_filter` y `linked` (claves que la demo estática sí tiene guardadas). #}
+{% for c, rows in cat_merchants.items() %}
+<div data-cat-group="{{ c }}" hidden>
+  <table>
+    {% for m in rows %}
+    <tr>
+      <td>{% if snapshot and m.key not in linked %}{{ m.key }}{% else %}<a href="/transactions?{{ tx_filter }}&key={{ m.key|urlencode }}">{{ m.key }}</a>{% endif %}
+        <div class="concept">{{ m.n }} {{ 'vez' if m.n == 1 else 'veces' }}</div>
+        <div class="bar thin"><span style="width:{{ (m.total / rows[0].total * 100)|round(1) if rows[0].total else 0 }}%"></span></div></td>
+      <td class="num neg">{{ m.total|eur(2) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p style="margin:var(--s2) 0 0"><a href="/transactions?{{ tx_filter }}&category={{ c|urlencode }}">Todos los movimientos de {{ c }} →</a></p>
+</div>
+{% endfor %}

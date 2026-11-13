@@ -39,21 +39,31 @@
 <div class="notice section">El mes más caro fue <strong>{{ hi.month|mes }}</strong>, con {{ hi.expenses|eur }}{% if hi.top_category %} (sobre todo {{ hi.top_category }}, {{ hi.top_amount|eur }}){% endif %}.{% if lo and lo.month != hi.month %} El más barato, <strong>{{ lo.month|mes }}</strong>, con {{ lo.expenses|eur }}.{% endif %}</div>
 {% endif %}
 
+<div class="sel-bar" id="sel-bar" hidden aria-live="polite">
+  <span>Viendo solo <strong id="sel-name"></strong> en las gráficas de esta página.</span>
+  <button class="btn small" type="button" id="sel-link">Ver sus movimientos</button>
+  <button class="btn small" type="button" id="sel-clear">Quitar ×</button>
+</div>
 <div class="grid two section">
   <div class="card">
     <h2 style="margin-bottom:4px">Por categoría</h2>
-    <div class="concept" style="margin-bottom:8px">Gasto del periodo{% if pt %} frente a {{ prev_name }}{% endif %}. Pulsa una categoría para ver sus movimientos.</div>
+    <div class="concept" style="margin-bottom:8px">Gasto del periodo{% if pt %} frente a {{ prev_name }}{% endif %}. Pulsa una categoría, en el anillo o en la lista, para verla sola en el gasto mes a mes y en los comercios.</div>
+    <div class="donut-box"><canvas id="chart-donut" role="img" aria-label="Reparto del gasto del periodo por categoría"></canvas>
+      <div class="donut-center"><div class="label" id="donut-label">Gasto</div><div class="value" id="donut-value">{{ t.expenses|eur }}</div><div class="hint" id="donut-hint"></div></div></div>
     <div class="scroll-x">
     <table>
-      <tr><th>Categoría</th><th class="num">{{ p|periodo if p.kind != 'range' else 'Este rango' }}</th>{% if pt %}<th class="num">{{ prev_name if p.kind != 'range' else 'Antes' }}</th><th class="num">Diferencia</th>{% endif %}</tr>
+      <tr><th>Categoría</th><th class="num">{{ p|periodo if p.kind != 'range' else 'Este rango' }}</th>{% if pt %}<th class="num">{{ prev_name if p.kind != 'range' else 'Antes' }}</th><th class="num">Diferencia</th>{% endif %}<th></th></tr>
+      {% set n = namespace(i=0) %}
       {% for c in ps.categories %}
-      <tr>
-        <td><a href="/transactions?{{ tx_filter }}&category={{ c.category|urlencode }}" style="font-weight:500">{{ c.category }}</a></td>
+      {% if c.amount > 0 %}{% set n.i = n.i + 1 %}{% endif %}
+      <tr {% if c.amount > 0 %}data-cat-row="{{ c.category }}"{% endif %}>
+        <td>{% if c.amount > 0 %}<button class="cat-pick" type="button" aria-pressed="false" title="ver solo {{ c.category }}"><i class="dot" style="background:var(--chart-{{ [n.i, 9]|min }})"></i>{{ c.category }}</button>{% else %}<span style="font-weight:500">{{ c.category }}</span>{% endif %}</td>
         <td class="num">{{ c.amount|eur }}</td>
         {% if pt %}
         <td class="num" style="color:var(--ink-2);font-weight:400">{{ c.prev|eur if c.prev is not none else '—' }}</td>
         <td class="num {{ 'neg' if (c.delta or 0) > 0 else 'pos' }}">{% if c.delta is not none %}{{ '%+.0f'|format(c.delta) }} €{% if c.delta_pct is not none %} <span class="concept">{{ '%+.0f'|format(c.delta_pct) }} %</span>{% endif %}{% else %}nuevo{% endif %}</td>
         {% endif %}
+        <td class="num"><a href="/transactions?{{ tx_filter }}&category={{ c.category|urlencode }}" aria-label="movimientos de {{ c.category }}" title="ver movimientos">→</a></td>
       </tr>
       {% endfor %}
     </table>
@@ -62,7 +72,8 @@
   <div>
     <div class="card section">
       <h2 style="margin-bottom:4px">Mes a mes</h2>
-      <div class="concept" style="margin-bottom:8px">Pulsa un mes para abrir su resumen. Los meses a medias no cuentan para el más caro ni el más barato.</div>
+      <div class="concept" style="margin-bottom:8px">Pulsa un mes, en la gráfica o en la tabla, para abrir su resumen. Los meses a medias no cuentan para el más caro ni el más barato.</div>
+      <div class="chart-box small" style="margin-bottom:var(--s2)"><canvas id="chart-months" role="img" aria-label="Ingresos y gastos de cada mes del periodo"></canvas></div>
       <div class="scroll-x">
       <table>
         <tr><th>Mes</th><th class="num">Ingresos</th><th class="num">Gasto</th>{% if p.kind == 'year' %}<th class="num">{{ p.key|int - 1 }}</th>{% endif %}<th>Lo que más</th></tr>
@@ -79,7 +90,8 @@
       </div>
     </div>
     <div class="card">
-      <h2>Dónde más se gasta</h2>
+      <h2 id="merch-title" data-all="Dónde más se gasta">Dónde más se gasta</h2>
+      <div data-cat-group="">
       <table>
         {% for m in ps.merchants %}
         <tr>
@@ -88,8 +100,13 @@
         </tr>
         {% endfor %}
       </table>
+      </div>
+      {% set linked = ps.merchants|map(attribute='key')|list %}
+      {% include "partials/cat_merchants.html" %}
     </div>
   </div>
 </div>
+<script id="explorer-data" type="application/json">{{ explorer|tojson }}</script>
+<script>window.highlightCategory = null; window.renderCharts = window.renderSummary;</script>
 {% endif %}
 {% endblock %}
