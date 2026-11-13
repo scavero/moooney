@@ -733,6 +733,12 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         tools = next((r["tools"].split(",") for r in reversed(rows) if r["role"] == "assistant" and r["tools"]), [])
         return chat_followups.followups(conn, tools, asked)
 
+    @app.get("/chat/next", response_class=HTMLResponse)
+    def chat_next_model(request: Request, conn: DB):
+        """Las sugerencias del modelo ligero; si no responde, se quedan las deterministas."""
+        return templates.TemplateResponse(request, "partials/chat_next.html", {
+            "followups": service.chat_suggest(conn, active().paths) or chat_next(conn), **chat_ctx()})
+
     @app.post("/chat", response_class=HTMLResponse)
     def chat_post(request: Request, conn: DB, question: Annotated[str, Form()] = ""):
         try:

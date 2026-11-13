@@ -5,11 +5,15 @@ Deterministas, sin llamar al modelo: salen de las consultas que acaba de usar la
 sale de su media este mes. Así no cuestan tiempo ni envían nada fuera.
 """
 
+import json
+import re
 import sqlite3
 
 from moooney.analytics import periods
 from moooney.analytics.metrics import build_report
-from moooney.chat.agent import SUGGESTIONS
+from moooney.chat.agent import SUGGESTIONS, check_question
+from moooney.llm.anonymize import AnonymizeError, assert_safe_text
+from moooney.llm.client import LLMClient, LLMError, LLMSettings
 
 # `{cat}` se sustituye por la categoría que más se sale de su media (o la mayor del mes).
 BY_TOOL: dict[str, list[str]] = {
@@ -82,3 +86,52 @@ def ideas(conn: sqlite3.Connection, categories: list[str]) -> list[str]:
         out += [f"¿Cuánto gasto al mes en {c}?", f"¿En qué comercios se va lo de {c}?",
                 f"¿Cómo ha ido {c} en los últimos 12 meses?"]
     return list(dict.fromkeys(out))
+
+
+# ---------- sugerencias inferidas por el modelo ligero ----------
+
+MODEL_SYSTEM = (
+    "Lees una conversación entre un usuario y su asistente de finanzas personales. Propón {n} mensajes breves "
+    "(menos de 70 caracteres cada uno) que el usuario podría enviar ahora para continuarla: responder a lo que el "
+    "asistente acaba de preguntar u ofrecer, o profundizar en lo último que se ha hablado. Escríbelos en español, "
+    "con la voz del usuario, distintos entre sí y sin repetir lo que ya ha preguntado. "
+    'Devuelve solo JSON: {{"sugerencias": ["...", "..."]}}'
+)
+
+
+def suggest_model(settings: LLMSettings) -> str:
+    return settings.models.get("sugerencias") or "gemma-4-e2b"
+
+
+def model_followups(client: LLMClient, settings: LLMSettings, turns: list[dict], *, limit: int = 3) -> list[str]:
+    """Siguientes mensajes posibles, inferidos por el modelo ligero a partir de la conversación.
+
+    `turns` son los mensajes ya guardados ({"role", "content"}). Devuelve [] si el modelo falla o no
+    responde algo útil: quien llama se queda entonces con las sugerencias deterministas.
+    """
+    if not turns or turns[-1]["role"] != "assistant":
+        return []
+    lines = [("Usuario: " if m["role"] == "user" else "Asistente: ") + " ".join(m["content"].split())[:700]
+             for m in turns[-6:]]
+    try:
+        raw = client.chat(
+            model=suggest_model(settings),
+            messages=[{"role": "system", "content": MODEL_SYSTEM.format(n=limit)},
+                      {"role": "user", "content": assert_safe_text("\n".join(lines), max_chars=6000)}],
+            purpose="chat_followups", max_tokens=200,
+        )
+        data = json.loads(re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip()))
+        items = data.get("sugerencias") if isinstance(data, dict) else data
+    except (LLMError, AnonymizeError, ValueError):
+        return []
+    seen = {_norm(m["content"]) for m in turns if m["role"] == "user"}
+    out: list[str] = []
+    for s in items if isinstance(items, list) else []:
+        try:  # lo que se propone se podrá enviar tal cual: pasa la misma barrera que una pregunta
+            q = check_question(s) if isinstance(s, str) else ""
+        except ValueError:
+            continue
+        if q and len(q) <= 120 and _norm(q) not in seen and len(out) < limit:
+            seen.add(_norm(q))
+            out.append(q)
+    return out

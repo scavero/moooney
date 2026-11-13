@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.12.0 · 2026-11-13
+
+- **El asistente infiere cómo seguir**: tras cada respuesta, el modelo ligero (`gemma-4-e2b`,
+  clave `sugerencias` de `llm.yaml`) lee la conversación y propone los siguientes mensajes:
+  contesta a lo que el asistente acaba de ofrecer o profundiza en lo último. Las sugerencias
+  deterministas salen al momento y se sustituyen cuando llegan las del modelo; si no responde,
+  se quedan. Queda registrado en `llm_calls` como `chat_followups`.
+
 ## 1.11.2 · 2026-11-13
 
 - Botón **Rellenar subcategorías** en Importar, junto a «Segunda opinión»: lo mismo que

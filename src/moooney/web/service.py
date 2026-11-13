@@ -518,3 +518,19 @@ def chat_ask(conn: sqlite3.Connection, paths: Paths, question: str):
         client.close()
         recorder.flush()
     return answer
+
+
+def chat_suggest(conn: sqlite3.Connection, paths: Paths) -> list[str]:
+    """Con qué seguir la conversación, según el modelo ligero. [] si no hay modelo o no responde."""
+    from moooney.chat import agent, followups
+
+    llm = llm_settings_or_none(paths)
+    if llm is None or offline_enabled():
+        return []
+    recorder = CallRecorder(conn)
+    client = LLMClient(llm, recorder=recorder)
+    try:
+        return followups.model_followups(client, llm, agent.history_for_model(conn))
+    finally:
+        client.close()
+        recorder.flush()

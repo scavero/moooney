@@ -181,3 +181,32 @@ def test_sugerencias_para_seguir(demo):
     assert followups.followups(conn, ["inventada"], []) == agent.SUGGESTIONS[:3]
     pool = followups.ideas(conn, ["Ocio"])
     assert "¿Cuánto gasto al mes en Ocio?" in pool and len(pool) == len(set(pool)) and not any("{cat}" in q for q in pool)
+
+
+def test_sugerencias_del_modelo_ligero(demo, monkeypatch):
+    from moooney.chat import followups
+
+    settings_path, conn = demo
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        content = '```json\n{"sugerencias": ["Sí, compáralo", "¿cómo voy?", "Mi IBAN es ES9121000418450200051332", 7, "¿Y el gym?"]}\n```'
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    client = LLMClient(SETTINGS, transport=httpx.MockTransport(handler))
+    monkeypatch.setenv("LITELLM_API_KEY", "clave-falsa")
+    monkeypatch.delenv("MOOONEY_OFFLINE")
+    turns = [{"role": "user", "content": "¿cómo voy?"}, {"role": "assistant", "content": "Bien. ¿Lo comparo con septiembre?"}]
+    # fuera lo ya preguntado, lo que no pasaría la barrera y lo que no es texto
+    assert followups.model_followups(client, SETTINGS, turns) == ["Sí, compáralo", "¿Y el gym?"]
+    assert seen[0]["model"] == followups.suggest_model(SETTINGS) and "Asistente: Bien." in seen[0]["messages"][1]["content"]
+    assert followups.model_followups(client, SETTINGS, turns[:1]) == [] and len(seen) == 1  # sin respuesta, no se llama
+    roto = LLMClient(SETTINGS, transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": "no sé"}}]})))
+    assert followups.model_followups(roto, SETTINGS, turns) == []
+    conn.close()
+    monkeypatch.setenv("MOOONEY_OFFLINE", "1")
+    with TestClient(create_app(settings_path)) as c:  # offline: /chat/next cae en las deterministas
+        r = c.get("/chat/next")
+        assert r.status_code == 200 and "<html" not in r.text

@@ -13,6 +13,7 @@ models:
   clef: clef-flash
   redaccion: qwen3.8-flash-next-fp8
   embeddings: bge-m3
+  sugerencias: gemma-4-e2b
 
 timeout_s: 30
 max_retries: 3

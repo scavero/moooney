@@ -516,7 +516,7 @@ wheels = [
 
 [[package]]
 name = "moooney"
-version = "1.11.2"
+version = "1.12.0"
 source = { editable = "." }
 dependencies = [
     { name = "ddgs" },
