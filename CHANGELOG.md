@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.13.3 · 2026-11-15
+
+- **Asistente**: al pulsar una propuesta de «¿Quieres decir…?» el campo se vacía (antes se quedaba
+  el texto a medias), y las sugerencias para seguir ya no pisan el autocompletado si empiezas a
+  escribir nada más llegar la respuesta.
+
 ## 1.13.2 · 2026-11-13
 
 - **Asistente**: el autocompletado ya no aparece mientras se espera una respuesta (pasaba al

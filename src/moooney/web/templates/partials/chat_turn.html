@@ -14,4 +14,4 @@
 {% endif %}
 {% endif %}
 {# Tras una respuesta nueva, las sugerencias de debajo del chat se cambian por las que tocan ahora. #}
-{% if oob %}<div id="chat-next" class="chat-suggest" hx-swap-oob="true" hx-get="/chat/next" hx-trigger="load" hx-swap="innerHTML">{% include "partials/chat_next.html" %}</div>{% endif %}
+{% if oob %}<div id="chat-next" class="chat-suggest" hx-swap-oob="true" hx-get="/chat/next" hx-trigger="load" hx-swap="innerHTML" hx-on::before-swap="if (event.detail.requestConfig.elt === this &amp;&amp; document.getElementById('chat-q').value) event.detail.shouldSwap = false">{% include "partials/chat_next.html" %}</div>{% endif %}

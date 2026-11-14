@@ -33,7 +33,7 @@
   </div>
 
   <div id="chat-next" class="chat-suggest"
-       hx-on::after-settle="if (!document.querySelector('#chat-log > *')) document.getElementById('chat-suggest').hidden = !!this.querySelector('button')"{% if followups and has_llm and not snapshot %} hx-get="/chat/next" hx-trigger="load" hx-swap="innerHTML"{% endif %}>{% include "partials/chat_next.html" %}</div>
+       hx-on::after-settle="if (!document.querySelector('#chat-log > *')) document.getElementById('chat-suggest').hidden = !!this.querySelector('button')"{% if followups and has_llm and not snapshot %} hx-get="/chat/next" hx-trigger="load" hx-swap="innerHTML" hx-on::before-swap="if (event.detail.requestConfig.elt === this &amp;&amp; document.getElementById('chat-q').value) event.detail.shouldSwap = false"{% endif %}>{% include "partials/chat_next.html" %}</div>
 
   <div id="chat-wait" class="chat-wait htmx-indicator"><span class="spinner"></span> Consultando tus datos y redactando… suele tardar unos segundos.</div>
 
