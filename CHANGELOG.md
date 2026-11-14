@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.13.4 · 2026-11-15
+
+- **Asistente**: el autocompletado aparece más a menudo. El modelo ligero suele corregir acentos y
+  añadir el «¿» al completar, y esas propuestas se descartaban por no empezar igual que lo tecleado;
+  ahora la comparación no mira acentos ni signos de apertura.
+
 ## 1.13.3 · 2026-11-15
 
 - **Asistente**: al pulsar una propuesta de «¿Quieres decir…?» el campo se vacía (antes se quedaba

@@ -8,6 +8,7 @@ sale de su media este mes. Así no cuestan tiempo ni envían nada fuera.
 import json
 import re
 import sqlite3
+import unicodedata
 
 from moooney.analytics import periods
 from moooney.analytics.metrics import build_report
@@ -36,7 +37,9 @@ BY_TOOL: dict[str, list[str]] = {
 
 
 def _norm(q: str) -> str:
-    return " ".join(q.lower().split())
+    """Para comparar frases: sin mayúsculas, acentos ni «¿¡» de apertura (el modelo los corrige al completar)."""
+    q = "".join(c for c in unicodedata.normalize("NFD", q.lower()) if not unicodedata.combining(c))
+    return " ".join(q.split()).lstrip("¿¡ ")
 
 
 def focus_category(conn: sqlite3.Connection) -> str | None:
@@ -124,8 +127,8 @@ MIN_TYPED = 4
 
 def model_completions(client: LLMClient, settings: LLMSettings, turns: list[dict], typed: str, *,
                       limit: int = 4) -> list[str]:
-    """Formas de terminar lo que el usuario está escribiendo. Solo las que empiezan por lo tecleado,
-    que son las únicas que el desplegable del navegador enseña."""
+    """Formas de terminar lo que el usuario está escribiendo. Solo las que empiezan por lo tecleado
+    (sin mirar acentos ni «¿»: el modelo suele corregirlos)."""
     typed = " ".join(typed.split())
     if len(typed) < MIN_TYPED:
         return []

@@ -224,7 +224,9 @@ def test_autocompletado_del_modelo_ligero(demo, monkeypatch):
     client = LLMClient(SETTINGS, transport=httpx.MockTransport(handler))
     monkeypatch.setenv("LITELLM_API_KEY", "clave-falsa")
     monkeypatch.delenv("MOOONEY_OFFLINE")
-    # solo vale lo que empieza por lo tecleado (es lo único que enseña el desplegable) y añade algo
+    # solo vale lo que empieza por lo tecleado y añade algo; los acentos y el «¿» que corrige el modelo no cuentan
+    assert followups.model_completions(client, SETTINGS, [], "cuanto gasto en gas") == ["¿Cuánto gasto en gasolina al mes?"]
+    seen.clear()
     assert followups.model_completions(client, SETTINGS, [], "¿Cuánto  gasto") == ["¿Cuánto gasto en gasolina al mes?"]
     assert "ha escrito hasta ahora: ¿Cuánto gasto" in seen[0]["messages"][1]["content"]
     assert followups.model_completions(client, SETTINGS, [], "¿Cu") == [] and len(seen) == 1  # muy corto: no se llama
@@ -254,3 +256,16 @@ def test_autocompletado_del_modelo_ligero(demo, monkeypatch):
     with TestClient(create_app(settings_path)) as c:  # con propuestas: botones que envían la frase completa
         r = c.post("/chat/complete", data={"question": "¿Cuánto gasto"})
         assert "¿Quieres decir…?" in r.text and "¿Cuánto gasto en ocio?" in r.text and "<option" not in r.text
+
+
+def test_controles_del_autocompletado_en_la_plantilla():
+    """Los controles que callan el autocompletado son JavaScript en la plantilla: que no se pierdan sin aviso."""
+    import moooney.web
+
+    tpl = Path(moooney.web.__file__).parent / "templates"
+    page = (tpl / "chat.html").read_text(encoding="utf-8")
+    assert page.count("getElementById('chat-wait').classList.contains('htmx-request')") == 2
+    assert 'id="chat-wait"' in page and 'id="chat-q"' in page
+    for name in ("chat.html", "partials/chat_turn.html"):  # las sugerencias no pisan lo que se está escribiendo
+        assert "requestConfig.elt === this &amp;&amp; document.getElementById('chat-q').value" in (tpl / name).read_text(encoding="utf-8")
+    assert "getElementById('chat-form').reset()" in (tpl / "partials/chat_next.html").read_text(encoding="utf-8")
