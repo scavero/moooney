@@ -9,6 +9,9 @@
 {% if sh.suggest_of and shared != 'review' %}
 <div class="notice"><strong>{{ sh.suggest_of|length }} {{ 'ingreso podría' if sh.suggest_of|length == 1 else 'ingresos podrían' }}</strong> ser la parte que te devuelve alguien de un gasto que pagaste tú. <a href="/transactions?shared=review">Revisar →</a></div>
 {% endif %}
+{% if dup_groups %}
+<div class="notice"><strong>{{ dup_groups }} {{ 'grupo de movimientos iguales y cercanos podría' if dup_groups == 1 else 'grupos de movimientos iguales y cercanos podrían' }}</strong> ser un cobro duplicado. <a href="/transactions/duplicates">Revisar →</a></div>
+{% endif %}
 <div class="card">
   <div class="filters">
     {# Los selects aplican al cambiar; el buscador al pulsar Enter o al salir del campo. #}

@@ -382,6 +382,24 @@ def subcategories_by_category(conn: sqlite3.Connection, first: str, last: str) -
     return out
 
 
+def income_sources(conn: sqlite3.Connection, first: str, last: str) -> list[dict]:
+    """Ingresos entre dos fechas por categoría y subcategoría, de mayor a menor, con su % del total."""
+    rows = conn.execute(
+        """
+        SELECT COALESCE(category, '(sin categoría)') AS c, COALESCE(subcategory, 'sin detalle') AS s,
+               COUNT(*) AS n, SUM(amount) AS total
+        FROM transactions
+        WHERE date BETWEEN ? AND ? AND flow_type = 'income'
+        GROUP BY c, s HAVING ROUND(total, 2) != 0
+        ORDER BY total DESC
+        """,
+        (first, last),
+    ).fetchall()
+    suma = sum(float(r["total"]) for r in rows)
+    return [{"category": r["c"], "sub": r["s"], "n": r["n"], "total": float(r["total"]),
+             "pct": max(0.0, float(r["total"]) / suma * 100) if suma > 0 else 0.0} for r in rows]
+
+
 def merchants_by_category(conn: sqlite3.Connection, first: str, last: str, *, per: int = 6) -> dict[str, list[dict]]:
     """{categoría: comercios donde más se gasta} entre dos fechas, los `per` primeros de cada una."""
     ph = ",".join("?" for _ in EXPENSE_FLOWS)

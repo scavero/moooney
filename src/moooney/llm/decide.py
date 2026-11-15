@@ -69,13 +69,14 @@ def _ask_json(client: LLMClient, *, model: str, state: str, questions: dict, pur
 class ClefChatDecider:
     """clef-flash: un solo mensaje de usuario con el estado y las preguntas."""
 
-    def __init__(self, client: LLMClient, model: str) -> None:
+    def __init__(self, client: LLMClient, model: str, purpose: str = "categorize") -> None:
         self.client = client
         self.model = model
+        self.purpose = purpose
 
     def decide(self, state: str, questions: dict) -> dict[str, Answer]:
         return _ask_json(
-            self.client, model=self.model, state=state, questions=questions, purpose="categorize"
+            self.client, model=self.model, state=state, questions=questions, purpose=self.purpose
         )
 
 
@@ -117,9 +118,10 @@ def _answers_schema(questions: dict) -> dict:
 class ChatJsonDecider:
     """Reserva: Qwen con response_format JSON Schema y confianza autoinformada."""
 
-    def __init__(self, client: LLMClient, model: str) -> None:
+    def __init__(self, client: LLMClient, model: str, purpose: str = "categorize") -> None:
         self.client = client
         self.model = model
+        self.purpose = purpose
 
     def decide(self, state: str, questions: dict) -> dict[str, Answer]:
         schema = _answers_schema(questions)
@@ -132,14 +134,14 @@ class ChatJsonDecider:
             model=self.model,
             state=state,
             questions=questions,
-            purpose="categorize",
+            purpose=self.purpose,
             response_format=response_format,
         )
 
 
-def build_decider(settings: LLMSettings, client: LLMClient) -> Decider:
+def build_decider(settings: LLMSettings, client: LLMClient, purpose: str = "categorize") -> Decider:
     if settings.decider == "clef":
-        return ClefChatDecider(client, settings.models["clef"])
+        return ClefChatDecider(client, settings.models["clef"], purpose)
     if settings.decider == "qwen":
-        return ChatJsonDecider(client, settings.models["redaccion"])
+        return ChatJsonDecider(client, settings.models["redaccion"], purpose)
     raise ValueError(f"decider desconocido en llm.yaml: {settings.decider!r}")

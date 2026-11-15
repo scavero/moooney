@@ -215,3 +215,14 @@ CREATE TABLE IF NOT EXISTS transaction_overrides (
     flow_type      TEXT NOT NULL,
     created_at     TEXT NOT NULL
 );
+
+-- Veredicto sobre un grupo de posibles duplicados (analytics/duplicates.py): del modelo de
+-- decisión (source clef) o del usuario al descartarlo (source user). `ids` son los movimientos
+-- del grupo, separados por comas.
+CREATE TABLE IF NOT EXISTS duplicate_reviews (
+    ids        TEXT PRIMARY KEY,
+    verdict    TEXT NOT NULL,           -- duplicado | normal | dudoso
+    confidence REAL,
+    source     TEXT NOT NULL,           -- clef | user
+    created_at TEXT NOT NULL
+);

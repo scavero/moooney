@@ -189,3 +189,10 @@ def test_explorador_del_resumen(client):
     assert p["kind"] == "period" and p["months"] == [m for m in q.months if m <= mes] and len(p["income"]) == len(p["months"])
     for c in p["cats"]:
         assert sum(p["by_month"][c]) == pytest.approx(p["amounts"][c], abs=0.01)
+
+
+def test_resumen_ensena_de_donde_vienen_los_ingresos(client):
+    mes = _ultimo_mes(client)
+    for url in ("/", f"/?period={mes[:4]}"):
+        t = client.get(url).text
+        assert "De dónde viene" in t and "% de los ingresos" in t and "flow=income&category=Ingresos" in t

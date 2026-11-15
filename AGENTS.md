@@ -10,7 +10,7 @@ Pipeline local de finanzas personales. El usuario exporta a mano extractos de su
 
 1. **Los datos reales se quedan en esta máquina y en la infraestructura de ClusterTIC.** Puedes abrir `data/excel/*`, `data/clean/*` y `data/moooney.db` para entender el formato y depurar el parser, porque los modelos que usas son autoalojados. Pero lee solo lo necesario (cabeceras, unas pocas filas, agregados), y nunca copies filas reales a commits, tests, fixtures, docstrings ni a `docs/`. Los ejemplos que escribas en código o documentación son siempre inventados.
 2. **Nunca subas datos ni secretos a git.** `data/`, `reports/` y los ficheros `.env` están en `.gitignore`. Comprueba con `git status` antes de cada commit que no aparece nada de esas carpetas. La clave del proxy vive en la variable de entorno `LITELLM_API_KEY` y jamás en código, config o commits. La URL real del proxy tampoco: va en `LITELLM_BASE_URL`. Las reglas con comercios o servicios propios del usuario van en `config/rules.local.yaml` (ignorado), no en `config/rules.yaml`.
-3. **Nunca envíes datos crudos a un modelo.** A los modelos solo van claves de comercio normalizadas (sin IBAN, sin saldos, sin nombres de personas, sin referencias numéricas largas) o agregados mensuales. Toda llamada pasa por la capa `src/moooney/llm/` y se registra en la tabla `llm_calls`. La única salida fuera de ClusterTIC es el enriquecimiento web de la fase 2.5: opcional, desactivado por defecto, solo claves de comercio, registrado en `web_calls`.
+3. **Nunca envíes datos crudos a un modelo.** A los modelos solo van claves de comercio normalizadas (sin IBAN, sin saldos, sin nombres de personas, sin referencias numéricas largas) o agregados mensuales. Única excepción (decisión del usuario, 2026-11-15): la revisión de posibles duplicados manda al modelo de decisión, por cada grupo candidato, la clave de comercio, el tipo de operación, el importe y los días de separación; nunca el concepto original, nombres, saldos ni la cuenta. Toda llamada pasa por la capa `src/moooney/llm/` y se registra en la tabla `llm_calls`. La única salida fuera de ClusterTIC es el enriquecimiento web de la fase 2.5: opcional, desactivado por defecto, solo claves de comercio, registrado en `web_calls`.
 4. **Determinista antes que IA.** Parseo, deduplicación, métricas, presupuestos y detección de alertas son código normal y testeable. El modelo solo interpreta texto libre (conceptos) o redacta (informes).
 5. **Idempotente.** Ejecutar la pipeline dos veces sobre el mismo Excel no duplica nada.
 6. **Los tests usan datos sintéticos** generados en el propio test (`tmp_path`), nunca ficheros reales ni fixtures con movimientos verosímiles de una persona concreta.
@@ -58,7 +58,7 @@ moooney/
     categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py  reask.py  second_opinion.py  web_rules.py
     enrich/      settings.py  query.py  providers.py  runner.py
     analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py  insights.py  forecast.py
-                 price_changes.py  shared.py  yearly.py  period_summary.py  goals.py
+                 price_changes.py  shared.py  yearly.py  period_summary.py  goals.py  duplicates.py
     llm/         client.py  anonymize.py  prompts/
     chat/        tools.py  agent.py  followups.py   (asistente Pregunta: consultas deterministas, bucle con el modelo
                  y sugerencias para seguir, sin modelo)

@@ -173,7 +173,7 @@ flowchart TB
         ING["ingest/<br/>detect · parse_santander · banks<br/>load · upload · reset · watch"]
         CAT["categorize/<br/>normalize · keys · rules · web_rules · taxonomy<br/>embed · pipeline · evaluate"]
         ENRM["enrich/<br/>settings · query · providers · runner"]
-        ANA["analytics/<br/>periods · recurring · metrics · budgets · alerts<br/>insights · forecast · price_changes<br/>shared · yearly · period_summary · goals"]
+        ANA["analytics/<br/>periods · recurring · metrics · budgets · alerts<br/>insights · forecast · price_changes<br/>shared · yearly · period_summary · goals · duplicates"]
         REP["report/<br/>advice"]
         CHAT["chat/<br/>tools · agent"]
         WEB["web/<br/>app · queries · service · jobs<br/>templates · static"]
@@ -199,6 +199,7 @@ flowchart TB
         T15[(chat_messages)]
         T16[(transactions_removed)]
         T17[(transaction_overrides)]
+        T18[(duplicate_reviews)]
     end
 
     BK[("data/backups/<br/>copias de la base")]

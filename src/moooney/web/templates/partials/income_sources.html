@@ -1,0 +1,21 @@
+{# De dónde viene el dinero: ingresos del periodo por categoría y subcategoría (queries.income_sources). #}
+{% if income_sources %}
+<div class="card section">
+  <h2 style="margin-bottom:4px">De dónde viene</h2>
+  <div class="concept" style="margin-bottom:12px">Ingresos del periodo por categoría y subcategoría.</div>
+  <div class="scroll-x">
+  <table class="cat-legend">
+    <tr><th></th><th class="num">ingresado</th><th></th></tr>
+    {% for i in income_sources %}
+    <tr>
+      <td style="width:60%"><span style="font-weight:500">{{ i.sub }}</span>
+        <span class="concept" style="margin-left:6px;white-space:nowrap">{{ i.category }} · {{ i.n }} {{ 'movimiento' if i.n == 1 else 'movimientos' }}</span>
+        <div class="bar thin"><span style="width:{{ [i.pct, 100]|min }}%"></span></div></td>
+      <td class="num pos">{{ i.total|eur }}<div class="concept">{{ '%.0f'|format(i.pct) }} % de los ingresos</div></td>
+      <td class="num"><a href="/transactions?{{ tx_filter }}&flow=income&category={{ i.category|urlencode }}" aria-label="ingresos de {{ i.category }}" title="ver movimientos">→</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+</div>
+{% endif %}

@@ -474,6 +474,28 @@ def job_alerts(settings: Settings, paths: Paths, log: Logger) -> None:
         conn.close()
 
 
+def job_duplicates(settings: Settings, paths: Paths, log: Logger) -> None:
+    """El decider opina sobre los grupos de posibles duplicados que aún no tienen veredicto."""
+    from moooney.analytics import duplicates
+
+    llm = llm_settings_or_none(paths)
+    if llm is None or offline_enabled():
+        log("revisión omitida: " + ("modo offline" if offline_enabled() else "sin config/llm.yaml"))
+        return
+    conn = repo.connect(settings.paths.db_path, check_same_thread=False)
+    recorder = CallRecorder(conn)
+    cliente = LLMClient(llm, recorder=recorder)
+    try:
+        report(log, "Preguntando al modelo por los posibles duplicados")
+        n, dup, ko = duplicates.review(conn, build_decider(llm, cliente, "duplicates"), now=_now(),
+                                       max_workers=llm.max_concurrency)
+        log(f"posibles duplicados: {n} grupos revisados, {dup} probables, {ko} sin respuesta válida")
+    finally:
+        cliente.close()
+        recorder.flush()
+        conn.close()
+
+
 def job_backup(settings: Settings, log: Logger) -> None:
     """Copia de seguridad de la base del usuario (ver db/backup.py)."""
     from moooney.db.backup import make_backup

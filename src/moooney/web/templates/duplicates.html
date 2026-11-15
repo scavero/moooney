@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Posibles duplicados{% endblock %}
+{# Grupos de movimientos iguales y cercanos (analytics/duplicates.py) con el veredicto del modelo. #}
+{% set VERDICT = {"duplicado": ("crit", "probable duplicado"), "dudoso": ("warn", "dudoso"), "normal": ("info", "parece normal")} %}
+{% macro group_card(g) %}
+<div class="card section" id="dup-{{ g.ids[0] }}">
+  <div style="display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center;margin-bottom:var(--s2)">
+    <strong>{{ g.key }}</strong>
+    <span class="concept">{{ g.ids|length }} × {{ g.amount|eur(2) }} · {{ 'el mismo día' if g.span_days == 0 else 'en ' ~ g.span_days ~ (' día' if g.span_days == 1 else ' días') }}</span>
+    {% if g.verdict %}<span class="tag {{ VERDICT[g.verdict][0] }}" title="{{ 'lo dijiste tú' if g.source == 'user' else 'veredicto del modelo, confianza ' ~ ('%.2f'|format(g.confidence or 0)) }}">{{ 'descartado por ti' if g.source == 'user' else VERDICT[g.verdict][1] }}</span>
+    {% else %}<span class="tag info">sin revisar</span>{% endif %}
+    {% if g.source != 'user' %}
+    <form method="post" action="/transactions/duplicates/dismiss" style="margin-left:auto">
+      <input type="hidden" name="ids" value="{{ g.gid }}">
+      <button class="btn ghost" type="submit" {{ 'disabled' if snapshot else '' }}>No es un duplicado</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="scroll-x">
+  <table class="tx-table">
+    {% for r in g.rows %}
+    <tr>
+      <td style="width:120px">{{ r.date }}</td>
+      <td style="min-width:0"><div class="raw" title="{{ r.concept }}">{{ r.concept }}</div></td>
+      <td class="num col-amount {{ 'inc' if r.amount > 0 else 'exp' }}">{{ r.amount|eur(2) }}</td>
+      <td style="width:170px;text-align:right">
+        <form method="post" action="/transactions/{{ r.id }}/remove"
+              hx-confirm="¿Marcar este movimiento como duplicado? Deja de contar en todo y no vuelve aunque reimportes el extracto. Se puede restaurar al final de Movimientos.">
+          <input type="hidden" name="next" value="/transactions/duplicates">
+          <button class="btn ghost" type="submit" name="reason" value="duplicado" {{ 'disabled' if snapshot else '' }}>Es un duplicado</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+</div>
+{% endmacro %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Posibles duplicados</h1><div class="subtitle">Movimientos iguales (misma cuenta, comercio e importe) con {{ window }} días o menos entre ellos. El modelo opina cuáles parecen el mismo cobro repetido; decidir y apartar siempre lo haces tú. <a href="/transactions">Volver a Movimientos</a></div></div>
+  <div class="actions">
+    <button class="btn primary" hx-post="/pipeline/jobs/review-duplicates" hx-target="#job-panel" hx-swap="innerHTML" {{ 'disabled' if snapshot or not has_llm or not pending else '' }}
+            title="pregunta al modelo de decisión por los grupos sin revisar; solo ve comercio, tipo de operación, importe y días de separación">Revisar con IA{% if pending %} ({{ pending }}){% endif %}</button>
+  </div>
+</div>
+<div id="job-panel"></div>
+{% if not has_llm and not snapshot %}<div class="notice warn section">La revisión con IA necesita el modelo: {{ 'estás en modo offline' if offline else 'falta config/llm.yaml o la clave del proxy' }}. Puedes revisar la lista a mano.</div>{% endif %}
+
+{% if not groups %}
+<div class="card section"><p class="muted">No hay movimientos iguales y cercanos. Nada que revisar.</p></div>
+{% else %}
+  {% if likely %}
+  <h2>Para mirar <span class="concept">· {{ likely|length }}</span></h2>
+  {% for g in likely %}{{ group_card(g) }}{% endfor %}
+  {% elif not pending %}
+  <div class="card section"><p class="muted">El modelo no ve ningún duplicado probable entre los {{ groups|length }} grupos.</p></div>
+  {% endif %}
+  {% if unreviewed %}
+  <h2>Sin revisar <span class="concept">· {{ unreviewed|length }}</span></h2>
+  {% for g in unreviewed %}{{ group_card(g) }}{% endfor %}
+  {% endif %}
+  {% if normal %}
+  <details class="section"><summary>{{ normal|length }} grupo{{ 's' if normal|length != 1 else '' }} que parece{{ 'n' if normal|length != 1 else '' }} repeticiones normales</summary>
+    {% for g in normal %}{{ group_card(g) }}{% endfor %}
+  </details>
+  {% endif %}
+{% endif %}
+{% endblock %}

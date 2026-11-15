@@ -25,6 +25,7 @@ from fastapi.templating import Jinja2Templates
 from moooney import envfile
 from moooney.analytics import alerts as alerts_mod
 from moooney.analytics import budgets as budgets_mod
+from moooney.analytics import duplicates as duplicates_mod
 from moooney.analytics import forecast as forecast_mod
 from moooney.analytics import goals as goals_mod
 from moooney.analytics import insights as insights_mod
@@ -422,7 +423,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             return render(request, conn, "period.html", p=p, pnav=period_nav(conn, p), ps=ps,
                           explorer=period_explorer(conn, p, ps) if ps else None,
                           cat_merchants=queries.merchants_by_category(conn, ps.start, ps.cutoff) if ps else {},
-                          cat_subs=queries.subcategories_by_category(conn, ps.start, ps.cutoff) if ps else {})
+                          cat_subs=queries.subcategories_by_category(conn, ps.start, ps.cutoff) if ps else {},
+                          income_sources=queries.income_sources(conn, ps.start, ps.cutoff) if ps else [])
         m = p.key
         service.refresh_recurring(conn)
         insights, report = insights_mod.build_insights(conn, m)
@@ -447,6 +449,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
                                                         min(periods.month_bounds(m)[1], report.as_of)),
             cat_subs=queries.subcategories_by_category(conn, periods.month_bounds(m)[0],
                                                        min(periods.month_bounds(m)[1], report.as_of)),
+            income_sources=queries.income_sources(conn, *periods.month_bounds(m)),
             chart_months=series_months,
             chart_series=[{"label": c, "data": v} for c, v in top_cats]
             + ([{"label": "Resto", "data": resto}] if any(resto) else []),
@@ -575,10 +578,28 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             tags_by_id=repo.tags_for(conn, [int(t["id"]) for t in pg.rows]),
             day_groups=group_by_day(pg.rows), removed=repo.removed_transactions(conn),
             own_category=repo.overrides_for(conn, [int(t["id"]) for t in pg.rows]),
+            dup_groups=sum(g.verdict != "normal" for g in duplicates_mod.candidates(conn)),
         )
 
     def tx_back(nxt: str) -> RedirectResponse:
         return RedirectResponse(nxt if nxt.startswith("/transactions") else "/transactions", status_code=303)
+
+    @app.get("/transactions/duplicates", response_class=HTMLResponse)
+    def duplicates_page(request: Request, conn: DB):
+        """Posibles duplicados: grupos de movimientos iguales y cercanos, con el veredicto del modelo."""
+        groups = duplicates_mod.candidates(conn)
+        return render(
+            request, conn, "duplicates.html", groups=groups, window=duplicates_mod.WINDOW_DAYS,
+            likely=[g for g in groups if g.verdict in ("duplicado", "dudoso")],
+            unreviewed=[g for g in groups if g.verdict is None],
+            normal=[g for g in groups if g.verdict == "normal"],
+            pending=sum(g.verdict is None for g in groups), **chat_ctx())
+
+    @app.post("/transactions/duplicates/dismiss")
+    def duplicates_dismiss(conn: DB, ids: Annotated[str, Form()] = ""):
+        if not duplicates_mod.dismiss(conn, ids, now=datetime.now().isoformat(timespec="seconds")):
+            raise HTTPException(status_code=404, detail="grupo no encontrado")
+        return RedirectResponse("/transactions/duplicates", status_code=303)
 
     @app.post("/transactions/{tx_id}/category")
     def tx_category(conn: DB, tx_id: int, category: Annotated[str, Form()] = "",
@@ -1113,6 +1134,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         "categorize-retry": "Reintentar dudosas con el decider",
         "second-opinion": "Segunda opinión del modelo de texto",
         "fill-subcategories": "Rellenar subcategorías",
+        "review-duplicates": "Revisar posibles duplicados",
         "enrich": "Enriquecer dudosas por web",
         "alerts": "Recalcular recurrentes y alertas",
         "repair": "Revisar extractos solapados",
@@ -1146,6 +1168,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             "categorize-retry": lambda log: service.job_categorize(s, p, log, retry=True),
             "second-opinion": lambda log: service.job_categorize(s, p, log, second_opinion=True),
             "fill-subcategories": lambda log: service.job_categorize(s, p, log, fill_subs=True),
+            "review-duplicates": lambda log: service.job_duplicates(s, p, log),
             "enrich": lambda log: service.job_enrich(s, p, log),
             "alerts": lambda log: service.job_alerts(s, p, log),
             "repair": lambda log: service.job_repair(real, s, p, log),

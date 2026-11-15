@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.16.0 · 2026-11-15
+
+- **Posibles duplicados**: página nueva (enlazada desde Movimientos) con los grupos de movimientos
+  iguales y cercanos: misma cuenta, comercio e importe con 3 días o menos entre ellos. El botón
+  **Revisar con IA** pide al modelo de decisión un veredicto por grupo (probable duplicado, dudoso o
+  normal); al modelo solo van el comercio, el tipo de operación, el importe y los días de separación.
+  Desde ahí marcas cada movimiento como duplicado o descartas el grupo. Nada se aparta solo.
+- **De dónde viene**: el resumen (del mes y de trimestre, año o rango) enseña también los ingresos
+  por categoría y subcategoría, con su parte del total y un enlace a sus movimientos.
+
 ## 1.15.1 · 2026-11-15
 
 - **Transferencias**: al reconstruir claves, cada clave nueva por destinatario hereda la categoría
