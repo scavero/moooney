@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.16.1 · 2026-11-15
+
+- **Posibles duplicados**: preguntar al modelo «¿es un duplicado?» daba «sí» en casi todos los grupos.
+  Ahora se le pregunta qué clase de pago es (periódico, cotidiano, entre personas u ocasional) y el
+  veredicto lo pone el código: un pago periódico repetido es probable duplicado; lo cotidiano y el
+  dinero entre personas, normal; una compra ocasional, duplicado solo si es del mismo día.
+
 ## 1.16.0 · 2026-11-15
 
 - **Posibles duplicados**: página nueva (enlazada desde Movimientos) con los grupos de movimientos

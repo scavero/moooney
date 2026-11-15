@@ -2,7 +2,7 @@
 
 Candidato = dos o más movimientos de la misma cuenta, el mismo comercio y el mismo importe en
 pocos días. La mayoría son repeticiones normales (el café de cada mañana), así que cada grupo
-se le pregunta al decider con lo mínimo: clave de comercio, tipo de operación, importe, días
+se le pregunta al decider qué clase de pago es, con lo mínimo: clave de comercio, tipo de operación, importe, días
 de separación y lo habitual que es ese comercio. Nunca van el concepto original, nombres,
 saldos ni la cuenta (ampliación de la regla 3 decidida por el usuario el 2026-11-15).
 El veredicto se guarda en `duplicate_reviews`; el usuario puede descartar un grupo a mano.
@@ -21,20 +21,33 @@ from moooney.llm.client import LLMError
 from moooney.llm.decide import Decider
 
 WINDOW_DAYS = 3
-VERDICTS = ("duplicado", "normal", "dudoso")
+# Al modelo se le pregunta qué clase de pago es (lo que el código no sabe); el veredicto lo
+# pone `verdict_for`. Preguntarle directamente «¿es un duplicado?» daba «sí» casi siempre.
 QUESTION = {
-    "veredicto": {
+    "tipo": {
         "type": "choice",
-        "instructions": "Estos cargos iguales y cercanos, ¿son el mismo cobro repetido por error o pagos distintos?",
+        "instructions": "¿Que clase de pago es este comercio?",
         "criteria": {
-            "duplicado": "El mismo cobro repetido por error: un recibo, suscripcion o compra poco habitual"
-                         " cobrado dos veces con el mismo importe",
-            "normal": "Pagos distintos y legitimos: comercio habitual donde el mismo importe se repite"
-                      " (cafe, transporte, peajes, aparcamiento, comedor) o envios periodicos de dinero",
-            "dudoso": "No hay datos suficientes para decidir",
+            "periodico": "Pago que se cobra una sola vez por periodo: recibo domiciliado, suscripcion, cuota,"
+                         " seguro, alquiler, impuesto",
+            "cotidiano": "Compra que es normal repetir varias veces por semana, incluso el mismo dia: cafe, bar,"
+                         " panaderia, supermercado, restaurante, transporte, peaje, aparcamiento, gasolina, maquinas",
+            "personas": "Dinero entre personas: bizum o transferencia enviada o recibida",
+            "ocasional": "Compra que se hace de tarde en tarde: muebles, electronica, ropa, viajes, reparaciones",
         },
     }
 }
+
+
+def verdict_for(tipo: str, span_days: int) -> str | None:
+    """Veredicto a partir de la clase de pago y de si los movimientos son del mismo día."""
+    if tipo == "periodico":
+        return "duplicado"
+    if tipo in ("cotidiano", "personas"):
+        return "normal"
+    if tipo == "ocasional":
+        return "duplicado" if span_days == 0 else "dudoso"
+    return None
 
 
 @dataclass
@@ -65,15 +78,20 @@ def _state(conn: sqlite3.Connection, g: Group) -> str:
         " FROM transactions WHERE concept_clean = ?", (g.amount, g.key)).fetchone()
     meses = max(1.0, _days(tot["a"], tot["b"]) / 30.4)
     rec = conn.execute("SELECT period_days FROM recurring WHERE key = ? AND active = 1", (g.key,)).fetchone()
-    op = operation_type(g.rows[0]["concept"])
-    cuando = "el mismo dia" if g.span_days == 0 else f"en {g.span_days} dias"
+    return describe(g.key, operation_type(g.rows[0]["concept"]), len(g.ids), g.amount, g.span_days,
+                    tot["n"], tot["n"] / meses, tot["iguales"], rec["period_days"] if rec else None)
+
+
+def describe(key: str, op: str | None, n: int, amount: float, span_days: int,
+             total: int, per_month: float, same_amount: int, period_days: int | None) -> str:
+    """El texto del grupo. Primero lo habitual que es el comercio, luego los movimientos a juzgar."""
+    cuando = "el mismo dia" if span_days == 0 else f"en dias distintos, {span_days} dias entre el primero y el ultimo"
     return (
-        f"Posible cargo duplicado. Comercio: {g.key}."
+        f"Comercio: {key}."
         + (f" Tipo de operacion: {op}." if op else "")
-        + f" {len(g.ids)} {'cargos' if g.amount < 0 else 'abonos'} de {abs(g.amount):.2f} EUR {cuando}, en la misma cuenta."
-        + f" Este comercio aparece {tot['n']} veces en total, unas {tot['n'] / meses:.1f} al mes;"
-        + f" {tot['iguales']} de ellas con este mismo importe."
-        + (f" Es un pago recurrente cada {rec['period_days']} dias." if rec else " No es un pago recurrente detectado.")
+        + f" Aparece {total} veces en total, unas {per_month:.1f} al mes; {same_amount} de ellas con este mismo importe."
+        + (f" Es un pago recurrente cada {period_days} dias." if period_days else " No es un pago recurrente detectado.")
+        + f" Hay {n} {'cargos' if amount < 0 else 'abonos'} de {abs(amount):.2f} EUR {cuando}."
     )
 
 
@@ -140,14 +158,15 @@ def review(conn: sqlite3.Connection, decider: Decider, *, now: str, max_workers:
         futures = {pool.submit(decider.decide, g.state, QUESTION): g for g in pend}
         for future, g in futures.items():
             try:
-                a = future.result().get("veredicto")
+                a = future.result().get("tipo")
             except (LLMError, AnonymizeError, ValueError):
                 a = None
-            if a is None or a.choice not in VERDICTS:
+            v = verdict_for(a.choice, g.span_days) if a else None
+            if v is None:
                 failed += 1
                 continue
-            _save(conn, g.gid, a.choice, a.confidence, "clef", now)
-            dup += a.choice == "duplicado"
+            _save(conn, g.gid, v, a.confidence, "clef", now)
+            dup += v == "duplicado"
             if on_progress:
-                on_progress(f"{g.key}: {a.choice}")
+                on_progress(f"{g.key}: {v}")
     return len(pend), dup, failed

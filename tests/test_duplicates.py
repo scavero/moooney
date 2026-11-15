@@ -44,7 +44,7 @@ class FakeDecider:
     def decide(self, state, questions):
         self.states.append(state)
         assert questions == duplicates.QUESTION
-        return {"veredicto": Answer(choice="duplicado" if "SEGUROS" in state else "normal", confidence=0.9)}
+        return {"tipo": Answer(choice="periodico" if "SEGUROS" in state else "cotidiano", confidence=0.9)}
 
 
 def test_candidatos_veredicto_y_descarte(tmp_path):
@@ -61,7 +61,7 @@ def test_candidatos_veredicto_y_descarte(tmp_path):
         assert_safe_state(s)
         assert IBAN not in s and "RECIBO SEGUROS" not in s and "c1" not in s.split()
     seguros = next(s for s in d.states if "SEGUROS" in s)
-    assert "2 cargos de 120.00 EUR en 1 dias" in seguros and "Tipo de operacion: recibo domiciliado" in seguros
+    assert "2 cargos de 120.00 EUR en dias distintos, 1 dias" in seguros and "Tipo de operacion: recibo domiciliado" in seguros
     groups = {g.key: g for g in duplicates.candidates(conn)}
     assert (groups["SEGUROS FALSOS"].verdict, groups["SEGUROS FALSOS"].source) == ("duplicado", "clef")
     assert groups["CAFE FALSO"].verdict == "normal"
@@ -82,10 +82,12 @@ def test_un_fallo_del_modelo_no_guarda_nada(tmp_path):
 
     class Roto:
         def decide(self, state, questions):
-            return {"veredicto": Answer(choice="cualquier cosa", confidence=0.5)}
+            return {"tipo": Answer(choice="cualquier cosa", confidence=0.5)}
 
     assert duplicates.review(conn, Roto(), now="t") == (1, 0, 1)
     assert duplicates.candidates(conn)[0].verdict is None
+    # una compra ocasional repetida solo es probable duplicado si es del mismo día
+    assert [duplicates.verdict_for("ocasional", d) for d in (0, 2)] == ["duplicado", "dudoso"]
 
 
 def test_pagina_de_duplicados(tmp_path, monkeypatch):
