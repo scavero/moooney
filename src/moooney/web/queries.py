@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from moooney.analytics import periods
+from moooney.analytics import trends as trends_mod
 from moooney.analytics.metrics import EXPENSE_FLOWS
 from moooney.analytics.period_summary import top_merchants_between
 from moooney.db import repo
@@ -103,6 +104,23 @@ def category_series(conn: sqlite3.Connection, months: list[str]) -> dict[str, li
         out.setdefault(r["c"], [0.0] * len(months))[idx[r["m"]]] = max(float(r["g"]), 0.0)
     totals = {c: sum(v) for c, v in out.items()}
     return dict(sorted(out.items(), key=lambda kv: -totals[kv[0]]))
+
+
+def trends_analysis(conn: sqlite3.Connection, as_of: str, first: str | None) -> dict:
+    """Tendencia y previsión (analytics/trends.py) del gasto total y de cada categoría, sobre todos los
+    meses completos. Prevé los tres meses siguientes al mes en curso. Las categorías van por euros de cambio."""
+    cur = periods.month_of(as_of)
+    months, m = [], periods.month_of(first or as_of)
+    while m <= cur:
+        if periods.is_full_month(m, as_of, first):
+            months.append(m)
+        m = periods.next_month(m)
+    start = periods.next_month(cur)  # el mes en curso ya tiene su previsión con lo gastado hasta hoy (forecast.py)
+    ahead = [start, periods.next_month(start), periods.next_month(periods.next_month(start))]
+    series = category_series(conn, months)
+    rows = [t for c, xs in series.items() if (t := trends_mod.analyze(c, xs, months, ahead)) is not None]
+    total = trends_mod.analyze("Gasto total", [sum(v) for v in zip(*series.values(), strict=True)], months, ahead)
+    return {"total": total, "trends": sorted(rows, key=lambda t: -abs(t.change_eur)), "ahead": ahead, "n": len(months)}
 
 
 def merchants_page(

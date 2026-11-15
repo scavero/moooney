@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=51">
+  <link rel="stylesheet" href="/static/app.css?v=52">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script src="/static/summary.js?v=2"></script>
@@ -113,7 +113,7 @@
   // Botones que lanzan trabajos: desactivados mientras uno corre, para que no choquen.
   window.syncJobButtons = function () {
     const running = !!document.querySelector('.job[data-job-status="running"], #job-ind .pill.run');
-    document.querySelectorAll('[hx-post^="/pipeline/jobs/"], [hx-post="/report/generate"]').forEach(b => {
+    document.querySelectorAll('[hx-post^="/pipeline/jobs/"], [hx-post="/report/generate"], [hx-post="/trends/interpret"]').forEach(b => {
       if (!('t' in b.dataset)) b.dataset.t = b.title || '';
       b.disabled = running; b.title = running ? 'Hay un trabajo en marcha; espera a que termine' : b.dataset.t;
     });

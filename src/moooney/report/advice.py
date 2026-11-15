@@ -186,9 +186,13 @@ def store_report(conn: sqlite3.Connection, *, month: str, kind: str, model: str,
     return int(cur.lastrowid)
 
 
-def latest_report(conn: sqlite3.Connection, month: str) -> sqlite3.Row | None:
+TRENDS_KIND = "tendencias"  # la lectura de Tendencias comparte tabla con el informe mensual
+
+
+def latest_report(conn: sqlite3.Connection, month: str, *, trends: bool = False) -> sqlite3.Row | None:
     return conn.execute(
-        "SELECT * FROM reports WHERE month = ? ORDER BY created_at DESC, id DESC LIMIT 1", (month,)
+        f"SELECT * FROM reports WHERE month = ? AND kind {'=' if trends else '!='} ?"
+        " ORDER BY created_at DESC, id DESC LIMIT 1", (month, TRENDS_KIND)
     ).fetchone()
 
 

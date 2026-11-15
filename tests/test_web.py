@@ -47,6 +47,7 @@ def test_paginas_principales_responden(client):
     assert 'class="verdict-figure' in r.text and ("has ahorrado" in r.text or "Has ahorrado" in r.text or "gastado" in r.text)
     r = client.get("/trends")
     assert "Gasto previsto fin de mes" in r.text and "Dónde se ha ido el dinero" in r.text
+    assert "Qué está cambiando" in r.text and "Lectura del modelo" in r.text and "rango probable" in r.text
     r = client.get("/transactions?month=2026-09&category=Alimentacion&q=MERCADONA")
     assert r.status_code == 200 and "MERCADONA" in r.text
 

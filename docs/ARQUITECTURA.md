@@ -43,7 +43,7 @@ flowchart LR
 
     subgraph f45["Fases 4-5"]
         GUI["Fase 4 · web/ (FastAPI + HTMX)<br/>resumen, movimientos, comercios,<br/>presupuestos, alertas, pipeline"]
-        INS["Fase 4.5 · insights.py + forecast.py<br/>diagnóstico, tendencias, previsión"]
+        INS["Fase 4.5 · insights.py + forecast.py + trends.py<br/>diagnóstico, tendencias, previsión con banda<br/>(lectura de Qwen sobre agregados)"]
         REPORT["Fase 5 · report/advice.py<br/>informe con consejos<br/>(Qwen sobre agregados)"]
         WATCH["Fase 5 · ingest/watch.py<br/>vigilancia de la carpeta"]
     end

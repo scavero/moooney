@@ -40,6 +40,7 @@ from moooney.llm.client import (
     offline_enabled,
 )
 from moooney.llm.decide import build_decider
+from moooney.web import queries
 from moooney.web.jobs import Logger, report, stage
 
 
@@ -426,6 +427,38 @@ def job_report(settings: Settings, paths: Paths, log: Logger, *, month: str | No
     finally:
         if recorder is not None:
             recorder.flush()
+        conn.close()
+
+
+def job_trends(settings: Settings, paths: Paths, log: Logger) -> None:
+    """El modelo de redacción interpreta las tendencias ya calculadas (solo agregados por categoría)."""
+    from moooney.analytics import trends as trends_mod
+    from moooney.report import advice
+
+    llm = llm_settings_or_none(paths)
+    if llm is None or offline_enabled():
+        raise RuntimeError("no hay modelo disponible: modo offline o falta configurarlo en Ajustes")
+    conn = repo.connect(settings.paths.db_path, check_same_thread=False)
+    recorder = CallRecorder(conn)
+    try:
+        as_of = periods.as_of_date(conn)
+        if as_of is None:
+            raise RuntimeError("no hay movimientos")
+        report(log, "Calculando tendencias y previsión")
+        t = queries.trends_analysis(conn, as_of, periods.first_date(conn))
+        text = advice.payload_text(trends_mod.payload(t["total"], t["trends"], as_of))
+        log(f"{len(t['trends'])} categorías sobre {t['n']} meses completos ({len(text)} caracteres)")
+        report(log, "El modelo está interpretando las tendencias")
+        model = llm.models.get("redaccion") or next(iter(llm.models.values()))
+        content = LLMClient(llm, recorder=recorder).chat(
+            model=model, purpose="trends", max_tokens=2000, extra=llm.chat_extra or None,
+            messages=[{"role": "system", "content": trends_mod.SYSTEM_PROMPT},
+                      {"role": "user", "content": "Tendencias en JSON:\n" + text}],
+        ).strip()
+        advice.store_report(conn, month=periods.month_of(as_of), kind=advice.TRENDS_KIND, model=model, content=content)
+        log(f"lectura redactada por {model}")
+    finally:
+        recorder.flush()
         conn.close()
 
 

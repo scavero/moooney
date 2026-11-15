@@ -32,6 +32,7 @@ from moooney.analytics import insights as insights_mod
 from moooney.analytics import period_summary as period_mod
 from moooney.analytics import periods
 from moooney.analytics import shared as shared_mod
+from moooney.analytics import trends as trends_mod
 from moooney.analytics.metrics import full_months_before_safe
 from moooney.analytics.periods import Period
 from moooney.analytics.price_changes import detect_price_changes
@@ -504,8 +505,15 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         max_cell = max((v for _, vals, _, _ in table for v in vals), default=1.0) or 1.0
         history = full_months_before_safe(conn, month, 6, as_of=as_of, first=first)
         avg_net = sum(h.net for h in history) / len(history) if history else 0.0
+        import markdown as md
+
+        tr = queries.trends_analysis(conn, as_of, first)
+        reading = advice.latest_report(conn, month, trends=True)
         return render(
             request, conn, "trends.html", as_of=as_of, category=category, categories=categories,
+            tr=tr, cat_trend=next((t for t in tr["trends"] if t.name == category), None), describe=trends_mod.describe,
+            reading=reading, reading_html=md.markdown(reading["content"]) if reading else "",
+            has_llm=service.llm_settings_or_none(active().paths) is not None,
             months12=months12, cat_values=values, cat_avg=avg, table=table, max_cell=max_cell,
             share=insights_mod.spend_share_12m(conn, as_of),
             fme=forecast_mod.forecast_month_end(conn, as_of, first=first),
@@ -515,6 +523,16 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             projection=forecast_mod.savings_projection(conn, as_of, months=12, first=first),
             avg_net=avg_net,
         )
+
+    @app.post("/trends/interpret", response_class=HTMLResponse)
+    def trends_interpret(request: Request):
+        a = active()
+        s, p = a.settings, a.paths
+        try:
+            job = state.jobs.start("Lectura de tendencias con el modelo", lambda log: service.job_trends(s, p, log))
+        except RuntimeError as e:
+            return HTMLResponse(f'<div class="notice warn">{html.escape(str(e))}. Espera a que termine.</div>')
+        return job_panel(request, job, started=True)
 
     # ---------- movimientos ----------
 

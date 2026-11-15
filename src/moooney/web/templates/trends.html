@@ -16,6 +16,50 @@
     <div class="hint">al mes · {{ projection[-1][1]|eur }} de saldo dentro de un año si sigue igual</div></div>
 </div>
 
+{% macro rango(f) %}<strong>{{ f[1]|eur }}</strong> <span class="concept">entre {{ f[2]|eur }} y {{ f[3]|eur }}</span>{% endmacro %}
+<div class="grid three section">
+  <div class="card">
+    <h2 style="margin-bottom:4px">Qué está cambiando</h2>
+    {% if tr.total %}
+    <div class="concept" style="margin-bottom:12px">Sobre {{ tr.n }} meses completos. {% if tr.total.yearly %}Cada categoría compara sus 12 últimos meses con los 12 anteriores, así la época del año no engaña.{% else %}Con menos de 24 meses se comparan 3 meses con los 3 anteriores: tómalo como provisional.{% endif %} La previsión dice el rango en el que caería 8 de cada 10 veces.</div>
+    <p style="margin:0 0 var(--s2)"><strong>Gasto total:</strong> {{ describe(tr.total) }}. Previsión de <span style="text-transform:capitalize">{{ tr.ahead[0]|mes }}</span>: {{ rango(tr.total.forecast[0]) }}.</p>
+    <div class="scroll-x">
+    <table data-more="6">
+      <tr><th>Categoría</th><th>Tendencia</th><th class="num" style="text-transform:capitalize">{{ tr.ahead[0]|mes(true) }}, previsto</th><th class="num" title="cuánto se equivocó el método al predecir los últimos meses ya conocidos">Error</th></tr>
+      {% for t in tr.trends %}
+      <tr>
+        <td><a href="/trends?category={{ t.name|urlencode }}" style="font-weight:500">{{ t.name }}</a><div class="concept">{{ t.level|eur }} al mes</div></td>
+        <td class="{{ 'neg' if t.change and t.change >= 0.1 and t.change_eur >= 5 else 'pos' if t.change and t.change <= -0.1 and t.change_eur <= -5 else '' }}">{{ describe(t) }}</td>
+        <td class="num">{{ t.forecast[0][1]|eur }}<div class="concept">{{ t.forecast[0][2]|eur }} – {{ t.forecast[0][3]|eur }}</div></td>
+        <td class="num" style="color:var(--ink-2)">{{ '±%.0f %%'|format(t.error * 100) if t.error is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">Hacen falta al menos 6 meses completos para hablar de tendencias; hay {{ tr.n }}.</p>
+    {% endif %}
+  </div>
+  <div class="card" id="trend-reading">
+    <h2 style="margin-bottom:4px">Lectura del modelo</h2>
+    {% if reading %}
+    <div class="concept" style="margin-bottom:12px">Redactada por {{ reading.model }} el <span title="{{ reading.created_at }}">{{ reading.created_at[:10]|fecha }}</span> a partir de la tabla de al lado. Interpreta; las cifras las pone el cálculo.</div>
+    <div class="prose" style="font-size:15px">{{ reading_html|safe }}</div>
+    {% else %}
+    <div class="concept" style="margin-bottom:12px">El modelo de redacción recibe solo la tabla de al lado (categorías y agregados mensuales, ningún movimiento) y explica qué significa. Queda en la auditoría.</div>
+    {% endif %}
+    {% if not snapshot %}
+    <div class="actions" style="margin-top:12px">
+      <button class="btn {{ 'ghost' if reading else 'primary' }}" hx-post="/trends/interpret" hx-target="#job-panel" hx-swap="innerHTML" {% if offline or not has_llm or not tr.total %}disabled{% endif %}>{{ 'Volver a interpretar' if reading else 'Interpretar con el modelo' }}</button>
+    </div>
+    {% if offline or not has_llm %}<div class="flag" style="margin-top:12px">No disponible: {{ 'modo offline' if offline else 'falta configurar el modelo' }}. <a href="/settings">Ver en Ajustes →</a></div>{% endif %}
+    {% endif %}
+    <div id="job-panel" style="margin-top:var(--s2)"></div>
+  </div>
+</div>
+{# al terminar la lectura, la tarjeta se repinta sola #}
+<div hidden hx-get="/trends" hx-trigger="job-finished from:body" hx-select="#trend-reading" hx-target="#trend-reading" hx-swap="outerHTML"></div>
+
 <div class="grid two section">
   <div class="card">
     <h2 style="margin-bottom:4px">Dónde se ha ido el dinero en 12 meses</h2>
@@ -58,7 +102,7 @@
       {% endif %}
     </div>
   </div>
-  <div class="concept" style="margin-bottom:12px">Barras: gasto del mes en <strong>{{ category }}</strong>. Línea: media móvil de 3 meses. Pulsa una barra para ver sus movimientos.</div>
+  <div class="concept" style="margin-bottom:12px">Barras: gasto del mes en <strong>{{ category }}</strong>. Línea: media móvil de 3 meses. Pulsa una barra para ver sus movimientos.{% if cat_trend %} Discontinua: previsión de 3 meses con su rango ({{ cat_trend.model }}{% if cat_trend.error is not none %}, error habitual ±{{ '%.0f'|format(cat_trend.error * 100) }} %{% endif %}). <strong>{{ describe(cat_trend)|capitalize }}.</strong>{% endif %}</div>
   <div class="chart-box"><canvas id="chart-cat"></canvas></div>
 </div>
 
@@ -92,11 +136,20 @@ window.renderCharts = function () {
   const months = {{ months12|tojson }};
   const cat = {{ cat_values|tojson }};
   const avg = {{ cat_avg|tojson }};
-  mk('chart-cat', { type: 'bar', data: { labels: months.map(lbl), datasets: [
+  // previsión: se alinea por mes y alarga el eje con los meses que aún no existen
+  const fc = {{ (cat_trend.forecast if cat_trend else [])|tojson }};
+  const axis = [...months, ...fc.map(f => f[0]).filter(m => !months.includes(m))];
+  const at = i => axis.map(m => { const f = fc.find(f => f[0] === m); return f ? f[i] : null; });
+  const band = { type: 'line', borderWidth: 0, pointRadius: 0, backgroundColor: palette[5] + '33', spanGaps: false };
+  mk('chart-cat', { type: 'bar', data: { labels: axis.map(lbl), datasets: [
       { type: 'bar', label: {{ category|tojson }}, data: cat, backgroundColor: palette[3] },
-      { type: 'line', label: 'media móvil 3 meses', data: avg, borderColor: palette[5], tension: .3, pointRadius: 0, borderWidth: 2 } ] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
-      onClick: (e, els) => { if (els.length) go('/transactions?month=' + months[els[0].index] + '&category=' + encodeURIComponent({{ category|tojson }})); } } });
+      { type: 'line', label: 'media móvil 3 meses', data: avg, borderColor: palette[5], tension: .3, pointRadius: 0, borderWidth: 2 },
+      ...(fc.length ? [
+        { type: 'line', label: 'previsión', data: at(1), borderColor: palette[5], borderDash: [6, 4], borderWidth: 2, pointRadius: 3 },
+        { ...band, label: 'rango bajo', data: at(2), fill: false },
+        { ...band, label: 'rango probable', data: at(3), fill: '-1' } ] : []) ] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, filter: i => i.text !== 'rango bajo' } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
+      onClick: (e, els) => { if (els.length && els[0].index < months.length) go('/transactions?month=' + months[els[0].index] + '&category=' + encodeURIComponent({{ category|tojson }})); } } });
   const proj = {{ projection|tojson }};
   mk('chart-proj', { type: 'line', data: { labels: proj.map(p => lbl(p[0])), datasets: [{ label: 'saldo proyectado', data: proj.map(p => p[1]), borderColor: palette[0], backgroundColor: palette[4] + '66', fill: true, tension: .3, borderWidth: 2, pointRadius: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } } } });

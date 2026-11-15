@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.19.0 · 2026-11-15
+
+- **Tendencias con más fondo**: nueva tarjeta «Qué está cambiando» con la tendencia de cada categoría
+  (12 meses frente a los 12 anteriores cuando hay dos años; si no, 3 frente a 3 y marcada como
+  provisional), los picos de temporada que se repiten y la previsión de los tres meses siguientes
+  con su rango. Tres métodos sencillos compiten prediciendo los meses ya conocidos; gana el que
+  menos falla y la página enseña su error.
+- **Previsión en el gráfico de categoría**: línea discontinua con el rango probable.
+- **Lectura del modelo**: el modelo de redacción interpreta esas tendencias a petición. Recibe solo
+  la tabla de agregados por categoría, nunca movimientos; queda en la auditoría como `trends`.
+
 ## 1.18.0 · 2026-11-15
 
 - **Desplegables que se leen enteros**: el de «Categoría → subcategoría» de Movimientos y Comercios
