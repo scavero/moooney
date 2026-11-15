@@ -32,7 +32,7 @@
     <h2 style="margin-bottom:4px">Presupuestos</h2>
     <div class="concept" style="margin-bottom:8px">La marca negra es donde deberías estar hoy. El límite se guarda al salir del campo; pon 0 para quitarlo.</div>
     <div class="scroll-x">
-    <table class="budget-table">
+    <table class="budget-table" data-more="10">
       <tr><th>Categoría</th><th style="width:30%">Gastado</th><th class="num">Queda</th><th class="num">Proyección</th><th class="num">Límite</th></tr>
       <tbody id="budget-rows">
       {% for r in rows %}{% include "partials/budget_row.html" %}{% endfor %}
@@ -138,7 +138,7 @@
   <div class="grid two">
     <div>
       <h3 style="margin-bottom:8px">Recortar</h3>
-      <table>
+      <table data-more="8">
         <tr><th>Categoría</th><th class="num">Variable al mes</th><th class="num" style="width:120px">Recorte</th></tr>
         {% for c in cut_categories %}
         <tr>

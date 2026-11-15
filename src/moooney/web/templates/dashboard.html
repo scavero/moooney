@@ -129,7 +129,7 @@
     <h2 style="margin-bottom:4px">Presupuesto</h2>
     <div class="concept" style="margin-bottom:12px">La marca negra es donde deberías estar hoy. <a href="/budgets?month={{ month }}">Ver todo</a></div>
     {% if budget_rows %}
-    <table>
+    <table data-more="8">
       {% for r in budget_rows %}
       <tr>
         <td style="white-space:nowrap">{{ r.category }}</td>
@@ -146,7 +146,7 @@
     <h2 style="margin-bottom:4px">Alertas pendientes</h2>
     <div class="concept" style="margin-bottom:12px">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos · {{ alerts_counts.info }} datos. <a href="/alerts">Ver todas</a></div>
     {% if pending %}
-    <div class="alert-group">
+    <div class="alert-group" data-more="5">
       {% for a in pending %}
       <div class="row" style="grid-template-columns:62px minmax(0,1fr)">
         <span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ SEVERITY_LABEL[a.severity] }}</span>

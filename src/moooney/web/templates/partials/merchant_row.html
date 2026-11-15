@@ -18,7 +18,7 @@
     {# Un solo desplegable «Categoría → subcategoría» que guarda al cambiar. El flujo va aparte y normalmente lo decide la categoría. #}
     <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML" style="display:block">
       <label for="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" style="position:absolute;left:-9999px">Categoría y subcategoría de {{ m.key }}</label>
-      <select id="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="category" class="quiet {{ 'doubt' if mdoubt and not saved else '' }}" style="width:100%;max-width:none;min-width:200px">
+      <select id="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="category" class="quiet cat-select {{ 'doubt' if mdoubt and not saved else '' }}" style="max-width:none">
         {{ cat_options(taxonomy, m.category, m.subcategory) }}
       </select>
     </form>
@@ -27,7 +27,7 @@
     <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML" style="display:block">
       <input type="hidden" name="category" value="{{ m.category }}">
       <label for="mf-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" style="position:absolute;left:-9999px">Flujo de {{ m.key }}</label>
-      <select id="mf-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="flow_type" class="quiet muted" title="normalmente lo decide la categoría" style="width:100%;max-width:none">
+      <select id="mf-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="flow_type" class="quiet muted" title="normalmente lo decide la categoría" style="max-width:none">
         {% for f in taxonomy.flow_types %}<option value="{{ f }}" {{ 'selected' if f == m.flow_type else '' }}>{{ FLOW_LABEL.get(f, f) }}</option>{% endfor %}
       </select>
     </form>

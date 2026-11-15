@@ -33,7 +33,7 @@
       {% if items|rejectattr('acknowledged')|list %}<form method="post" action="/alerts/ack-type/{{ type }}"><button class="link-btn" type="submit" style="padding:0">Marcar el grupo como visto</button></form>{% endif %}
     </div>
     <div class="concept" style="margin-bottom:8px">{{ ALERT_EXPLAIN.get(type, '') }}</div>
-    <table class="alert-table">
+    <table class="alert-table" data-more="5">
       <tr><th>Nivel</th><th>Fecha</th><th>Qué pasa</th><th></th></tr>
       {% for a in items %}
       {% set subject = a.message.split(':')[0] %}
@@ -80,7 +80,7 @@
   <h2 style="margin-bottom:4px">Lo que te ha subido</h2>
   <div class="concept" style="margin-bottom:8px">{{ subidas|length }} {{ 'recibo cuesta' if subidas|length == 1 else 'recibos cuestan' }} más que antes: unos <strong style="color:var(--ink-2)">{{ subidas|sum(attribute='delta_year')|eur }} más al año</strong> si siguen así. Buen momento para revisar la tarifa o darlo de baja.</div>
   <div class="scroll-x">
-  <table class="rec-table">
+  <table class="rec-table" data-more="8">
     <tr><th>Recibo</th><th class="num">Antes</th><th class="num">Ahora</th><th class="num">Al año</th></tr>
     {% for p in subidas %}
     <tr>
@@ -103,7 +103,7 @@
     <h2 style="margin-bottom:4px">{{ 'Todos los recurrentes' if inactive else 'Recurrentes activos' }}</h2>
     <div class="concept" style="margin-bottom:8px">{{ rows_rec|length }} en total. Pulsa una clave para ver sus movimientos.{% if price_up %} Los marcados en ámbar han subido de precio.{% endif %}</div>
     <div class="scroll-x">
-    <table class="rec-table">
+    <table class="rec-table" data-more="8">
       <tr><th>Clave</th><th>Periodo</th><th class="num">Importe</th><th class="num">Último</th><th class="num">Próximo</th></tr>
       {% for r in rows_rec %}
       <tr class="{{ '' if r.active else 'inactive' }}">
@@ -128,7 +128,7 @@
     <div class="concept" style="margin-bottom:8px">Próximos 30 días, con el saldo que iría quedando tras cada cargo.</div>
     {% if calendar %}
     <div class="scroll-x">
-    <table class="cal-table">
+    <table class="cal-table" data-more="8">
       <tr><th>Día</th><th>Cargo</th><th class="num amt">Importe</th><th class="num">Queda</th></tr>
       {% for r, running in calendar %}
       <tr>

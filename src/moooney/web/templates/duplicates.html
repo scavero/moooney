@@ -52,17 +52,17 @@
 {% else %}
   {% if likely %}
   <h2>Para mirar <span class="concept">· {{ likely|length }}</span></h2>
-  {% for g in likely %}{{ group_card(g) }}{% endfor %}
+  <div data-more="5">{% for g in likely %}{{ group_card(g) }}{% endfor %}</div>
   {% elif not pending %}
   <div class="card section"><p class="muted">El modelo no ve ningún duplicado probable entre los {{ groups|length }} grupos.</p></div>
   {% endif %}
   {% if unreviewed %}
   <h2>Sin revisar <span class="concept">· {{ unreviewed|length }}</span></h2>
-  {% for g in unreviewed %}{{ group_card(g) }}{% endfor %}
+  <div data-more="5">{% for g in unreviewed %}{{ group_card(g) }}{% endfor %}</div>
   {% endif %}
   {% if normal %}
   <details class="section"><summary>{{ normal|length }} grupo{{ 's' if normal|length != 1 else '' }} que parece{{ 'n' if normal|length != 1 else '' }} repeticiones normales</summary>
-    {% for g in normal %}{{ group_card(g) }}{% endfor %}
+    <div data-more="5">{% for g in normal %}{{ group_card(g) }}{% endfor %}</div>
   </details>
   {% endif %}
 {% endif %}

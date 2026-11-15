@@ -1,7 +1,7 @@
 {% if items %}
 <div class="notice">{{ items|selectattr('query')|list|length }} consultas saldrían a Internet, de {{ items|length }} candidatas. Las que no tienen consulta están vetadas: personas, bizums, PayPal… Solo sale el texto de la columna <strong>Consulta</strong>.</div>
 <div class="scroll-x" style="max-height:320px;overflow:auto">
-<table class="keys-table">
+<table class="keys-table" data-more="10">
   <tr><th>Clave</th><th>Categoría actual</th><th>Consulta que saldría</th></tr>
   {% for i in items %}
   <tr class="{{ '' if i.query else 'muted' }}">

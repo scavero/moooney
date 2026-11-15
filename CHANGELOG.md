@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.18.0 · 2026-11-15
+
+- **Desplegables que se leen enteros**: el de «Categoría → subcategoría» de Movimientos y Comercios
+  tiene un ancho mínimo y ya no sale cortado a ningún ancho de ventana. Por debajo de 1.200 px ceden
+  sitio el saldo (Movimientos) y el número de movimientos (Comercios).
+- **Móvil**: en Movimientos la categoría ocupa todo el ancho de la fila y los filtros se pliegan tras
+  un botón «Filtros»; Comercios deja de desplazarse en horizontal (clave y total arriba, categoría y
+  flujo debajo); el formulario de reglas pone un desplegable por línea.
+- **«Mostrar más»**: las tablas y listas que pueden crecer (avisos, recurrentes, calendario de cargos,
+  presupuestos, fuentes de ingresos, categorías y comercios del periodo, mapa de calor de Tendencias,
+  ficheros e historial de Importar, reglas, apartados, etiquetas y grupos de posibles duplicados)
+  enseñan las primeras filas y pliegan el resto tras un botón.
+
 ## 1.17.1 · 2026-11-15
 
 - **Movimientos en pantallas medianas**: la columna Categoría se quedaba en 87 px (hacia 1.000 px de

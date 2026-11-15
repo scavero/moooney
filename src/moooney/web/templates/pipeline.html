@@ -42,7 +42,7 @@
       </label>
     </form>
     <div class="scroll-x">
-    <table class="keys-table">
+    <table class="keys-table" data-more="8">
       <tr><th>Fichero</th><th>Estado</th><th class="num">Filas · nuevas</th><th>Rango</th></tr>
       {% for f in files %}
       <tr>
@@ -171,7 +171,7 @@
     <h2 style="margin-bottom:4px">Qué ha salido de aquí</h2>
     <div class="concept" style="margin-bottom:8px">Llamadas a modelos del proxy y consultas a Internet, registradas una a una.</div>
     <div class="scroll-x">
-    <table class="keys-table">
+    <table class="keys-table" data-more="8">
       <tr><th>Destino</th><th>Para qué</th><th class="num">Llamadas</th><th>Última</th></tr>
       {% for r in egress.llm %}<tr><td><span style="font-weight:500">{{ r.model }}</span><div class="concept">modelo · ClusterTIC</div></td><td style="color:var(--ink-2)">{{ r.purpose }} · {{ r.tokens }} tokens</td><td class="num">{{ r.n }}</td><td style="color:var(--ink-2);white-space:nowrap" title="{{ r.last }}">{{ (r.last or '')[:10]|fecha }} {{ (r.last or '')[11:16] }}</td></tr>{% endfor %}
       {% for r in egress.web %}<tr><td><span style="font-weight:500">{{ r.provider }}</span><div class="concept">Internet</div></td><td style="color:var(--ink-2)">enriquecer · <span class="tag {{ 'ok' if r.status == 'hit' else 'crit' if r.status == 'error' else 'info' }}">{{ r.status }}</span></td><td class="num">{{ r.n }}</td><td style="color:var(--ink-2);white-space:nowrap" title="{{ r.last }}">{{ (r.last or '')[:10]|fecha }} {{ (r.last or '')[11:16] }}</td></tr>{% endfor %}
@@ -183,7 +183,7 @@
     <h2 style="margin-bottom:4px">Historial</h2>
     <div class="concept" style="margin-bottom:8px">Importaciones guardadas y trabajos de esta sesión.</div>
     <div class="scroll-x">
-    <table class="keys-table">
+    <table class="keys-table" data-more="8">
       <tr><th>Cuándo</th><th>Qué</th><th>Resultado</th></tr>
       {% for i in imports %}<tr><td style="color:var(--ink-2);white-space:nowrap" title="{{ i.imported_at }}">{{ i.imported_at[:10]|fecha }} {{ i.imported_at[11:16] }}</td><td style="min-width:0;word-break:break-word">Importación · {{ i.filename }}</td><td style="white-space:nowrap">{{ i.rows_total }} filas, {{ i.rows_new }} nuevas</td></tr>{% endfor %}
       {% for j in jobs %}<tr><td style="color:var(--ink-2);white-space:nowrap">{{ j.started_at[11:16] }}</td><td><a href="/pipeline/jobs/{{ j.id }}" hx-target="#job-panel" hx-swap="innerHTML" style="font-weight:500">{{ j.name }}</a></td><td><span class="tag {{ 'ok' if j.status == 'done' else 'crit' if j.status == 'error' else 'info' }}">{{ {'done': 'terminado', 'error': 'error', 'running': 'en marcha'}.get(j.status, j.status) }}</span></td></tr>{% endfor %}

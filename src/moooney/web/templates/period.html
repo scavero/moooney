@@ -51,7 +51,7 @@
     <div class="donut-box"><canvas id="chart-donut" role="img" aria-label="Reparto del gasto del periodo por categoría"></canvas>
       <div class="donut-center"><div class="label" id="donut-label">Gasto</div><div class="value" id="donut-value">{{ t.expenses|eur }}</div><div class="hint" id="donut-hint"></div></div></div>
     <div class="scroll-x">
-    <table>
+    <table data-more="10">
       <tr><th>Categoría</th><th class="num">{{ p|periodo if p.kind != 'range' else 'Este rango' }}</th>{% if pt %}<th class="num">{{ prev_name if p.kind != 'range' else 'Antes' }}</th><th class="num">Diferencia</th>{% endif %}<th></th></tr>
       {% set n = namespace(i=0) %}
       {% for c in ps.categories %}
@@ -75,7 +75,7 @@
       <div class="concept" style="margin-bottom:8px">Pulsa un mes, en la gráfica o en la tabla, para abrir su resumen. Los meses a medias no cuentan para el más caro ni el más barato.</div>
       <div class="chart-box small" style="margin-bottom:var(--s2)"><canvas id="chart-months" role="img" aria-label="Ingresos y gastos de cada mes del periodo"></canvas></div>
       <div class="scroll-x">
-      <table>
+      <table data-more="12">
         <tr><th>Mes</th><th class="num">Ingresos</th><th class="num">Gasto</th>{% if p.kind == 'year' %}<th class="num">{{ p.key|int - 1 }}</th>{% endif %}<th>Lo que más</th></tr>
         {% for m in ps.months %}
         <tr>
@@ -92,7 +92,7 @@
     <div class="card">
       <h2 id="merch-title" data-all="Dónde más se gasta">Dónde más se gasta</h2>
       <div data-cat-group="">
-      <table>
+      <table data-more="10">
         {% for m in ps.merchants %}
         <tr>
           <td><a href="/transactions?{{ tx_filter }}&key={{ m.key|urlencode }}">{{ m.key }}</a><div class="concept">{{ m.category or '—' }} · {{ m.n }} {{ 'vez' if m.n == 1 else 'veces' }}</div></td>

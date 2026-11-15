@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=47">
+  <link rel="stylesheet" href="/static/app.css?v=51">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script src="/static/summary.js?v=2"></script>
@@ -120,6 +120,20 @@
     const up = document.getElementById('upload-form'); if (up) up.classList.toggle('busy', running);
   };
   window.addEventListener('DOMContentLoaded', () => window.syncJobButtons());
+  // «Mostrar más»: data-more="N" deja a la vista N filas (o hijos) de una tabla o lista y pliega el resto tras un botón.
+  window.clampLists = function () {
+    document.querySelectorAll('[data-more]:not([data-more-done])').forEach(el => {
+      el.dataset.moreDone = 1;
+      const items = el.tagName === 'TABLE' ? [...el.rows].filter(r => !r.querySelector('th')) : [...el.children];
+      const extra = items.slice(+el.dataset.more);
+      if (extra.length < 3) return;  // por una o dos filas no merece botón
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'link-btn show-more';
+      const set = (hide) => { extra.forEach(i => { i.hidden = hide; }); b.textContent = hide ? 'Mostrar ' + extra.length + ' más ↓' : 'Mostrar menos ↑'; b.setAttribute('aria-expanded', !hide); };
+      b.onclick = () => set(!extra[0].hidden); set(true); (el.parentElement.classList.contains('scroll-x') ? el.parentElement : el).after(b);
+    });
+  };
+  window.addEventListener('DOMContentLoaded', window.clampLists);
+  document.body.addEventListener('htmx:afterSettle', window.clampLists);
   // Toast de confirmación: cualquier respuesta HTMX con cabecera X-Toast la muestra (2,6 s o X-Toast-Ms).
   window.showToast = function (msg, ms) {
     const el = document.getElementById('toast'); if (!msg || !el) return;

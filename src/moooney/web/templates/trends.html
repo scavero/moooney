@@ -20,7 +20,7 @@
   <div class="card">
     <h2 style="margin-bottom:4px">Dónde se ha ido el dinero en 12 meses</h2>
     <div class="concept" style="margin-bottom:8px">Pulsa una categoría para ver sus movimientos.</div>
-    <table>
+    <table data-more="8">
       <tr><th></th><th class="num">12 meses</th><th class="num">Al mes</th></tr>
       {% for c, total, p in share %}
       <tr>
@@ -66,7 +66,7 @@
   <h2 style="margin-bottom:4px">Todas las categorías, mes a mes</h2>
   <div class="concept" style="margin-bottom:12px">Tendencia: media de los 3 últimos meses completos frente a los 3 anteriores. Pulsa una categoría para verla arriba.</div>
   <div class="scroll-x">
-  <table class="heat-table">
+  <table class="heat-table" data-more="12">
     <tr><th class="sticky">Categoría</th>{% for m in months12 %}<th class="num">{{ m|mes(true) }}</th>{% endfor %}<th class="num">Media 3m</th><th class="num">Tend.</th></tr>
     {% for c, values, avg3, trend in table %}
     <tr>
