@@ -121,6 +121,7 @@ def unlink(conn: sqlite3.Connection, income_id: int) -> None:
     with conn:
         conn.execute("DELETE FROM reimbursements WHERE income_id = ?", (income_id,))
         repo.category_from_merchant(conn, income_id)
+    repo.apply_overrides(conn)
 
 
 def dismiss(conn: sqlite3.Connection, income_id: int) -> None:

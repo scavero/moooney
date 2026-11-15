@@ -58,7 +58,7 @@
   </div>
   {% endif %}
   {% if shared %}<div class="concept" style="margin-bottom:8px">{% if shared == 'review' %}Bizums y transferencias recibidos con un gasto tuyo mayor poco antes. Di de qué gasto es cada uno, o que no es una devolución.{% else %}Gastos que pagaste tú y lo que te devolvieron: el gasto cuenta neto y la devolución no cuenta como ingreso. Los totales de arriba ya lo descuentan.{% endif %}</div>{% endif %}
-  <div class="concept" style="margin-bottom:8px">Cambiar la categoría de una fila corrige el comercio en todos sus movimientos. El botón «···» abre flujo, origen, etiquetas, cuenta y gastos compartidos, y permite borrar el movimiento o marcarlo como duplicado.</div>
+  <div class="concept" style="margin-bottom:8px">Cambiar la categoría de una fila corrige el comercio en todos sus movimientos. El botón «···» abre flujo, origen, etiquetas, cuenta y gastos compartidos, y permite cambiar la categoría de ese movimiento nada más, borrarlo o marcarlo como duplicado.</div>
   <div class="scroll-x">
   <table class="tx-table">
     <tr><th>Concepto</th><th style="width:220px">Categoría</th><th class="num">Importe</th><th class="num col-balance">Saldo</th><th style="width:40px"></th></tr>
@@ -73,7 +73,7 @@
     <tr id="tx-{{ t.id }}">
       <td style="min-width:0">
         <a class="name" href="/merchants?mode=all&q={{ t.concept_clean|urlencode }}" title="ver el comercio">{{ t.concept_clean }}</a>
-        <div class="raw" title="{{ t.concept }}">{% if t.id in sh.link_of %}<span class="inline-tags">devolución de {{ sh.link_of[t.id].expense_key }}</span> · {% elif t.id in sh.refunds_of %}<span class="inline-tags">compartido · te devolvieron {{ sh.refunds_of[t.id].total|eur(2) }}</span> · {% elif t.id in sh.suggest_of %}<span class="doubt">¿la parte de alguien?</span> · {% endif %}{% if doubt %}<span class="doubt {{ 'low' if conf < 0.5 else '' }}">Categoría dudosa ({{ SOURCE_LABEL.get(t.source, t.source) }}, {{ '%.2f'|format(conf)|replace('.', ',') }})</span> · {% endif %}{% if row_tags %}<span class="inline-tags">{% for x in row_tags %}<a href="/transactions?tag={{ x|urlencode }}">{{ x }}</a>{{ ', ' if not loop.last else '' }}{% endfor %}</span> · {% endif %}{{ t.concept }}</div>
+        <div class="raw" title="{{ t.concept }}">{% if t.id in sh.link_of %}<span class="inline-tags">devolución de {{ sh.link_of[t.id].expense_key }}</span> · {% elif t.id in sh.refunds_of %}<span class="inline-tags">compartido · te devolvieron {{ sh.refunds_of[t.id].total|eur(2) }}</span> · {% elif t.id in sh.suggest_of %}<span class="doubt">¿la parte de alguien?</span> · {% endif %}{% if t.id in own_category %}<span class="inline-tags">categoría solo de este movimiento</span> · {% endif %}{% if doubt %}<span class="doubt {{ 'low' if conf < 0.5 else '' }}">Categoría dudosa ({{ SOURCE_LABEL.get(t.source, t.source) }}, {{ '%.2f'|format(conf)|replace('.', ',') }})</span> · {% endif %}{% if row_tags %}<span class="inline-tags">{% for x in row_tags %}<a href="/transactions?tag={{ x|urlencode }}">{{ x }}</a>{{ ', ' if not loop.last else '' }}{% endfor %}</span> · {% endif %}{{ t.concept }}</div>
       </td>
       <td>
         {# Corrige la memoria del comercio para todos sus movimientos; la respuesta (fila de comercio) se descarta y se avisa con un toast. #}
@@ -98,6 +98,17 @@
           <dt>Origen</dt><dd>{% if t.source %}<span class="conf {{ 'low' if conf < 0.5 else 'mid' if conf < 0.7 else '' }}" title="confianza {{ '%.2f'|format(conf) }}"><i><b style="width:{{ (conf * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(t.source, t.source) }} · confianza {{ '%.2f'|format(conf)|replace('.', ',') }}</span>{% else %}sin categorizar{% endif %}</dd>
           {% if is_shared %}<dt>Compartido</dt><dd>{% include "partials/shared_cell.html" %}</dd>{% endif %}
           <dt>Etiquetas</dt><dd>{% with tx_id=t.id, tags=row_tags %}{% include "partials/tags_cell.html" %}{% endwith %}</dd>
+          <dt>Solo este</dt><dd>
+            <form method="post" action="/transactions/{{ t.id }}/category" style="display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center">
+              <input type="hidden" name="next" value="{{ next_url }}">
+              <label for="own-{{ t.id }}" style="position:absolute;left:-9999px">Categoría solo de este movimiento</label>
+              <select id="own-{{ t.id }}" name="category" onchange="this.form.requestSubmit()" {{ 'disabled' if snapshot else '' }}>
+                <option value="">La de su comercio</option>
+                {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if t.id in own_category and c == t.category else '' }}>{{ c }}</option>{% endfor %}
+              </select>
+              <span class="concept">Cambia la categoría de este movimiento sin tocar los demás del mismo comercio.</span>
+            </form>
+          </dd>
           <dt>Quitar</dt><dd>
             <form method="post" action="/transactions/{{ t.id }}/remove" style="display:flex;gap:var(--s2);flex-wrap:wrap"
                   hx-confirm="¿Quitar este movimiento? Deja de contar en todo y no vuelve aunque reimportes el extracto. Se puede restaurar al final de la página.">

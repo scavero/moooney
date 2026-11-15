@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.15.0 · 2026-11-15
+
+- **Transferencias**: cada destinatario (y cada ordenante) tiene ahora su propia clave de comercio,
+  con un código de cuatro letras en vez del nombre. Antes todas las transferencias enviadas
+  compartían una sola clave, y al categorizar el alquiler se llevaba detrás los traspasos a otra
+  cuenta. Hay que pulsar **Reconstruir claves** en Importar (o `categorize --rebuild-keys`) para
+  aplicarlo a lo ya cargado: las transferencias se vuelven a categorizar por reglas.
+- **Movimientos**: en el «···» de cada movimiento, **Solo este** cambia su categoría sin tocar los
+  demás del mismo comercio.
+
 ## 1.14.0 · 2026-11-15
 
 - **Movimientos**: cada movimiento se puede **borrar** o **marcar como duplicado** desde su botón

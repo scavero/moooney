@@ -1,5 +1,7 @@
 """La normalización debe colapsar variantes y borrar nombres de personas."""
 
+import re
+
 from moooney.categorize.normalize import clean_concept
 
 
@@ -35,9 +37,14 @@ def test_bizum_a_comercio_conserva_comercio():
 
 def test_transferencia_a_particular_sin_nombre():
     a = "TRANSFERENCIA A FAVOR DE Laura Vidal Rúa CONCEPTO: FESTA"
-    assert clean_concept(a) == "TRANSFERENCIA A PARTICULAR"
+    # cada destinatario tiene su clave (cuatro letras), sin que el nombre aparezca en ella
+    ka = clean_concept(a)
+    assert re.fullmatch(r"TRANSFERENCIA A PARTICULAR [A-Z]{4}", ka) and "LAURA" not in ka and "VIDAL" not in ka
+    assert clean_concept("TRANSFERENCIA INMEDIATA A FAVOR DE laura vidal rua CONCEPTO alquiler 11/2026") == ka
+    assert clean_concept("TRANSFERENCIA A FAVOR DE Otra Persona Inventada CONCEPTO: FESTA") != ka
+    assert clean_concept("TRANSFERENCIA ENVIADA algo sin destinatario claro") == "TRANSFERENCIA A PARTICULAR"
     b = "TRANSFERENCIA DE Juan Gómez López, . CONCEPTO DEVOLUCION FESTA"
-    assert clean_concept(b) == "TRANSFERENCIA DE PARTICULAR"
+    assert re.fullmatch(r"TRANSFERENCIA DE PARTICULAR [A-Z]{4}", clean_concept(b))
 
 
 def test_devolucion_de_hacienda_identificable():

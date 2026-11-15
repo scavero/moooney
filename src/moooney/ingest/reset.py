@@ -21,7 +21,7 @@ from moooney.db.backup import make_backup
 from moooney.ingest.detect import list_excel_files
 
 # Orden: primero lo que apunta a transactions, después transactions e imports.
-TABLES = ["transaction_tags", "reimbursements", "reimbursement_dismissed", "alerts", "transactions",
+TABLES = ["transaction_tags", "transaction_overrides", "reimbursements", "reimbursement_dismissed", "alerts", "transactions",
           "transactions_removed", "imports", "recurring",
           "reports", "chat_messages"]
 CONFIRM_WORD = "BORRAR"

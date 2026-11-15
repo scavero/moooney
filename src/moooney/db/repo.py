@@ -228,6 +228,7 @@ def propagate_to_transactions(
     if flow_type == "card_settlement":
         mark_card_settlements(conn)
     apply_reimbursements(conn)  # una devolución emparejada no vuelve a ser ingreso
+    apply_overrides(conn)  # ni un movimiento con categoría propia vuelve a la del comercio
     return cur.rowcount
 
 
@@ -244,6 +245,54 @@ def apply_reimbursements(conn: sqlite3.Connection) -> int:
                       OR transactions.subcategory IS NOT e.subcategory)"""
         )
     return cur.rowcount
+
+
+# ---------- categoría de un solo movimiento ----------
+
+
+def apply_overrides(conn: sqlite3.Connection) -> int:
+    """Los movimientos con categoría propia (transaction_overrides) la recuperan. Idempotente."""
+    with conn:
+        cur = conn.execute(
+            """UPDATE transactions SET category = o.category, subcategory = o.subcategory,
+                   flow_type = o.flow_type, confidence = 1.0
+               FROM transaction_overrides o
+               WHERE transactions.id = o.transaction_id
+                 AND (transactions.category IS NOT o.category OR transactions.flow_type IS NOT o.flow_type
+                      OR transactions.subcategory IS NOT o.subcategory)"""
+        )
+    return cur.rowcount
+
+
+def set_override(conn: sqlite3.Connection, tx_id: int, *, category: str, subcategory: str | None,
+                 flow_type: str, now: str) -> bool:
+    """Fija la categoría de ese movimiento, sin tocar su comercio. False si no existe."""
+    if conn.execute("SELECT 1 FROM transactions WHERE id = ?", (tx_id,)).fetchone() is None:
+        return False
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO transaction_overrides (transaction_id, category, subcategory, flow_type,"
+            " created_at) VALUES (?, ?, ?, ?, ?)",
+            (tx_id, category, subcategory, flow_type, now),
+        )
+    apply_overrides(conn)
+    return True
+
+
+def clear_override(conn: sqlite3.Connection, tx_id: int) -> None:
+    """El movimiento vuelve a la categoría de su comercio."""
+    with conn:
+        conn.execute("DELETE FROM transaction_overrides WHERE transaction_id = ?", (tx_id,))
+        category_from_merchant(conn, tx_id)
+    apply_reimbursements(conn)
+
+
+def overrides_for(conn: sqlite3.Connection, transaction_ids: list[int]) -> set[int]:
+    if not transaction_ids:
+        return set()
+    ph = ",".join("?" for _ in transaction_ids)
+    return {int(r[0]) for r in conn.execute(
+        f"SELECT transaction_id FROM transaction_overrides WHERE transaction_id IN ({ph})", list(transaction_ids))}
 
 
 # ---------- tarjeta de crédito: compras sueltas frente a la liquidación ----------

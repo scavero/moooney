@@ -205,3 +205,13 @@ CREATE TABLE IF NOT EXISTS transactions_removed (
     reason        TEXT NOT NULL,          -- borrado | duplicado
     removed_at    TEXT NOT NULL
 );
+
+-- Categoría fijada por el usuario en UN movimiento, distinta de la de su comercio (p. ej. una
+-- transferencia suelta). Se reaplica cada vez que la memoria de comercios reescribe movimientos.
+CREATE TABLE IF NOT EXISTS transaction_overrides (
+    transaction_id INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+    category       TEXT NOT NULL,
+    subcategory    TEXT,
+    flow_type      TEXT NOT NULL,
+    created_at     TEXT NOT NULL
+);

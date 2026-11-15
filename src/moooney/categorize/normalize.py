@@ -3,9 +3,12 @@
 clean_concept convierte el concepto libre del banco en una clave estable:
 la misma tienda, con distinto terminal o ciudad, debe dar la misma clave.
 Los nombres de personas en Bizum y transferencias se eliminan; la clave se
-queda en "BIZUM ENVIADO" o "TRANSFERENCIA A PARTICULAR".
+queda en "BIZUM ENVIADO" o "TRANSFERENCIA A PARTICULAR XXXX", donde XXXX es un
+código de cuatro letras derivado del nombre: cada destinatario tiene su clave
+(el casero, tu otra cuenta) sin que el nombre aparezca en ella.
 """
 
+import hashlib
 import re
 import unicodedata
 
@@ -113,10 +116,31 @@ def _primera_clave_de(resto: str) -> str:
     return head
 
 
+# Destinatario (enviadas) u ordenante (recibidas) de una transferencia del Santander:
+# lo que va entre «A FAVOR DE» / «DE» y la primera coma o la palabra CONCEPTO.
+_PARTY = re.compile(r"^TRANSFERENCIA(?: INMEDIATA| PERIODICA)? (?:A FAVOR DE|DE) (.+?)(?=,| CONCEPTO\b|$)")
+
+
+def _party_code(texto: str) -> str:
+    """' XXXX': código estable de la otra parte de una transferencia, o '' si no se reconoce.
+    Sale de un hash del nombre: distingue destinatarios sin que el nombre esté en la clave."""
+    m = _PARTY.match(texto)
+    nombre = _tokeniza(m.group(1)) if m else ""
+    if not nombre:
+        return ""
+    n = int.from_bytes(hashlib.sha256(nombre.encode("utf-8")).digest()[:4], "big")
+    letras = ""
+    for _ in range(4):
+        n, r = divmod(n, 26)
+        letras += chr(65 + r)
+    return " " + letras
+
+
 def _family_key(texto: str, original: str) -> str | None:
     """Claves fijas para familias estructurales del banco."""
     if texto.startswith("TRANSFERENCIA"):
-        sufijo = " AEAT" if _AEAT.search(original) else ""
+        # Hacienda conserva su clave única (la regla de AEAT casa con ella)
+        sufijo = " AEAT" if _AEAT.search(original) else _party_code(texto)
         if "HUCHA" in texto:
             return "TRASPASO HUCHA"
         if "A FAVOR DE" in texto or texto.startswith("TRANSFERENCIA ENVIADA"):

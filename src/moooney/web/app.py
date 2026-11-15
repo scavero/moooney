@@ -574,10 +574,23 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             accounts=repo.accounts(conn), tags=repo.tags_summary(conn),
             tags_by_id=repo.tags_for(conn, [int(t["id"]) for t in pg.rows]),
             day_groups=group_by_day(pg.rows), removed=repo.removed_transactions(conn),
+            own_category=repo.overrides_for(conn, [int(t["id"]) for t in pg.rows]),
         )
 
     def tx_back(nxt: str) -> RedirectResponse:
         return RedirectResponse(nxt if nxt.startswith("/transactions") else "/transactions", status_code=303)
+
+    @app.post("/transactions/{tx_id}/category")
+    def tx_category(conn: DB, tx_id: int, category: Annotated[str, Form()] = "",
+                    next: Annotated[str, Form()] = ""):  # noqa: A002
+        """Categoría de ese movimiento nada más; vacía, vuelve a la de su comercio."""
+        try:
+            found = service.set_transaction_category(conn, taxonomy(), tx_id, category)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        if not found:
+            raise HTTPException(status_code=404, detail="movimiento no encontrado")
+        return tx_back(next)
 
     @app.post("/transactions/{tx_id}/remove")
     def tx_remove(conn: DB, tx_id: int, reason: Annotated[str, Form()] = "",

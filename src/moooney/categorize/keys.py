@@ -49,24 +49,36 @@ def rebuild_clean_keys(conn: sqlite3.Connection) -> tuple[int, int]:
 
     Si una clave antigua tenía entrada en merchants y la nueva no, se copia la
     entrada (fuente y confianza incluidas): las correcciones del usuario no se
-    pierden por renombrar la clave. Devuelve (filas_cambiadas, claves_migradas).
+    pierden por renombrar la clave. Si la clave antigua se divide en varias (una
+    por destinatario de transferencia), no se copia: lo que valía para la mezcla
+    no vale para cada parte, y la cascada las vuelve a decidir.
+    Devuelve (filas_cambiadas, claves_migradas).
     """
     rows = conn.execute("SELECT id, concept, concept_clean FROM transactions").fetchall()
     cambios: list[tuple[str, int]] = []
-    renombres: dict[str, str] = {}
+    renombres: dict[str, set[str]] = {}
     for r in rows:
         nueva = clean_concept(r["concept"])
         if nueva != r["concept_clean"]:
             cambios.append((nueva, r["id"]))
             if r["concept_clean"]:
-                renombres.setdefault(r["concept_clean"], nueva)
+                renombres.setdefault(r["concept_clean"], set()).add(nueva)
     migradas = 0
     with conn:
         conn.executemany("UPDATE transactions SET concept_clean = ? WHERE id = ?", cambios)
-        for vieja, nueva in renombres.items():
+        for vieja, nuevas in renombres.items():
             old = conn.execute("SELECT * FROM merchants WHERE key = ?", (vieja,)).fetchone()
             if old is None:
                 continue
+            if len(nuevas) > 1:  # se divide: que la cascada decida cada parte
+                marks = ",".join("?" for _ in nuevas)
+                conn.execute(
+                    "UPDATE transactions SET category = NULL, subcategory = NULL, flow_type = NULL,"
+                    f" confidence = NULL WHERE concept_clean IN ({marks})",
+                    sorted(nuevas),
+                )
+                continue
+            [nueva] = nuevas
             existe = conn.execute("SELECT 1 FROM merchants WHERE key = ?", (nueva,)).fetchone()
             if existe is None:
                 conn.execute(
@@ -90,6 +102,9 @@ def rebuild_clean_keys(conn: sqlite3.Connection) -> tuple[int, int]:
         conn.execute(
             "DELETE FROM merchant_embeddings WHERE key NOT IN (SELECT key FROM merchants)"
         )
+    from moooney.db import repo
+
+    repo.apply_overrides(conn)  # lo que el usuario fijó en un movimiento suelto no se toca
     return len(cambios), migradas
 
 
