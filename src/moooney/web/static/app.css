@@ -303,7 +303,7 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .tx-table td.col-amount { font-size: 15px; }
 .tx-table td.col-balance { color: var(--ink-3); font-size: 13px; }
 .tx-table .name { font-weight: 500; }
-.tx-table .raw { color: var(--ink-3); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+.tx-table .raw { color: var(--ink-3); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: clamp(160px, 20vw, 520px); } /* cede ancho a la columna Categoría en pantallas medianas */
 /* marca de categoría dudosa: punto ámbar (o coral si la confianza es < 0,5) y texto de aviso */
 .doubt, .flag { color: var(--warn-ink); font-weight: 700; font-size: 13px; }
 .doubt::before, .flag::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 6px; vertical-align: middle; }

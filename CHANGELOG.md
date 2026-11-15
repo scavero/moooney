@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.17.1 · 2026-11-15
+
+- **Movimientos en pantallas medianas**: la columna Categoría se quedaba en 87 px (hacia 1.000 px de
+  ancho) y el desplegable salía cortado; ahora el concepto cede ancho y la categoría se lee.
+
 ## 1.17.0 · 2026-11-15
 
 - **Subcategoría en el mismo desplegable**: en Comercios y en Movimientos la categoría y la subcategoría
