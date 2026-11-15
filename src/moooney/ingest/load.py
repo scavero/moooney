@@ -59,7 +59,7 @@ def dedup_key(account: str, iso_date: str, amount: float, concept: str, balance:
 def _existing_count(conn, key: tuple) -> int:
     if key[0] == "saldo":
         _, account, d, amount, balance, concept = key
-        sql = ("SELECT COUNT(*) FROM transactions WHERE account = ? AND date = ? AND ROUND(amount, 2) = ?"
+        sql = ("SELECT COUNT(*) FROM {t} WHERE account = ? AND date = ? AND ROUND(amount, 2) = ?"
                " AND ROUND(balance, 2) = ?")
         args: list = [account, d, amount, balance]
         if amount == 0:
@@ -67,10 +67,11 @@ def _existing_count(conn, key: tuple) -> int:
             args.append(concept)
     else:
         _, account, d, amount, concept = key
-        sql = ("SELECT COUNT(*) FROM transactions WHERE account = ? AND date = ? AND ROUND(amount, 2) = ?"
+        sql = ("SELECT COUNT(*) FROM {t} WHERE account = ? AND date = ? AND ROUND(amount, 2) = ?"
                " AND balance IS NULL AND concept = ?")
         args = [account, d, amount, concept]
-    return conn.execute(sql, args).fetchone()[0]
+    # los apartados (borrados o duplicados) también cuentan: reimportar el extracto no los devuelve
+    return sum(conn.execute(sql.format(t=t), args).fetchone()[0] for t in ("transactions", "transactions_removed"))
 
 
 def select_new_rows(conn, rows: list[dict]) -> list[dict]:

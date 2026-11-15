@@ -573,8 +573,27 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             totals=queries.transactions_totals(conn, **filters), taxonomy=taxonomy(),
             accounts=repo.accounts(conn), tags=repo.tags_summary(conn),
             tags_by_id=repo.tags_for(conn, [int(t["id"]) for t in pg.rows]),
-            day_groups=group_by_day(pg.rows),
+            day_groups=group_by_day(pg.rows), removed=repo.removed_transactions(conn),
         )
+
+    def tx_back(nxt: str) -> RedirectResponse:
+        return RedirectResponse(nxt if nxt.startswith("/transactions") else "/transactions", status_code=303)
+
+    @app.post("/transactions/{tx_id}/remove")
+    def tx_remove(conn: DB, tx_id: int, reason: Annotated[str, Form()] = "",
+                  next: Annotated[str, Form()] = ""):  # noqa: A002
+        """Aparta un movimiento (borrado o duplicado): deja de contar y no vuelve al reimportar."""
+        if reason not in repo.REMOVE_REASONS:
+            raise HTTPException(status_code=400, detail="motivo no válido")
+        if not repo.remove_transaction(conn, tx_id, reason, now=datetime.now().isoformat(timespec="seconds")):
+            raise HTTPException(status_code=404, detail="movimiento no encontrado")
+        return tx_back(next)
+
+    @app.post("/transactions/removed/{removed_id}/restore")
+    def tx_restore(conn: DB, removed_id: int, next: Annotated[str, Form()] = ""):  # noqa: A002
+        if not repo.restore_transaction(conn, removed_id):
+            raise HTTPException(status_code=404, detail="movimiento no encontrado")
+        return tx_back(next)
 
     def _tags_cell(request: Request, conn: sqlite3.Connection, tx_id: int):
         return templates.TemplateResponse(

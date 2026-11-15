@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.14.0 · 2026-11-15
+
+- **Movimientos**: cada movimiento se puede **borrar** o **marcar como duplicado** desde su botón
+  «···». Deja de contar en todo (resumen, presupuestos, avisos, exportación) y no vuelve aunque
+  reimportes el extracto. Los apartados se listan al pie de Movimientos y se pueden restaurar.
+- **Asistente**: el autocompletado completa lo que escribes en vez de reformularlo (prompt nuevo
+  con reglas y ejemplos para el modelo ligero).
+
 ## 1.13.4 · 2026-11-15
 
 - **Asistente**: el autocompletado aparece más a menudo. El modelo ligero suele corregir acentos y

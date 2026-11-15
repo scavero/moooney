@@ -58,7 +58,7 @@
   </div>
   {% endif %}
   {% if shared %}<div class="concept" style="margin-bottom:8px">{% if shared == 'review' %}Bizums y transferencias recibidos con un gasto tuyo mayor poco antes. Di de qué gasto es cada uno, o que no es una devolución.{% else %}Gastos que pagaste tú y lo que te devolvieron: el gasto cuenta neto y la devolución no cuenta como ingreso. Los totales de arriba ya lo descuentan.{% endif %}</div>{% endif %}
-  <div class="concept" style="margin-bottom:8px">Cambiar la categoría de una fila corrige el comercio en todos sus movimientos. El botón «···» abre flujo, origen, etiquetas, cuenta y gastos compartidos.</div>
+  <div class="concept" style="margin-bottom:8px">Cambiar la categoría de una fila corrige el comercio en todos sus movimientos. El botón «···» abre flujo, origen, etiquetas, cuenta y gastos compartidos, y permite borrar el movimiento o marcarlo como duplicado.</div>
   <div class="scroll-x">
   <table class="tx-table">
     <tr><th>Concepto</th><th style="width:220px">Categoría</th><th class="num">Importe</th><th class="num col-balance">Saldo</th><th style="width:40px"></th></tr>
@@ -98,6 +98,14 @@
           <dt>Origen</dt><dd>{% if t.source %}<span class="conf {{ 'low' if conf < 0.5 else 'mid' if conf < 0.7 else '' }}" title="confianza {{ '%.2f'|format(conf) }}"><i><b style="width:{{ (conf * 100)|round|int }}%"></b></i>{{ SOURCE_LABEL.get(t.source, t.source) }} · confianza {{ '%.2f'|format(conf)|replace('.', ',') }}</span>{% else %}sin categorizar{% endif %}</dd>
           {% if is_shared %}<dt>Compartido</dt><dd>{% include "partials/shared_cell.html" %}</dd>{% endif %}
           <dt>Etiquetas</dt><dd>{% with tx_id=t.id, tags=row_tags %}{% include "partials/tags_cell.html" %}{% endwith %}</dd>
+          <dt>Quitar</dt><dd>
+            <form method="post" action="/transactions/{{ t.id }}/remove" style="display:flex;gap:var(--s2);flex-wrap:wrap"
+                  hx-confirm="¿Quitar este movimiento? Deja de contar en todo y no vuelve aunque reimportes el extracto. Se puede restaurar al final de la página.">
+              <input type="hidden" name="next" value="{{ next_url }}">
+              <button class="btn ghost" type="submit" name="reason" value="duplicado" {{ 'disabled' if snapshot else '' }}>Es un duplicado</button>
+              <button class="btn danger" type="submit" name="reason" value="borrado" {{ 'disabled' if snapshot else '' }}>Borrar</button>
+            </form>
+          </dd>
         </dl>
       </td>
     </tr>
@@ -111,6 +119,25 @@
     {% if page.has_prev %}<a class="btn ghost" href="{{ base }}&page={{ page.page - 1 }}" aria-label="página anterior">‹ Anterior</a>{% endif %}
     {% if page.has_next %}<a class="btn ghost" href="{{ base }}&page={{ page.page + 1 }}" aria-label="página siguiente">Siguiente ›</a>{% endif %}
   </div>
+  {% if removed %}
+  <details class="section" id="apartados">
+    <summary>{{ removed|length }} movimiento{{ 's' if removed|length != 1 else '' }} apartado{{ 's' if removed|length != 1 else '' }} (borrados o duplicados): no cuentan en nada</summary>
+    <div class="scroll-x">
+    <table class="tx-table">
+      <tr><th>Concepto</th><th>Fecha</th><th>Motivo</th><th class="num">Importe</th><th></th></tr>
+      {% for r in removed %}
+      <tr>
+        <td style="min-width:0"><span class="name">{{ r.concept_clean or r.concept }}</span><div class="raw" title="{{ r.concept }}">{{ r.concept }}</div></td>
+        <td>{{ r.date }}</td>
+        <td>{{ r.reason }}</td>
+        <td class="num col-amount {{ 'inc' if r.amount > 0 else 'exp' }}">{{ r.amount|eur(2) }}</td>
+        <td><form method="post" action="/transactions/removed/{{ r.id }}/restore"><input type="hidden" name="next" value="{{ next_url }}"><button class="btn ghost" type="submit" {{ 'disabled' if snapshot else '' }}>Restaurar</button></form></td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </details>
+  {% endif %}
   {% if tags and not tag %}
   <div class="concept" style="margin-top:16px">Etiquetas: {% for g in tags %}<a class="chip small ghost" href="/transactions?tag={{ g.tag|urlencode }}">{{ g.tag }} · {{ g.n }} · {{ g.total|eur }}</a> {% endfor %}</div>
   {% endif %}

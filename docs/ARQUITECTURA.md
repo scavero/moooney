@@ -197,6 +197,7 @@ flowchart TB
         T13[(reimbursements)]
         T14[(goals)]
         T15[(chat_messages)]
+        T16[(transactions_removed)]
     end
 
     BK[("data/backups/<br/>copias de la base")]

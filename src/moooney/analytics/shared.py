@@ -120,12 +120,7 @@ def unlink(conn: sqlite3.Connection, income_id: int) -> None:
     """Deshace el vínculo: el ingreso vuelve a la categoría de su comercio."""
     with conn:
         conn.execute("DELETE FROM reimbursements WHERE income_id = ?", (income_id,))
-        conn.execute(
-            """UPDATE transactions SET category = m.category, subcategory = m.subcategory,
-                   flow_type = m.flow_type, confidence = m.confidence
-               FROM merchants m WHERE m.key = transactions.concept_clean AND transactions.id = ?""",
-            (income_id,),
-        )
+        repo.category_from_merchant(conn, income_id)
 
 
 def dismiss(conn: sqlite3.Connection, income_id: int) -> None:

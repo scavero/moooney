@@ -182,3 +182,26 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     error       INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL
 );
+
+-- Movimientos que el usuario ha apartado: borrados o marcados como duplicados. Salen de
+-- transactions para que ninguna cuenta los vea, pero se guardan enteros: así la carga los sigue
+-- reconociendo (reimportar el extracto no los devuelve) y se pueden restaurar.
+CREATE TABLE IF NOT EXISTS transactions_removed (
+    id            INTEGER PRIMARY KEY,
+    fingerprint   TEXT NOT NULL UNIQUE,
+    date          TEXT NOT NULL,
+    value_date    TEXT,
+    concept       TEXT NOT NULL,
+    concept_clean TEXT,
+    amount        REAL NOT NULL,
+    balance       REAL,
+    account       TEXT NOT NULL,
+    flow_type     TEXT,
+    category      TEXT,
+    subcategory   TEXT,
+    confidence    REAL,
+    import_id     INTEGER,
+    created_at    TEXT NOT NULL,
+    reason        TEXT NOT NULL,          -- borrado | duplicado
+    removed_at    TEXT NOT NULL
+);

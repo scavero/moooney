@@ -95,6 +95,67 @@ def insert_transactions(
     return inserted
 
 
+# ---------- movimientos apartados (borrados o duplicados) ----------
+
+REMOVE_REASONS = ("borrado", "duplicado")
+_TX_COLS = ("fingerprint, date, value_date, concept, concept_clean, amount, balance, account, flow_type,"
+            " category, subcategory, confidence, import_id, created_at")
+
+
+def category_from_merchant(conn: sqlite3.Connection, tx_id: int) -> None:
+    """El movimiento vuelve a la categoría de su comercio (no confirma: lo hace quien llama)."""
+    conn.execute(
+        """UPDATE transactions SET category = m.category, subcategory = m.subcategory,
+               flow_type = m.flow_type, confidence = m.confidence
+           FROM merchants m WHERE m.key = transactions.concept_clean AND transactions.id = ?""",
+        (tx_id,),
+    )
+
+
+def remove_transaction(conn: sqlite3.Connection, tx_id: int, reason: str, *, now: str) -> bool:
+    """Aparta un movimiento: deja de contar en todo, pero se guarda en transactions_removed para
+    que reimportar el extracto no lo devuelva y para poder restaurarlo. False si no existe."""
+    if reason not in REMOVE_REASONS:
+        raise ValueError("motivo no válido")
+    with conn:
+        cur = conn.execute(
+            f"INSERT INTO transactions_removed ({_TX_COLS}, reason, removed_at)"
+            f" SELECT {_TX_COLS}, ?, ? FROM transactions WHERE id = ?",
+            (reason, now, tx_id),
+        )
+        if cur.rowcount == 0:
+            return False
+        # devoluciones emparejadas con este gasto: al borrarlo pierden el vínculo y vuelven a su comercio
+        incomes = [r[0] for r in conn.execute("SELECT income_id FROM reimbursements WHERE expense_id = ?", (tx_id,))]
+        conn.execute(
+            "DELETE FROM alerts WHERE transaction_id = ?"
+            " OR dedup_key LIKE ? OR dedup_key LIKE ?",
+            (tx_id, f"duplicate_charge|{tx_id}|%", f"duplicate_charge|%|{tx_id}"),
+        )
+        conn.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
+        for income_id in incomes:
+            category_from_merchant(conn, income_id)
+    return True
+
+
+def restore_transaction(conn: sqlite3.Connection, removed_id: int) -> bool:
+    """Devuelve un movimiento apartado a transactions, con la categoría actual de su comercio."""
+    with conn:
+        cur = conn.execute(
+            f"INSERT OR IGNORE INTO transactions ({_TX_COLS}) SELECT {_TX_COLS} FROM transactions_removed WHERE id = ?",
+            (removed_id,),
+        )
+        if cur.rowcount == 0:
+            return False
+        conn.execute("DELETE FROM transactions_removed WHERE id = ?", (removed_id,))
+        category_from_merchant(conn, int(cur.lastrowid))
+    return True
+
+
+def removed_transactions(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute("SELECT * FROM transactions_removed ORDER BY date DESC, id DESC").fetchall()
+
+
 # ---------- merchants (memoria de claves de comercio) ----------
 
 # Precedencia al recategorizar: user > rule > embedding > clef_web > clef > llm.
