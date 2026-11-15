@@ -117,9 +117,21 @@ def _ask_list(client: LLMClient, settings: LLMSettings, system: str, user: str, 
 
 
 COMPLETE_SYSTEM = (
-    "El usuario está escribiendo un mensaje para su asistente de finanzas personales. Complétalo: propón {n} "
-    "mensajes completos y breves (menos de 80 caracteres) que empiecen exactamente por lo que ya ha escrito y "
-    "encajen con la conversación. En español, con la voz del usuario y distintos entre sí. "
+    "Eres el autocompletado de un asistente de finanzas personales. El usuario ha empezado a escribir un mensaje "
+    "y tú propones {n} formas de terminarlo. Reglas:\n"
+    "1. Cada propuesta copia tal cual lo que ya ha escrito, palabra por palabra y en el mismo orden, y sigue a "
+    "partir de ahí. No cambies, quites ni reordenes sus palabras, y no las sustituyas por sinónimos.\n"
+    "2. Si lo escrito acaba a media palabra, termina esa palabra y continúa.\n"
+    "3. No propongas otras preguntas distintas: solo finales para ESE comienzo. La conversación previa sirve "
+    "para elegir finales que encajen, nada más.\n"
+    "4. Son preguntas o peticiones del usuario al asistente, con su voz: nunca respuestas ni datos.\n"
+    "5. Mensajes completos, breves (menos de 80 caracteres), en español y distintos entre sí.\n"
+    "Ejemplo. Escrito: «compara oct». Respuesta: "
+    '{{"sugerencias": ["compara octubre con septiembre", "compara octubre con el año pasado", '
+    '"compara octubre y noviembre en ocio"]}}\n'
+    "Ejemplo. Escrito: «que recibos». Respuesta: "
+    '{{"sugerencias": ["que recibos han subido este año?", "que recibos pago cada mes?", '
+    '"que recibos puedo recortar?"]}}\n'
     'Devuelve solo JSON: {{"sugerencias": ["...", "..."]}}'
 )
 MIN_TYPED = 4
