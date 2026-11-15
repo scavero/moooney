@@ -1,3 +1,4 @@
+{% from "partials/cat_options.html" import cat_options %}
 {% set mconf = m.confidence if m.confidence is not none else 1 %}
 {% set mdoubt = m.source != 'user' and mconf < 0.7 %}
 <tr id="m-{{ m.key|replace(' ', '_') }}" class="{{ 'saved' if saved else '' }}">
@@ -14,19 +15,12 @@
   <td class="num">{{ m.n }}</td>
   <td class="num {{ 'pos' if m.total > 0 else '' }}">{{ m.total|eur(2) }}</td>
   <td>
-    {# El select guarda al cambiar: una corrección = un clic. El flujo va aparte y normalmente lo decide la categoría. #}
+    {# Un solo desplegable «Categoría → subcategoría» que guarda al cambiar. El flujo va aparte y normalmente lo decide la categoría. #}
     <form class="inline-form" hx-post="/merchants/{{ m.key|urlencode }}/category" hx-trigger="change" hx-target="closest tr" hx-swap="outerHTML" style="display:block">
-      <label for="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" style="position:absolute;left:-9999px">Categoría de {{ m.key }}</label>
-      <select id="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="category" class="quiet {{ 'doubt' if mdoubt and not saved else '' }}" style="width:100%;max-width:none">
-        {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == m.category else '' }}>{{ c }}</option>{% endfor %}
+      <label for="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" style="position:absolute;left:-9999px">Categoría y subcategoría de {{ m.key }}</label>
+      <select id="mc-{{ loop.index if loop is defined else m.key|replace(' ', '_') }}" name="category" class="quiet {{ 'doubt' if mdoubt and not saved else '' }}" style="width:100%;max-width:none;min-width:200px">
+        {{ cat_options(taxonomy, m.category, m.subcategory) }}
       </select>
-      {% set subs = taxonomy.categories[m.category].subcategories if m.category in taxonomy.categories else [] %}
-      {% if subs|length > 1 %}
-      <select name="subcategory" class="quiet muted" aria-label="Subcategoría de {{ m.key }}" style="width:100%;max-width:none">
-        <option value="">sin subcategoría</option>
-        {% for s in subs %}<option value="{{ s }}" {{ 'selected' if s == m.subcategory else '' }}>{{ s }}</option>{% endfor %}
-      </select>
-      {% endif %}
     </form>
   </td>
   <td>

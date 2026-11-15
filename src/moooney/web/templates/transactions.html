@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/cat_options.html" import cat_options %}
 {% block title %}Movimientos{% endblock %}
 {% block content %}
 <div class="topbar">
@@ -64,7 +65,7 @@
   <div class="concept" style="margin-bottom:8px">Cambiar la categoría de una fila corrige el comercio en todos sus movimientos. El botón «···» abre flujo, origen, etiquetas, cuenta y gastos compartidos, y permite cambiar la categoría de ese movimiento nada más, borrarlo o marcarlo como duplicado.</div>
   <div class="scroll-x">
   <table class="tx-table">
-    <tr><th>Concepto</th><th style="width:220px">Categoría</th><th class="num">Importe</th><th class="num col-balance">Saldo</th><th style="width:40px"></th></tr>
+    <tr><th>Concepto</th><th style="width:340px">Categoría</th><th class="num">Importe</th><th class="num col-balance">Saldo</th><th style="width:40px"></th></tr>
     {% for g in day_groups %}
     <tr class="day-row"><td colspan="5"><span class="day-name" title="{{ g.date }}">{{ g.date|fecha_larga }}</span><span class="day-sum">{{ g.rows|length }} movimiento{{ 's' if g.rows|length != 1 else '' }} · {{ '%+.2f'|format(g.total)|replace('.', ',') }} €</span></td></tr>
     {% for t in g.rows %}
@@ -82,9 +83,9 @@
         {# Corrige la memoria del comercio para todos sus movimientos; la respuesta (fila de comercio) se descarta y se avisa con un toast. #}
         <form hx-post="/merchants/{{ t.concept_clean|urlencode }}/category" hx-trigger="change" hx-swap="none"
               hx-on::after-request="document.getElementById('toast').innerHTML='<div class=toast>{{ t.concept_clean }} corregido para todos sus movimientos</div>'; setTimeout(() => document.getElementById('toast').innerHTML = '', 2600)">
-          <label for="cat-{{ t.id }}" style="position:absolute;left:-9999px">Categoría de {{ t.concept_clean }}</label>
+          <label for="cat-{{ t.id }}" style="position:absolute;left:-9999px">Categoría y subcategoría de {{ t.concept_clean }}</label>
           <select id="cat-{{ t.id }}" name="category" class="quiet {{ 'doubt' if doubt else '' }}" style="width:100%">
-            {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if c == t.category else '' }}>{{ c }}</option>{% endfor %}
+            {{ cat_options(taxonomy, t.category, t.subcategory) }}
           </select>
         </form>
       </td>
@@ -107,7 +108,7 @@
               <label for="own-{{ t.id }}" style="position:absolute;left:-9999px">Categoría solo de este movimiento</label>
               <select id="own-{{ t.id }}" name="category" onchange="this.form.requestSubmit()" {{ 'disabled' if snapshot else '' }}>
                 <option value="">La de su comercio</option>
-                {% for c in taxonomy.categories %}<option value="{{ c }}" {{ 'selected' if t.id in own_category and c == t.category else '' }}>{{ c }}</option>{% endfor %}
+                {{ cat_options(taxonomy, t.category if t.id in own_category else none, t.subcategory) }}
               </select>
               <span class="concept">Cambia la categoría de este movimiento sin tocar los demás del mismo comercio.</span>
             </form>

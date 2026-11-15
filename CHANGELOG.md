@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.17.0 · 2026-11-15
+
+- **Subcategoría en el mismo desplegable**: en Comercios y en Movimientos la categoría y la subcategoría
+  se eligen juntas («Vivienda → alquiler»), en un solo desplegable agrupado por categoría. Antes la
+  subcategoría era un segundo desplegable gris en Comercios y no se veía ni se podía cambiar en
+  Movimientos. «Solo este» también admite subcategoría.
+
 ## 1.16.1 · 2026-11-15
 
 - **Posibles duplicados**: preguntar al modelo «¿es un duplicado?» daba «sí» en casi todos los grupos.

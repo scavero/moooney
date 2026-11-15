@@ -1,0 +1,10 @@
+{# Opciones de un único desplegable «Categoría → subcategoría». El valor es "Categoría|subcategoría";
+   la categoría sola solo aparece si es lo que hay ahora (comercio sin subcategoría). #}
+{% macro cat_options(taxonomy, category, subcategory) %}
+{% for c, spec in taxonomy.categories.items() %}
+<optgroup label="{{ c }}">
+  {% if c == category and subcategory not in spec.subcategories %}<option value="{{ c }}" selected>{{ c }} (sin subcategoría)</option>{% endif %}
+  {% for s in spec.subcategories %}<option value="{{ c }}|{{ s }}" {{ 'selected' if c == category and s == subcategory else '' }}>{{ c }} → {{ s }}</option>{% endfor %}
+</optgroup>
+{% endfor %}
+{% endmacro %}

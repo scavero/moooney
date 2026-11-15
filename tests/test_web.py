@@ -82,6 +82,10 @@ def test_correccion_de_categoria_aplica_a_movimientos(client):
     assert 'value="Compras" selected' in r.text and 'value="Otros" selected' not in r.text
     r = client.post("/merchants/TIENDA RARA XYZ/category", data={"category": "NoExiste"})
     assert r.status_code == 400
+    # categoría y subcategoría van juntas en un solo desplegable, en Comercios y en Movimientos
+    r = client.post("/merchants/TIENDA RARA XYZ/category", data={"category": "Compras|online"})
+    assert 'value="Compras|online" selected' in r.text and 'name="subcategory"' not in r.text
+    assert 'value="Compras|online" selected' in client.get("/transactions?key=TIENDA%20RARA%20XYZ").text
 
 
 def test_presupuestos_proponer_y_fijar(client):
