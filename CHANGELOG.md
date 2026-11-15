@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.15.1 · 2026-11-15
+
+- **Transferencias**: al reconstruir claves, cada clave nueva por destinatario hereda la categoría
+  que tenía la clave mezclada, también si la habías corregido tú. Así reconstruir no cambia ningún
+  total; después afinas cada destinatario. (En la 1.15.0 se perdía esa corrección.)
+
 ## 1.15.0 · 2026-11-15
 
 - **Transferencias**: cada destinatario (y cada ordenante) tiene ahora su propia clave de comercio,

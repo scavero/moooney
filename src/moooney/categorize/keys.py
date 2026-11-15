@@ -50,8 +50,8 @@ def rebuild_clean_keys(conn: sqlite3.Connection) -> tuple[int, int]:
     Si una clave antigua tenía entrada en merchants y la nueva no, se copia la
     entrada (fuente y confianza incluidas): las correcciones del usuario no se
     pierden por renombrar la clave. Si la clave antigua se divide en varias (una
-    por destinatario de transferencia), no se copia: lo que valía para la mezcla
-    no vale para cada parte, y la cascada las vuelve a decidir.
+    por destinatario de transferencia), todas heredan la entrada: nada cambia de
+    categoría al reconstruir y el usuario afina después cada parte.
     Devuelve (filas_cambiadas, claves_migradas).
     """
     rows = conn.execute("SELECT id, concept, concept_clean FROM transactions").fetchall()
@@ -70,29 +70,21 @@ def rebuild_clean_keys(conn: sqlite3.Connection) -> tuple[int, int]:
             old = conn.execute("SELECT * FROM merchants WHERE key = ?", (vieja,)).fetchone()
             if old is None:
                 continue
-            if len(nuevas) > 1:  # se divide: que la cascada decida cada parte
-                marks = ",".join("?" for _ in nuevas)
+            for nueva in sorted(nuevas):
+                existe = conn.execute("SELECT 1 FROM merchants WHERE key = ?", (nueva,)).fetchone()
+                if existe is None:
+                    conn.execute(
+                        "INSERT INTO merchants (key, category, subcategory, flow_type, source,"
+                        " confidence, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (nueva, old["category"], old["subcategory"], old["flow_type"],
+                         old["source"], old["confidence"], old["updated_at"]),
+                    )
+                    migradas += 1
                 conn.execute(
-                    "UPDATE transactions SET category = NULL, subcategory = NULL, flow_type = NULL,"
-                    f" confidence = NULL WHERE concept_clean IN ({marks})",
-                    sorted(nuevas),
+                    "UPDATE transactions SET category = ?, subcategory = ?, flow_type = ?,"
+                    " confidence = ? WHERE concept_clean = ? AND category IS NULL",
+                    (old["category"], old["subcategory"], old["flow_type"], old["confidence"], nueva),
                 )
-                continue
-            [nueva] = nuevas
-            existe = conn.execute("SELECT 1 FROM merchants WHERE key = ?", (nueva,)).fetchone()
-            if existe is None:
-                conn.execute(
-                    "INSERT INTO merchants (key, category, subcategory, flow_type, source,"
-                    " confidence, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (nueva, old["category"], old["subcategory"], old["flow_type"],
-                     old["source"], old["confidence"], old["updated_at"]),
-                )
-                migradas += 1
-            conn.execute(
-                "UPDATE transactions SET category = ?, subcategory = ?, flow_type = ?,"
-                " confidence = ? WHERE concept_clean = ? AND category IS NULL",
-                (old["category"], old["subcategory"], old["flow_type"], old["confidence"], nueva),
-            )
         # Entradas de memoria cuya clave ya no usa ninguna transaccion: fuera.
         # Las de source=user ya se copiaron a la clave nueva en el bucle anterior.
         conn.execute(

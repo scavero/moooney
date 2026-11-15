@@ -53,12 +53,12 @@ def test_reconstruir_claves_divide_las_transferencias_por_destinatario(tmp_path)
     ahorro = conn.execute("SELECT id FROM transactions WHERE amount = -200").fetchone()[0]
     repo.set_override(conn, ahorro, category="Transferencias", subcategory=None, flow_type="transfer_internal", now="t")
     cambiadas, migradas = rebuild_clean_keys(conn)
-    assert (cambiadas, migradas) == (3, 0)
+    assert (cambiadas, migradas) == (3, 2)
     claves = [r[0] for r in conn.execute("SELECT DISTINCT concept_clean FROM transactions ORDER BY 1")]
     assert len(claves) == 2 and all(k.startswith("TRANSFERENCIA A PARTICULAR ") for k in claves)
-    # la corrección de la mezcla no se hereda: las del casero quedan pendientes para la cascada
-    assert conn.execute("SELECT COUNT(*) FROM merchants").fetchone()[0] == 0
-    assert conn.execute("SELECT COUNT(*) FROM transactions WHERE category IS NULL").fetchone()[0] == 2
+    # las dos claves heredan la corrección del usuario: reconstruir no cambia ninguna categoría
+    assert [tuple(r) for r in conn.execute("SELECT category, source FROM merchants")] == [("Vivienda", "user")] * 2
+    assert conn.execute("SELECT COUNT(*) FROM transactions WHERE category = 'Vivienda'").fetchone()[0] == 2
     assert _cat(conn, ahorro) == ("Transferencias", "transfer_internal")  # la categoría propia se respeta
 
 
