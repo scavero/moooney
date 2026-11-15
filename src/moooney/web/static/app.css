@@ -239,33 +239,22 @@ details summary { cursor: pointer; color: var(--dominant); }
 .pill.soft { background: rgba(255, 255, 255, .16); color: var(--side-strong); }
 
 /* ---------- resumen: primero la respuesta ---------- */
-.verdict-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: var(--s3); }
-.verdict-actions .btn strong { font-weight: 800; }
-.verdict-actions .btn.warn { border-color: var(--warn); color: var(--warn-ink); background: var(--warn-bg); }
-.verdict-actions .btn.crit { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
 .verdict-main { display: flex; align-items: center; gap: var(--s5); flex-wrap: wrap; margin-bottom: var(--s3); }
 .verdict-figure { font-family: var(--font-display); font-weight: 300; font-size: 84px; line-height: 1; letter-spacing: -.03em; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .verdict-text { font-size: 22px; font-weight: 400; line-height: 1.35; max-width: 560px; text-wrap: balance; margin: 0; }
 .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--s3); padding: 20px 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
-.kpi-row .label { color: var(--ink-2); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
+.kpi-row .label, .verdict-label { color: var(--ink-2); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
 .kpi-row .value { font-family: var(--font-display); font-weight: 500; font-size: 30px; letter-spacing: -.01em; line-height: 1.1; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .kpi-row .hint { color: var(--ink-3); font-size: 13px; margin-top: 4px; font-weight: 400; }
 
-/* ---------- diagnóstico como lista: etiqueta, texto y los euros a la derecha ---------- */
-.diag-list .row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: var(--s3); align-items: start;
+/* ---------- «Para mirar»: etiqueta y texto ---------- */
+.diag-list .row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--s3); align-items: start;
   padding: var(--s2) 0; border-bottom: 1px solid var(--hair); }
 .diag-list .row:hover { background: var(--tint); }
-.diag-list .body { display: flex; gap: var(--s2); align-items: flex-start; }
-.diag-list .tag { min-width: 52px; text-align: center; margin-top: 2px; }
+.diag-list .tag { text-align: center; margin-top: 2px; }
 .diag-list .title { font-weight: 700; }
 .diag-list .detail { color: var(--ink-3); font-size: 14px; margin-top: 2px; }
 .diag-list .detail a { display: inline-block; margin-top: 6px; font-size: 14px; font-weight: 700; }
-.diag-list .impact-col { text-align: right; }
-.diag-list .impact-col .impact { font-size: 26px; }
-.diag-list details summary { list-style: none; font-weight: 700; font-size: 14px; margin-top: var(--s2); }
-.diag-list details summary::-webkit-details-marker { display: none; }
-.potential { color: var(--ink-2); font-size: 14px; }
-.potential .impact { margin-left: 4px; font-size: 20px; }
 
 /* ---------- confianza como barra ---------- */
 .conf { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
@@ -282,7 +271,8 @@ details summary { cursor: pointer; color: var(--dominant); }
 .chips .chip { background: var(--dominant); color: var(--on-dominant); } /* filtros activos: se ven como quitables */
 .chips .chip:hover { text-decoration: none; background: var(--dominant-ink); }
 .filters .pager { margin: 0 0 0 auto; }
-.filters-toggle { display: none; }
+.filters-toggle { order: 9; }  /* al final de la fila en escritorio */
+.filters:not(.open) .extra { display: none; }
 [hidden] { display: none !important; }  /* «Mostrar más» oculta filas aunque la tabla sea una rejilla en móvil */
 .show-more { display: block; padding: 0; margin-top: var(--s1); }
 .link-btn { font: inherit; font-weight: 700; font-size: 14px; border: 0; background: transparent; color: var(--dominant);
@@ -394,16 +384,6 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .alert-table td.when { white-space: nowrap; color: var(--ink-2); font-weight: 400; }
 .alert-table .tag { min-width: 56px; text-align: center; }
 .alert-table tr.seen td, .alert-table tr.seen a { color: var(--ink-3); }
-
-/* ---------- pipeline: stepper ---------- */
-.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); border-top: 1px solid var(--hair);
-  border-bottom: 1px solid var(--hair); margin-bottom: var(--s6); }
-.steps .step { padding: 20px 20px 20px 0; border-right: 1px solid var(--hair); margin-right: 20px; min-width: 0; }
-.steps .step:last-child { border-right: 0; }
-.steps .num { font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--dominant); }
-.steps .step.todo .num { color: var(--warn-ink); }
-.steps .label { font-weight: 700; } .steps .hint { color: var(--ink-3); font-size: 13px; margin: 2px 0 12px; }
-.steps .btn { white-space: nowrap; }
 
 /* ---------- trabajos en marcha: etapa, qué hace ahora, progreso ---------- */
 .job { margin-bottom: var(--s3); scroll-margin-top: var(--s2); }
@@ -539,10 +519,7 @@ th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
 
 /* ---------- estrecho: reglas que deben ir después de sus bases ---------- */
 @media (max-width: 1000px) {
-  .diag-list .row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-  .diag-list .impact-col { text-align: left; padding-left: 68px; }
-  .diag-list .impact-col .impact { font-size: 20px; }
-  .diag-list .impact-col .concept { display: inline; margin-left: 4px; }
+  .diag-list .row { grid-template-columns: minmax(0, 1fr); gap: 4px; } .diag-list .tag { justify-self: start; }
 }
 
 /* ---------- móvil: barra inferior, menú en hoja y ajustes de página ---------- */
@@ -580,7 +557,7 @@ th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
   .filters select { width: 100%; min-width: 0; }
   .filters select:only-of-type { grid-column: 1 / -1; }
   /* con el botón «Filtros», todo menos el buscador se pliega */
-  .filters-toggle { display: inline-flex; grid-column: 1 / -1; }
+  .filters-toggle { order: 0; grid-column: 1 / -1; }
   .filters:has(.filters-toggle):not(.open) form > :not(input[type=search]):not(.filters-toggle) { display: none; }
   .filters .pager { grid-column: 1 / -1; margin: 0; justify-content: space-between; }
   .month-nav select { flex: 1 1 auto; min-width: 0; }

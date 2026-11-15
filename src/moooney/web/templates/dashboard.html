@@ -5,28 +5,45 @@
 <div class="topbar">
   <div>
     <h1 style="text-transform:capitalize">{{ month|mes }}</h1>
-    <div class="subtitle">{% if not s.full_month %}A día <strong>{{ day }} de {{ days_in_month }}</strong> · {% else %}Mes cerrado · {% endif %}{{ s.n_tx }} movimientos · ¿a dónde se va el dinero?</div>
+    <div class="subtitle">{% if not s.full_month %}A día <strong>{{ day }} de {{ days_in_month }}</strong>{% else %}Mes cerrado{% endif %} · {{ s.n_tx }} movimientos</div>
   </div>
   {% include "partials/period_nav.html" %}
 </div>
 
+{# Con el mes en curso la cifra grande es la previsión de fin de mes: lo ahorrado hasta hoy engaña (nómina cobrada, medio mes por pagar). #}
+{% set fig = fme.net if fme else s.net %}
 <div class="verdict section">
   <div class="verdict-main">
-    <div class="verdict-figure {{ 'pos' if s.net >= 0 else 'neg' }}">{{ ('+' if s.net > 0 else '') ~ (s.net|eur) }}</div>
+    <div>
+      <div class="verdict-label">{{ 'Previsión a fin de mes' if fme else 'Ahorro del mes' if s.full_month else 'Ahorro hasta hoy' }}</div>
+      <div class="verdict-figure {{ 'pos' if fig >= 0 else 'neg' }}">{{ ('+' if fig > 0 else '') ~ (fig|eur) }}</div>
+    </div>
     <p class="verdict-text">{{ verdict }}</p>
   </div>
-  <div class="verdict-actions">
-    <a class="btn {{ 'warn' if merchants_counts.dudosas else 'ghost' }}" href="/merchants?mode=dudosas"><strong>{{ merchants_counts.dudosas }}</strong> comercios por revisar</a>
-    <a class="btn {{ 'crit' if alerts_counts.critical else 'ghost' }}" href="/alerts"><strong>{{ alerts_counts.total }}</strong> alertas pendientes</a>
-    {% if fme %}<a class="btn ghost" href="/trends">Previsión a fin de mes <strong class="{{ 'pos' if fme.net >= 0 else 'neg' }}">{{ fme.net|eur }}</strong></a>{% endif %}
-  </div>
   <div class="kpi-row">
-    <div><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div><div class="hint">nómina y otros ingresos</div></div>
-    <div><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div><div class="hint">fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}</div></div>
-    <div><div class="label">Ahorro neto</div><div class="value">{{ s.net|eur }}</div><div class="hint">tasa {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
+    <div><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div><div class="hint">{% if fme and fme.income_pending > 0 %}de {{ fme.income|eur }} previstos{% else %}nómina y otros ingresos{% endif %}</div></div>
+    <div><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div><div class="hint">{% if fme %}de {{ fme.expenses|eur }} previstos a fin de mes{% else %}fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}{% endif %}</div></div>
+    <div><div class="label">{{ 'Ahorro neto' if s.full_month else 'Ahorro hasta hoy' }}</div><div class="value">{{ s.net|eur }}</div><div class="hint">tasa {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
     <div><div class="label">Saldo</div><div class="value">{{ balance|eur }}</div>{% if accounts|length > 1 %}<div class="hint">{% for a in accounts %}{{ a.account }} {{ a.last_balance|eur }}{{ ' · ' if not loop.last else '' }}{% endfor %}</div>{% endif %}</div>
-    <div><div class="label">Colchón</div><div class="value">{% if runway is not none %}{{ ('%.1f'|format(runway))|replace('.', ',') }} meses{% else %}—{% endif %}</div><div class="hint">de gasto medio, sin ingresos</div></div>
   </div>
+</div>
+
+{# Una sola lista con lo pendiente: alertas, comercios por revisar y hallazgos serios (para_mirar en app.py). #}
+<div class="card section">
+  <div class="topbar" style="margin-bottom:12px;align-items:baseline">
+    <h2 style="margin:0">Para mirar</h2>
+    <a href="/alerts" style="font-size:14px">Todos los avisos →</a>
+  </div>
+  {% if mirar %}
+  <div class="diag-list" data-more="4">
+    {% for x in mirar %}
+    <div class="row">
+      <span class="tag {{ x.tone }}">{{ {'crit': 'Importante', 'warn': 'Aviso', 'info': 'Dato'}[x.tone] }}</span>
+      <div><div class="title">{{ x.title }}</div><div class="detail">{{ x.detail }}{% if x.link %}<br><a href="{{ x.link }}">{{ x.go }} →</a>{% endif %}</div></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<div class="notice ok" style="margin:0"><strong>Nada pendiente.</strong> Cuando haya un aviso o un comercio por revisar, aparecerá aquí.</div>{% endif %}
 </div>
 
 {% set tx_filter = 'month=' ~ month %}
@@ -38,11 +55,11 @@
 <div class="grid two section">
   <div class="card">
     <h2 style="margin-bottom:4px">En qué se va</h2>
-    <div class="concept" style="margin-bottom:12px">Pulsa una categoría, en el anillo o en la lista, para verla sola: cambian el ritmo del mes, los comercios y los 12 meses. «Vs media» compara con {{ report.categories[0].n_prev_months if report.categories else 0 }} meses completos.</div>
+    <div class="concept" style="margin-bottom:12px">Pulsa una categoría para verla sola. «Vs media» compara con tu mes medio.</div>
     <div class="donut-box"><canvas id="chart-donut" role="img" aria-label="Reparto del gasto del mes por categoría"></canvas>
       <div class="donut-center"><div class="label" id="donut-label">Gasto</div><div class="value" id="donut-value">{{ s.expenses|eur }}</div><div class="hint" id="donut-hint"></div></div></div>
     <div class="scroll-x">
-    <table class="cat-legend">
+    <table class="cat-legend" data-more="8">
       <tr><th></th><th class="num">este mes</th><th class="num">vs media</th><th></th></tr>
       {% for c in report.categories %}
       <tr {% if c.amount > 0 %}data-cat-row="{{ c.category }}"{% endif %}>
@@ -83,114 +100,6 @@
 </div>
 {% include "partials/income_sources.html" %}
 
-<div class="card section">
-  <div class="topbar" style="margin-bottom:12px;align-items:baseline">
-    <h2 style="margin:0">Diagnóstico</h2>
-    <div class="potential">Ahorro potencial <strong class="impact">{{ potential|eur }}</strong> al mes · <a href="/trends">tendencias y previsión</a></div>
-  </div>
-  {% if insights %}
-  {% macro diag_row(i) %}
-    <div class="row">
-      <div class="body">
-        <span class="tag {{ i.tone }}">{{ {'ok': 'Bien', 'info': 'Dato', 'warn': 'Ojo', 'crit': 'Mal'}[i.tone] }}</span>
-        <div><div class="title">{{ i.title }}</div><div class="detail">{{ i.detail }}
-          {% if i.link %}<br><a href="{{ i.link }}">{{ 'Ver tendencias' if i.link.startswith('/trends') else 'Ver recurrentes' if i.link.startswith('/recurring') else 'Revisar comercios' if i.link.startswith('/merchants') else 'Ver movimientos' }} →</a>{% endif %}</div></div>
-      </div>
-      <div class="impact-col">{% if i.impact > 0 %}<span class="impact">{{ i.impact|eur }}</span><div class="concept">al mes</div>{% endif %}</div>
-    </div>
-  {% endmacro %}
-  <div class="diag-list">
-    {% for i in insights[:5] %}{{ diag_row(i) }}{% endfor %}
-    {% if insights|length > 5 %}
-    <details>
-      <summary>Ver los {{ insights|length - 5 }} puntos restantes ↓</summary>
-      {% for i in insights[5:] %}{{ diag_row(i) }}{% endfor %}
-    </details>
-    {% endif %}
-  </div>
-  {% else %}<p class="muted">Aún no hay meses completos suficientes para comparar.</p>{% endif %}
-</div>
-
-<div class="grid two section">
-  <div class="card">
-    <h2 style="margin-bottom:4px">Gasto por categoría, 12 meses</h2>
-    <div class="concept" style="margin-bottom:12px">Pulsa una barra para ver sus movimientos.</div>
-    <div class="chart-box"><canvas id="chart-cats"></canvas></div>
-  </div>
-  <div class="card">
-    <h2 style="margin-bottom:4px">Lo que entra y lo que sale</h2>
-    <div class="concept" style="margin-bottom:12px">La línea es el ahorro. Pulsa un mes para abrir su resumen.</div>
-    <div class="chart-box"><canvas id="chart-flows"></canvas></div>
-  </div>
-</div>
-
-<div class="grid two">
-  <div class="card">
-    <h2 style="margin-bottom:4px">Presupuesto</h2>
-    <div class="concept" style="margin-bottom:12px">La marca negra es donde deberías estar hoy. <a href="/budgets?month={{ month }}">Ver todo</a></div>
-    {% if budget_rows %}
-    <table data-more="8">
-      {% for r in budget_rows %}
-      <tr>
-        <td style="white-space:nowrap">{{ r.category }}</td>
-        <td style="width:45%"><div class="bar {{ 'crit' if r.pct >= 100 else 'warn' if r.pct >= 80 else '' }}"><span style="width:{{ [r.pct, 100]|min }}%"></span><i class="today" style="left:{{ today_pct }}%"></i></div></td>
-        <td class="num">{{ r.spent|eur }} <span class="muted">/ {{ r.limit|eur }}</span></td>
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}
-    <p class="muted">Sin presupuestos todavía. <a href="/budgets">Proponer uno</a> a partir de tu histórico.</p>
-    {% endif %}
-  </div>
-  <div class="card">
-    <h2 style="margin-bottom:4px">Alertas pendientes</h2>
-    <div class="concept" style="margin-bottom:12px">{{ alerts_counts.critical }} críticas · {{ alerts_counts.warning }} avisos · {{ alerts_counts.info }} datos. <a href="/alerts">Ver todas</a></div>
-    {% if pending %}
-    <div class="alert-group" data-more="5">
-      {% for a in pending %}
-      <div class="row" style="grid-template-columns:62px minmax(0,1fr)">
-        <span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ SEVERITY_LABEL[a.severity] }}</span>
-        <div><span class="concept">{{ ALERT_TYPE_LABEL.get(a.type, a.type) }} · <span title="{{ a.date }}">{{ a.date|fecha }}</span></span><br>{{ a.message }}</div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}<div class="notice ok" style="margin:0"><strong>Nada pendiente.</strong> Las alertas de presupuesto y de cargos nuevos aparecerán aquí.</div>{% endif %}
-  </div>
-</div>
-
 <script id="explorer-data" type="application/json">{{ explorer|tojson }}</script>
-<script>
-window.renderCharts = function () {
-  const months = {{ chart_months|tojson }};
-  const labels = months.map(m => ({{ MESES_JS|default('["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]')|safe }})[+m.slice(5, 7) - 1] + ' ' + m.slice(2, 4));
-  const series = {{ chart_series|tojson }};
-  const flows = {{ chart_flows|tojson }};
-  const css = getComputedStyle(document.documentElement); const palette = [1,2,3,4,5,6,7,8,9].map(i => css.getPropertyValue('--chart-' + i).trim());
-  Chart.defaults.font = { ...Chart.defaults.font, family: 'Work Sans', weight: 400, size: 13 }; Chart.defaults.color = css.getPropertyValue('--chart-text').trim();
-  const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
-  const grid = { color: css.getPropertyValue('--chart-grid').trim() };
-  const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };
-  mk('chart-cats', { type: 'bar',
-    data: { labels, datasets: series.map((s, i) => ({ label: s.label, data: s.data, backgroundColor: palette[i % palette.length], stack: 'g' })) },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } },
-      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: v => eur(v) }, grid } },
-      onClick: (e, els) => { if (els.length) { const m = months[els[0].index]; const c = series[els[0].datasetIndex].label; if (c !== 'Resto') go('/transactions?month=' + m + '&category=' + encodeURIComponent(c)); } } } });
-  mk('chart-flows', { data: { labels, datasets: [
-      { type: 'line', label: 'Ahorro', data: flows.ahorro, borderColor: palette[0], backgroundColor: palette[0], tension: .3, borderWidth: 2, pointRadius: 3 },
-      { type: 'bar', label: 'Ingresos', data: flows.ingresos, backgroundColor: palette[2], borderRadius: 3 },
-      { type: 'bar', label: 'Gastos', data: flows.gastos, backgroundColor: palette[5], borderRadius: 3 } ] },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } },
-      scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
-      onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
-      onClick: (e, els) => { if (els.length) go('/?month=' + months[els[0].index]); } } });
-  // la categoría elegida en el explorador se queda sola también en los 12 meses
-  window.highlightCategory = function (cat) {
-    const el = document.getElementById('chart-cats'); if (!el || !el._chart) return;
-    el._chart.data.datasets.forEach((ds, i) => { ds.backgroundColor = palette[i % palette.length] + (cat && ds.label !== cat ? '59' : ''); });
-    el._chart.update('none');
-  };
-  window.renderSummary();
-};
-</script>
+<script>window.highlightCategory = null; window.renderCharts = window.renderSummary;</script>
 {% endblock %}

@@ -99,7 +99,7 @@ def test_resumen_por_trimestre_anio_y_rango(client):
     # fuera de los datos vuelve dentro; basura, al último mes
     assert "es el último periodo con datos" in client.get("/?period=2099-Q1").text
     assert "no hay datos anteriores" in client.get("/?period=1999").text
-    assert "Diagnóstico" in client.get("/?period=basura").text
+    assert "Para mirar" in client.get("/?period=basura").text
     anio = client.get(f"/?period={mes[:4]}")
     assert anio.status_code == 200 and f"<h1>{mes[:4]}</h1>" in anio.text
     libre = client.get(f"/?start={mes}-01&end={mes}-05")

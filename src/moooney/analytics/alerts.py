@@ -46,6 +46,19 @@ class Alert:
     transaction_id: int | None = None
 
 
+_MES = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
+
+
+def _eur(v: float, dec: int = 2) -> str:
+    """1234.5 → «1.234,50 €». El mensaje se guarda ya escrito, así que el formato español se pone aquí."""
+    return f"{v:,.{dec}f}".translate(str.maketrans(",.", ".,")) + " €"
+
+
+def _dia(iso: str) -> str:
+    """'2026-10-08' → «8 oct»."""
+    return f"{int(iso[8:10])} {_MES[int(iso[5:7]) - 1]}"
+
+
 def _window(as_of: str, days: int = WINDOW_DAYS) -> str:
     return (date.fromisoformat(as_of) - timedelta(days=days)).isoformat()
 
@@ -61,13 +74,13 @@ def budget_alerts(status: list[BudgetRow], month: str) -> list[Alert]:
         if row.pct >= 100:
             out.append(Alert(
                 type="budget_100", severity="critical", date=f"{month}-01",
-                message=f"{row.category}: presupuesto superado ({row.spent:,.0f} € de {row.limit:,.0f} €)",
+                message=f"{row.category}: presupuesto superado ({_eur(row.spent, 0)} de {_eur(row.limit, 0)})",
                 dedup_key=f"budget_100|{row.category}|{month}",
             ))
         elif row.pct >= 80:
             out.append(Alert(
                 type="budget_80", severity="warning", date=f"{month}-01",
-                message=f"{row.category}: al {row.pct:.0f} % del presupuesto ({row.spent:,.0f} € de {row.limit:,.0f} €)",
+                message=f"{row.category}: al {row.pct:.0f} % del presupuesto ({_eur(row.spent, 0)} de {_eur(row.limit, 0)})",
                 dedup_key=f"budget_80|{row.category}|{month}",
             ))
     return out
@@ -103,7 +116,7 @@ def anomalous_amount_alerts(conn: sqlite3.Connection, as_of: str) -> list[Alert]
         if amount - med > ANOMALY_SIGMAS * sigma and amount - med > ANOMALY_MIN_EUROS:
             out.append(Alert(
                 type="anomalous_amount", severity="warning", date=t["date"],
-                message=f"{key}: {amount:,.2f} € frente a los {med:,.2f} € habituales",
+                message=f"{key}: {_eur(amount)} frente a los {_eur(med)} habituales",
                 dedup_key=f"anomalous_amount|{t['id']}", transaction_id=int(t["id"]),
             ))
     return out
@@ -123,7 +136,8 @@ def duplicate_charge_alerts(conn: sqlite3.Connection, as_of: str) -> list[Alert]
     for r in rows:
         out.append(Alert(
             type="duplicate_charge", severity="warning", date=r["d_b"],
-            message=f"{r['k']}: {abs(float(r['amount'])):,.2f} € cobrado dos veces ({r['d_a']} y {r['d_b']})",
+            message=f"{r['k']}: {_eur(abs(float(r['amount'])))} cobrado dos veces "
+                    + (f"el {_dia(r['d_a'])}" if r["d_a"] == r["d_b"] else f"el {_dia(r['d_a'])} y el {_dia(r['d_b'])}"),
             dedup_key=f"duplicate_charge|{r['id_a']}|{r['id_b']}", transaction_id=int(r["id_b"]),
         ))
     return out
@@ -145,7 +159,7 @@ def recurring_alerts(conn: sqlite3.Connection, as_of: str) -> list[Alert]:
             if recent and (ref - expected).days > MISSING_INCOME_GRACE_DAYS:
                 out.append(Alert(
                     type="missing_income", severity="critical", date=r["next_expected"],
-                    message=f"{r['key']}: ingreso {r['period_label']} esperado el {r['next_expected']} y no ha llegado",
+                    message=f"{r['key']}: ingreso {r['period_label']} esperado el {_dia(r['next_expected'])} y no ha llegado",
                     dedup_key=f"missing_income|{r['key']}|{r['next_expected']}",
                 ))
             continue
@@ -154,7 +168,7 @@ def recurring_alerts(conn: sqlite3.Connection, as_of: str) -> list[Alert]:
         if r["flow_type"] in EXPENSE_FLOWS and (ref - first_seen).days <= NEW_RECURRING_DAYS:
             out.append(Alert(
                 type="new_recurring", severity="info", date=r["last_seen"],
-                message=f"{r['key']}: nuevo cargo {r['period_label']} de {abs(avg):,.2f} € desde {r['first_seen']}",
+                message=f"{r['key']}: nuevo cargo {r['period_label']} de {_eur(abs(avg))} desde el {_dia(r['first_seen'])}",
                 dedup_key=f"new_recurring|{r['key']}",
             ))
     out.extend(price_change_alerts(conn))
@@ -168,15 +182,15 @@ def price_change_alerts(conn: sqlite3.Connection) -> list[Alert]:
         if p.kind == "step":
             out.append(Alert(
                 type="price_increase", severity="warning", date=p.since,
-                message=(f"{p.key}: sube de {p.old:,.2f} € a {p.new:,.2f} € desde el {p.since} "
-                         f"(+{p.pct:.0f} %, unos {p.delta_year:,.0f} € más al año)"),
+                message=(f"{p.key}: sube de {_eur(p.old)} a {_eur(p.new)} desde el {_dia(p.since)} "
+                         f"(+{p.pct:.0f} %, unos {_eur(p.delta_year, 0)} más al año)"),
                 dedup_key=f"price_increase|{p.key}|{p.since}",
             ))
         else:
             out.append(Alert(
                 type="bill_rising", severity="warning", date=p.since,
-                message=(f"{p.key}: los {p.n_since} últimos recibos promedian {p.new:,.2f} €, un {p.pct:.0f} % más "
-                         f"que antes ({p.old:,.2f} €); a este ritmo, unos {p.delta_year:,.0f} € más al año"),
+                message=(f"{p.key}: los {p.n_since} últimos recibos promedian {_eur(p.new)}, un {p.pct:.0f} % más "
+                         f"que antes ({_eur(p.old)}); a este ritmo, unos {_eur(p.delta_year, 0)} más al año"),
                 dedup_key=f"bill_rising|{p.key}|{p.since[:7]}",
             ))
     return out
@@ -206,8 +220,8 @@ def negative_balance_alert(conn: sqlite3.Connection, as_of: str) -> list[Alert]:
         return []
     return [Alert(
         type="negative_balance", severity="critical", date=as_of,
-        message=f"saldo proyectado {projected:,.0f} € antes del próximo ingreso ({horizon}) "
-                f"con los cargos recurrentes previstos ({-float(due['s']):,.0f} €)",
+        message=f"saldo proyectado {_eur(projected, 0)} antes del próximo ingreso ({_dia(horizon)}) "
+                f"con los cargos recurrentes previstos ({_eur(-float(due['s']), 0)})",
         dedup_key=f"negative_balance|{horizon}",
     )]
 
@@ -222,7 +236,7 @@ def bank_fee_alerts(conn: sqlite3.Connection, as_of: str) -> list[Alert]:
     return [
         Alert(
             type="bank_fee", severity="info", date=r["date"],
-            message=f"comisión bancaria de {abs(float(r['amount'])):,.2f} € ({r['k']})",
+            message=f"comisión bancaria de {_eur(abs(float(r['amount'])))} ({r['k']})",
             dedup_key=f"bank_fee|{r['id']}", transaction_id=int(r["id"]),
         )
         for r in rows

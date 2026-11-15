@@ -95,23 +95,22 @@ La web tiene siete secciones; las páginas que comparten sección son pestañas 
 **Resumen**, **Tendencias**, **Movimientos**, **Pregunta** (e Informe mensual), **Plan**
 (Presupuestos y Metas, en una misma página), **Avisos** (Alertas y Recurrentes, también juntas) y **Datos** (Importar, Comercios y Ajustes).
 
-- **Resumen**: abre con la cifra de ahorro neto del mes y un **veredicto en una frase**, calculado sin modelo
-  («Has ahorrado el 30 % de lo que entró; alimentación se dispara»); debajo, ingresos, gastos fijos y
-  variables, ahorro neto, saldo (sumando todas las cuentas) y colchón en meses; **diagnóstico** con los euros
-  al mes en primera columna (categorías que se disparan, comercio dominante, comer fuera, comisiones,
-  suscripciones, cargos pequeños que suman, tasa de ahorro, meses en rojo, colchón, previsión a fin de mes);
-  gasto por categoría de 12 meses con clic para bajar a los movimientos; reparto del mes; comercios donde más
-  se gasta; presupuesto con la marca del día de hoy y alertas pendientes.
-- **Tendencias**: previsión a fin de mes y de los próximos tres, colchón en meses, saldo proyectado a un
-  año, dónde se ha ido el dinero en 12 meses, evolución de cada categoría con media móvil y tabla mes a mes.
+- **Resumen**: abre con una cifra y un **veredicto en una frase**, calculados sin modelo. Con el mes en
+  curso la cifra es la previsión a fin de mes («Vas camino de ahorrar 396 € este mes»); con el mes
+  cerrado, el ahorro. Debajo, ingresos, gastos, ahorro y saldo (sumando todas las cuentas), y una sola
+  lista **«Para mirar»** con las alertas sin ver, los comercios por revisar y los hallazgos serios
+  (colchón corto, meses en rojo, una categoría que ya supera un mes normal); después, el reparto del
+  mes, los comercios donde más se gasta y de dónde vienen los ingresos.
+- **Tendencias**: previsión a fin de mes, colchón en meses, qué está cambiando en cada categoría con su
+  previsión y rango, lo que entra y lo que sale en 12 meses, saldo proyectado a un año, dónde se ha ido
+  el dinero, evolución de cada categoría con media móvil y tabla mes a mes.
 - **Explorador del Resumen**: anillo de gasto por categoría, ritmo del mes día a día frente al mes anterior y
   comercios; al pulsar una categoría, todas las gráficas de la página se quedan con ella.
 - **Trimestre, año o rango** (selector de periodo del Resumen): los totales del periodo frente al anterior
   equivalente (cortado a la misma altura si está en curso): ingresos, gastos, ahorro, cada categoría con su
   diferencia, el gasto mes a mes, el mes más caro y el más barato y los comercios donde más se gasta.
-- **Movimientos**: filtros por periodo (mes, trimestre, año o un rango de fechas), categoría, flujo, cuenta, etiqueta y texto, totales del filtro; la
-  categoría se corrige en la propia fila; **etiquetas libres** en movimientos sueltos (viaje, reforma…) para
-  agrupar gastos de distintas categorías y ver lo que suman; **Exportar CSV** descarga el filtro completo listo
+- **Movimientos**: filtros por periodo (mes, trimestre, año o un rango de fechas), categoría, flujo, cuenta y texto, totales del filtro; la
+  categoría se corrige en la propia fila; **Exportar CSV** descarga el filtro completo listo
   para Excel. Con varios bancos, el saldo del resumen es la suma del último saldo de cada cuenta.
 - **Comercios**: la **cola de revisión** es la página. Cada clave dudosa (las que importan primero: dos o más
   movimientos o 30 € o más) aparece como titular con su evidencia (los últimos movimientos, la categoría actual
@@ -123,10 +122,10 @@ La web tiene siete secciones; las páginas que comparten sección son pestañas 
   creas una regla sin tocar YAML («empieza por» / «contiene» → categoría), con vista previa de a qué afecta.
 - **Recurrentes**: abre con **lo que te ha subido** (cuotas que cambian de precio y recibos al alza, con su
   coste al año) y sigue con el calendario de cargos de los próximos 30 días.
-- **Gastos compartidos** (dentro de Movimientos, en el «···» de cada fila y con su filtro): empareja el Bizum que te devuelve un amigo con el gasto que pagaste tú; el gasto cuenta
+- **Gastos compartidos** (sin entrada en los menús desde el repaso de claridad; se llega por `/shared`): empareja el Bizum que te devuelve un amigo con el gasto que pagaste tú; el gasto cuenta
   neto y la devolución deja de ser ingreso. Propone los repartos a partes iguales.
 - **Plan · presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con proyección).
-- **Plan · metas** (en la misma página, debajo): cuánto quieres juntar y para cuándo, cuándo llegas a tu ritmo y un simulador «qué pasaría si»
+- **Plan · metas** (en la misma página, plegado hasta que se usa): cuánto quieres juntar y para cuándo, cuándo llegas a tu ritmo y un simulador «qué pasaría si»
   que recorta categorías o da de baja recurrentes.
 - **Alertas** (presupuesto al 80 / 100 %, importe anómalo, cargo duplicado, recurrente nuevo, subida de
   precio, recibo al alza, ingreso que no llega, saldo proyectado negativo, comisiones).
@@ -135,10 +134,12 @@ La web tiene siete secciones; las páginas que comparten sección son pestañas 
 - **Pregunta**: un asistente al que preguntas por tus gastos o pides consejo. Las cifras salen de
   consultas deterministas sobre tus totales (nunca movimientos sueltos) y el modelo de texto las
   redacta; cada respuesta dice qué ha consultado.
-- **Importar**: todos los pasos con un botón, vista previa y activación del enriquecimiento, auditoría de
-  lo que ha salido a modelos e Internet, historial de importaciones y trabajos.
+- **Importar**: arrastrar el Excel y nada más: se importa, se categoriza y se recalculan las alertas solo.
+  La página avisa únicamente de lo que pide acción (Excel sin importar, movimientos sin categoría, comercios
+  dudosos) y guarda el resto de botones tras «Avanzado» (recategorizar, consultas en Internet, copias,
+  borrado). Historial de importaciones y trabajos.
 - **Ajustes**: la clave del proxy (y la de Google Places, opcional) sin tocar ficheros, con prueba de
-  conexión, y el interruptor de modo offline. Las claves nunca se muestran enteras.
+  conexión, el interruptor de modo offline y la auditoría de lo que ha salido a modelos e Internet. Las claves nunca se muestran enteras.
 
 ## Cómo funciona
 

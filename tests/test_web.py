@@ -43,7 +43,7 @@ def test_paginas_principales_responden(client):
         assert r.status_code == 200, path
         assert "moooney" in r.text
     r = client.get("/?month=2026-09")
-    assert r.status_code == 200 and "2026-09" in r.text and "Diagnóstico" in r.text
+    assert r.status_code == 200 and "2026-09" in r.text and "Para mirar" in r.text
     assert 'class="verdict-figure' in r.text and ("has ahorrado" in r.text or "Has ahorrado" in r.text or "gastado" in r.text)
     r = client.get("/trends")
     assert "Gasto previsto fin de mes" in r.text and "Dónde se ha ido el dinero" in r.text
@@ -104,7 +104,9 @@ def test_presupuestos_proponer_y_fijar(client):
 def test_alertas_recalcular_y_marcar_vistas(client):
     r = client.post("/alerts/refresh", follow_redirects=True)
     assert r.status_code == 200
-    assert "anomalous_amount" in r.text or "duplicate_charge" in r.text
+    # una sola lista, con el tipo en palabras y nunca el identificador interno
+    assert ("Importe anómalo" in r.text or "Cargo duplicado" in r.text) and "anomalous_amount" not in r.text
+    assert r.text.count('class="alert-table"') == 1 and "Qué significa cada aviso" in r.text
     first_id = r.text.split('hx-post="/alerts/')[1].split("/")[0]
     r = client.post(f"/alerts/{first_id}/ack")
     assert r.status_code == 200
@@ -114,7 +116,7 @@ def test_alertas_recalcular_y_marcar_vistas(client):
 
 def test_cola_de_dudosas_y_saltar(client):
     r = client.get("/merchants")
-    assert r.status_code == 200 and "Revisar dudosas" in r.text and "Últimos movimientos" in r.text
+    assert r.status_code == 200 and "Revisar dudosos" in r.text and "Últimos movimientos" in r.text
     assert "<details class=\"all-keys\" >" in r.text  # la tabla, plegada
     assert "<details class=\"all-keys\" open>" in client.get("/merchants?mode=all").text
     first = r.text.split('<div class="key">')[1].split("</div>")[0]
@@ -130,16 +132,12 @@ def test_cola_de_dudosas_y_saltar(client):
     assert "ingresos" in r.text and "gastos" in r.text
 
 
-def test_alertas_filtro_por_nivel_y_grupo(client):
+def test_alertas_filtro_por_nivel(client):
     client.post("/alerts/refresh")
     r = client.get("/alerts?severity=info")
     assert r.status_code == 200
-    assert "crítica" not in r.text.split('class="alert-group"')[-1] if "alert-group" in r.text else True
-    r = client.get("/alerts")
-    if "ack-type/" in r.text:
-        alert_type = r.text.split("ack-type/")[1].split('"')[0]
-        r = client.post(f"/alerts/ack-type/{alert_type}", follow_redirects=True)
-        assert r.status_code == 200 and f"ack-type/{alert_type}" not in r.text
+    tabla = r.text.split('class="alert-table"')[1].split("</table>")[0] if 'class="alert-table"' in r.text else ""
+    assert 'class="tag crit"' not in tabla and 'class="tag warn"' not in tabla
 
 
 def test_exportar_csv_respeta_el_filtro(client, tmp_path):
@@ -165,7 +163,9 @@ def test_exportar_csv_respeta_el_filtro(client, tmp_path):
 
 def test_etiquetas_en_movimientos(client):
     r = client.get("/transactions?month=2026-09")
-    tx_id = int(r.text.split('hx-post="/transactions/')[1].split("/")[0])
+    # la pantalla ya no ofrece etiquetar (nadie lo usaba), pero lo etiquetado se sigue viendo y filtrando
+    assert "/tags" not in r.text and "Etiquetas" not in r.text
+    tx_id = int(r.text.split('id="tx-')[1].split('"')[0])
     r = client.post(f"/transactions/{tx_id}/tags", data={"tag": "  Viaje   China "})
     assert r.status_code == 200 and ">viaje china<" in r.text
     r = client.post(f"/transactions/{tx_id}/tags", data={"tag": "viaje china"})  # repetir no duplica

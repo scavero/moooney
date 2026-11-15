@@ -1,5 +1,41 @@
 # Cambios
 
+## 1.20.0 · 2026-11-15
+
+Repaso de claridad («menos es más»): cada cifra se calcula de una sola manera y cada cosa se dice en un sitio.
+
+- **Resumen más corto**: con el mes en curso la cifra grande es la **previsión a fin de mes**, no lo
+  ahorrado hasta hoy (el día 10, con la nómina cobrada, siempre parecía un buen mes). Debajo, una sola
+  lista **«Para mirar»** funde las alertas sin ver, los comercios por revisar y los hallazgos serios, sin
+  repetir lo que ya dice una alerta. Salen de la página el «ahorro potencial», los dos gráficos de
+  12 meses, el presupuesto y la tarjeta de alertas (siguen en Tendencias, Plan y Avisos).
+- **Sin extrapolar el mes a medias**: el diagnóstico ya no multiplica el gasto de unos días por lo que
+  queda de mes; solo avisa de la categoría que ya supera un mes normal entero.
+- **Una sola previsión de fin de mes**: la proyección de cada presupuesto usa la misma cuenta que la
+  previsión general (lo gastado + recurrentes que aún vencen + gasto variable habitual por los días
+  que quedan), así Plan y Resumen dejan de dar cifras distintas.
+- **Tendencias**: fuera la tabla «Próximos meses» (tres filas iguales y otra previsión distinta) y la
+  columna «Tend.» de la rejilla, que contradecía a «Qué está cambiando». En su sitio, el gráfico de lo
+  que entra y lo que sale, que estaba en el Resumen.
+- **Importar en una pantalla**: queda la zona para arrastrar el Excel, los ficheros y el historial. Los
+  cinco pasos numerados desaparecen; la página solo avisa de lo que pide acción (Excel sin importar,
+  movimientos sin categoría, comercios dudosos) y los doce botones restantes viven tras «Avanzado».
+  El registro de lo que ha salido a modelos e Internet pasa a Ajustes.
+- **Movimientos sin lo que nadie usaba**: salen de la pantalla las etiquetas, los gastos compartidos y
+  «cambiar la categoría solo de este movimiento» (filtros, aviso fijo, medio menú «···» y la nube de
+  etiquetas). No se borra nada: lo que ya estuviera etiquetado, emparejado o con categoría propia se
+  sigue viendo, `moooney tag` sigue en la CLI y los gastos compartidos en `/shared`.
+- **Plan**: las metas y el «¿qué pasaría si?» van plegados hasta que se usan.
+- **Avisos en una lista**: todas las alertas en una sola tabla, lo más serio primero, con el tipo en
+  cada fila (antes, una tabla con su cabecera por cada tipo). Qué significa cada aviso va plegado debajo
+  y ya no cita la fórmula. Fuera el filtro por nivel y «Marcar el grupo como visto».
+- **Movimientos**: a la vista quedan el buscador, el periodo y la categoría; fechas, flujo y cuenta van
+  tras «Más filtros», que se abre solo si alguno está en uso.
+- **Lenguaje**: los avisos nuevos escriben los importes y las fechas como el resto de la app
+  («39,00 €», «8 oct»; los ya guardados conservan su texto). Comercios habla de «comercios», no de
+  «claves»; el nivel se llama igual en Resumen y Avisos (importante, aviso, dato); el informe sin
+  modelo ya no enseña `[critical]`; el gráfico de categoría no nombra el método de previsión.
+
 ## 1.19.0 · 2026-11-15
 
 - **Tendencias con más fondo**: nueva tarjeta «Qué está cambiando» con la tendencia de cada categoría

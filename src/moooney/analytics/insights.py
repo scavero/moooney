@@ -48,45 +48,36 @@ def _eur(v: float) -> str:
 def category_insights(report: MetricsReport, month: str) -> list[Insight]:
     """Categorías muy por encima o por debajo de su media de meses completos.
 
-    Si el mes está incompleto se compara a prorrata de los días transcurridos y
-    se omiten las categorías dominadas por cargos fijos (un alquiler pagado el
-    día 2 no "se dispara" el día 10)."""
+    Con el mes a medias no se extrapola (un cargo grande el día 6 no predice el resto del
+    mes): solo se avisa de la categoría que ya ha gastado más que en un mes entero normal,
+    y se omiten las dominadas por cargos fijos."""
     out: list[Insight] = []
     full = report.summary.full_month
-    ratio = 1.0
-    if not full:
-        day = int(report.as_of[8:10])
-        ratio = day / periods.days_in_month(month)
     for c in report.categories:
         if c.category in ("Transferencias", "(sin categoría)") or c.avg_prev is None or c.n_prev_months < 2:
             continue
         if not full and c.amount > 0 and c.fixed_amount / c.amount > 0.5:
             continue
-        base = (c.avg_prev or 0.0) * ratio
+        base = c.avg_prev or 0.0
         delta = c.amount - base
         pct = delta / base if base > 0 else (1.0 if delta > 0 else 0.0)
-        cuando = "" if full else f" a día {report.as_of[8:10]}"
-        # con el mes a medias la media también va a prorrata, y lo que «libera» es una extrapolación
-        hab = "habituales" if full else "habituales hasta ese día"
+        link = f"/transactions?month={month}&category={c.category}"
         if delta > MIN_IMPACT_EUR and pct > MIN_PCT_CHANGE:
-            out.append(Insight(
-                kind="category_up", severity="warn",
-                title=f"{c.category} se dispara{cuando}: {_eur(c.amount)} frente a {_eur(base)} {hab}",
-                detail=f"+{pct:.0%} sobre los últimos {c.n_prev_months} meses completos"
-                       f"{' (a prorrata de días)' if not full else ''}. "
-                       + (f"Volver a la media libera {_eur(delta / ratio)} al mes." if full else
-                        f"Si el resto del mes sigue igual, serían {_eur(delta / ratio)} más que un mes normal."),
-                impact=delta / ratio,
-                link=f"/transactions?month={month}&category={c.category}",
-            ))
-        elif delta < -MIN_IMPACT_EUR and pct < -MIN_PCT_CHANGE and base > 0:
+            if full:
+                title = f"{c.category} se dispara: {_eur(c.amount)} frente a {_eur(base)} habituales"
+                detail = (f"+{pct:.0%} sobre los últimos {c.n_prev_months} meses completos. "
+                          f"Volver a la media libera {_eur(delta)} al mes.")
+            else:
+                title = f"{c.category} ya supera un mes normal: {_eur(c.amount)} frente a {_eur(base)} de media"
+                detail = (f"A día {int(report.as_of[8:10])} llevas {_eur(delta)} más que la media de los últimos "
+                          f"{c.n_prev_months} meses completos, y el mes no ha terminado.")
+            out.append(Insight(kind="category_up", severity="warn", title=title, detail=detail, impact=delta, link=link))
+        elif full and delta < -MIN_IMPACT_EUR and pct < -MIN_PCT_CHANGE and base > 0:
             out.append(Insight(
                 kind="category_down", severity="good",
-                title=f"{c.category} baja{cuando}: {_eur(c.amount)} frente a {_eur(base)} {hab}",
-                detail=f"{pct:.0%} respecto a los últimos {c.n_prev_months} meses"
-                       f"{' (a prorrata de días)' if not full else ''}. Si se mantiene, son {_eur(-delta / ratio)} menos al mes.",
-                impact=-delta / ratio,
-                link=f"/transactions?month={month}&category={c.category}",
+                title=f"{c.category} baja: {_eur(c.amount)} frente a {_eur(base)} habituales",
+                detail=f"{pct:.0%} respecto a los últimos {c.n_prev_months} meses. Si se mantiene, son {_eur(-delta)} menos al mes.",
+                impact=-delta, link=link,
             ))
     return out
 

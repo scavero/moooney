@@ -5,7 +5,7 @@
 <div class="topbar">
   <div>
     <h1>Plan</h1>
-    <div class="subtitle"><span style="text-transform:capitalize">{{ month|mes }}</span>{% if is_current %} · a día <strong>{{ day }} de {{ days_in_month }}</strong>{% elif has_config %} · mes cerrado{% endif %} · <a href="#metas">Metas y «qué pasaría si»</a></div>
+    <div class="subtitle"><span style="text-transform:capitalize">{{ month|mes }}</span>{% if is_current %} · a día <strong>{{ day }} de {{ days_in_month }}</strong>{% elif has_config %} · mes cerrado{% endif %} · <a href="#metas" onclick="document.getElementById('metas').open = true">Metas y «qué pasaría si»</a></div>
   </div>
   <div class="month-nav">
     {% if prev_month %}<a class="btn ghost" href="/budgets?month={{ prev_month }}" aria-label="mes anterior" title="mes anterior">‹</a>{% else %}<span class="btn ghost" aria-disabled="true" title="no hay datos anteriores">‹</span>{% endif %}
@@ -23,7 +23,7 @@
 <div class="grid kpis section">
   <div class="card kpi"><div class="label">Gastado</div><div class="value {{ 'neg' if total_spent > total_limit else '' }}">{{ total_spent|eur }}</div><div class="hint">de {{ total_limit|eur }} de límite{% if total_limit %} · {{ '%.0f'|format(total_spent / total_limit * 100) }} %{% endif %}</div></div>
   <div class="card kpi"><div class="label">Mes transcurrido</div><div class="value">{{ '%.0f'|format(today_pct) }} %</div><div class="hint">{% if is_current %}si vas por debajo de la marca, vas bien{% else %}mes cerrado{% endif %}</div></div>
-  <div class="card kpi"><div class="label">Proyección fin de mes</div><div class="value {{ 'neg' if total_projected > total_limit else '' }}">{{ total_projected|eur if is_current else '—' }}</div><div class="hint">{% if is_current %}{{ over_count }} {{ 'categoría se pasaría' if over_count == 1 else 'categorías se pasarían' }} al ritmo actual{% else %}sin proyección en un mes cerrado{% endif %}</div></div>
+  <div class="card kpi"><div class="label">Proyección fin de mes</div><div class="value {{ 'neg' if total_projected > total_limit else '' }}">{{ total_projected|eur if is_current else '—' }}</div><div class="hint">{% if is_current %}{{ over_count }} {{ 'categoría se pasaría' if over_count == 1 else 'categorías se pasarían' }} con tu gasto habitual{% else %}sin proyección en un mes cerrado{% endif %}</div></div>
 </div>
 {% endif %}
 
@@ -71,10 +71,10 @@
   </div>
 </div>
 
-<div class="plan-part" id="metas">
-  <h2 style="margin-bottom:4px">Metas y «qué pasaría si»</h2>
-  <div class="subtitle" style="margin-bottom:var(--s3)">{% if base %}Con tu mes medio de los {{ base.months|length }} últimos meses completos ({{ base.months[0]|mes }} a {{ base.months[-1]|mes }}).{% else %}Hace falta al menos un mes completo de movimientos.{% endif %}</div>
-</div>
+{# Plegado mientras no se use: con metas guardadas, un error del formulario o al llegar por #metas se abre solo. #}
+<details class="plan-part" id="metas" {{ 'open' if goals or goal_error else '' }}>
+  <summary><h2 style="display:inline;color:var(--ink)">Metas y «qué pasaría si» ↓</h2></summary>
+  <div class="subtitle" style="margin:4px 0 var(--s3)">{% if base %}Con tu mes medio de los {{ base.months|length }} últimos meses completos ({{ base.months[0]|mes }} a {{ base.months[-1]|mes }}).{% else %}Hace falta al menos un mes completo de movimientos.{% endif %}</div>
 
 {% if base %}
 <div class="grid kpis section">
@@ -169,4 +169,6 @@
 <script id="sim-data" type="application/json">{{ sim|tojson }}</script>
 <script src="/static/goals.js"></script>
 {% endif %}
+</details>
+<script>if (['#metas', '#simulador'].includes(location.hash)) document.getElementById('metas').open = true;</script>
 {% endblock %}

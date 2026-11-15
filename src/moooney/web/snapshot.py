@@ -135,7 +135,6 @@ def _seeds(months: list[str]) -> list[str]:
         seeds += [f"/?month={m}", f"/budgets?month={m}", f"/report?month={m}", f"/transactions?month={m}"]
         seeds += [f"/transactions?month={m}&category={c}" for c in sorted(cats)]
     seeds += [f"/trends?category={c}" for c in sorted(cats)]
-    seeds += ["/transactions?shared=1", "/transactions?shared=review"]  # el filtro es un desplegable, no un enlace
     # trimestres y años: el desplegable de periodo no es un enlace, así que se siembran aquí
     quarters = {f"{m[:4]}-Q{(int(m[5:7]) - 1) // 3 + 1}" for m in months}
     seeds += [f"/?period={k}" for k in sorted(quarters | {m[:4] for m in months})]

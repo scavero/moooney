@@ -18,6 +18,7 @@ from pathlib import Path
 import yaml
 
 from moooney.analytics import periods
+from moooney.analytics.forecast import HISTORY_MONTHS, full_months_before
 from moooney.analytics.metrics import EXPENSE_FLOWS, _spend_by_category
 from moooney.analytics.recurring import active_keys
 
@@ -162,23 +163,34 @@ def _fixed_spend_by_category(conn: sqlite3.Connection, month: str) -> dict[str, 
 
 def budget_status(conn: sqlite3.Connection, month: str, limits: dict[str, float], *,
                   as_of: str | None = None) -> list[BudgetRow]:
-    """Gastado vs límite. La proyección solo extrapola la parte variable: lo ya
-    pagado en recurrentes (alquiler, cuotas) no se vuelve a pagar este mes."""
+    """Gastado vs límite. La proyección es la misma cuenta que la previsión de fin de mes
+    (`forecast.forecast_month_end`), por categoría: lo gastado + sus recurrentes que aún
+    vencen + su gasto variable diario de los últimos meses completos × días que quedan.
+    No se extrapola el ritmo de este mes: una compra grande el día 6 no se repite cada semana."""
     spent = _spend_by_category(conn, month)
     as_of = as_of or periods.as_of_date(conn)
-    projected_factor: float | None = None
-    fixed: dict[str, float] = {}
-    if as_of and periods.month_of(as_of) == month:
-        day = int(as_of[8:10])
-        projected_factor = periods.days_in_month(month) / day if day else None
-        fixed = _fixed_spend_by_category(conn, month)
+    current = bool(as_of) and periods.month_of(as_of) == month
+    pending: dict[str, float] = {}
+    variable_day: dict[str, float] = {}
+    rest_days = 0
+    if current:
+        rest_days = periods.days_in_month(month) - int(as_of[8:10])
+        ph = ",".join("?" for _ in EXPENSE_FLOWS)
+        pending = {r["c"]: float(r["s"]) for r in conn.execute(
+            f"SELECT COALESCE(category, '(sin categoría)') AS c, SUM(ABS(amount_avg)) AS s FROM recurring"
+            f" WHERE active = 1 AND flow_type IN ({ph}) AND next_expected > ? AND next_expected <= ? GROUP BY category",
+            (*EXPENSE_FLOWS, as_of, periods.month_bounds(month)[1]))}
+        history = [h.month for h in full_months_before(conn, month, HISTORY_MONTHS, as_of=as_of,
+                                                       first=periods.first_date(conn))]
+        for m in history:
+            total, fixed = _spend_by_category(conn, m), _fixed_spend_by_category(conn, m)
+            for cat in limits:
+                var = max(total.get(cat, 0.0) - fixed.get(cat, 0.0), 0.0)
+                variable_day[cat] = variable_day.get(cat, 0.0) + var / periods.days_in_month(m) / len(history)
     out: list[BudgetRow] = []
     for cat, lim in limits.items():
         s = max(spent.get(cat, 0.0), 0.0)
-        projected = None
-        if projected_factor:
-            f = min(fixed.get(cat, 0.0), s)
-            projected = f + (s - f) * projected_factor
+        projected = s + pending.get(cat, 0.0) + variable_day.get(cat, 0.0) * rest_days if current else None
         out.append(BudgetRow(category=cat, limit=lim, spent=s, projected=projected))
     out.sort(key=lambda r: -r.pct)
     return out

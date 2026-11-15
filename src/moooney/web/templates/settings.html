@@ -61,6 +61,19 @@
   </div>
 </div>
 
+<div class="card section">
+  <h2 style="margin-bottom:4px">Qué ha salido de aquí</h2>
+  <div class="concept" style="margin-bottom:8px">Llamadas a modelos del proxy y consultas a Internet, registradas una a una.</div>
+  <div class="scroll-x">
+  <table class="keys-table" data-more="8">
+    <tr><th>Destino</th><th>Para qué</th><th class="num">Llamadas</th><th>Última</th></tr>
+    {% for r in egress.llm %}<tr><td><span style="font-weight:500">{{ r.model }}</span><div class="concept">modelo · ClusterTIC</div></td><td style="color:var(--ink-2)">{{ r.purpose }} · {{ r.tokens }} tokens</td><td class="num">{{ r.n }}</td><td style="color:var(--ink-2);white-space:nowrap" title="{{ r.last }}">{{ (r.last or '')[:10]|fecha }} {{ (r.last or '')[11:16] }}</td></tr>{% endfor %}
+    {% for r in egress.web %}<tr><td><span style="font-weight:500">{{ r.provider }}</span><div class="concept">Internet</div></td><td style="color:var(--ink-2)">enriquecer · <span class="tag {{ 'ok' if r.status == 'hit' else 'crit' if r.status == 'error' else 'info' }}">{{ r.status }}</span></td><td class="num">{{ r.n }}</td><td style="color:var(--ink-2);white-space:nowrap" title="{{ r.last }}">{{ (r.last or '')[:10]|fecha }} {{ (r.last or '')[11:16] }}</td></tr>{% endfor %}
+    {% if not egress.llm and not egress.web %}<tr><td colspan="4" class="muted">Nada ha salido todavía.</td></tr>{% endif %}
+  </table>
+  </div>
+</div>
+
 <div class="section">
   <h2 style="margin-bottom:8px">Dónde se guarda y qué manda</h2>
   <p style="max-width:68ch;color:var(--ink-2);margin:0">

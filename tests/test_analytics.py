@@ -190,7 +190,9 @@ def test_budget_status_y_materializacion(db):
     by_cat = {r.category: r for r in rows}
     assert by_cat["Alimentacion"].spent == pytest.approx(105.0)
     assert by_cat["Alimentacion"].pct == pytest.approx(105.0)
-    assert by_cat["Alimentacion"].projected == pytest.approx(105.0 * 31 / 15)  # todo variable
+    # lo gastado + el variable diario de abril, mayo y junio (105 € cada mes) por los 16 días que quedan,
+    # no el ritmo de este mes extrapolado
+    assert by_cat["Alimentacion"].projected == pytest.approx(105.0 + 16 * (105 / 30 + 105 / 31 + 105 / 30) / 3)
     # Vivienda es 100 % recurrente ya pagado: la proyección no lo multiplica
     assert by_cat["Vivienda"].projected == pytest.approx(700.0)
     assert by_cat["Ocio"].pct == pytest.approx(90.0)

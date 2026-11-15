@@ -75,3 +75,16 @@ def test_insights_mes_anterior_sin_prevision(demo_db):
     items, report = build_insights(demo_db, "2026-09")
     assert report.month == "2026-09"
     assert not any(i.kind == "month_end" for i in items)
+
+
+def test_mes_a_medias_no_extrapola(demo_db):
+    """Con el mes en curso solo cuenta lo ya gastado de más; nada de multiplicar por los días que faltan."""
+    store_recurring(demo_db, detect_recurring(demo_db, "2026-10-10"), "t")
+    items, report = build_insights(demo_db)
+    assert not report.summary.full_month
+    assert not any(i.kind == "category_down" for i in items)
+    cats = {c.category: c for c in report.categories}
+    for i in (i for i in items if i.kind == "category_up"):
+        c = cats[i.title.split(" ya supera")[0]]
+        assert i.impact == pytest.approx(c.amount - c.avg_prev)
+        assert c.amount > c.avg_prev

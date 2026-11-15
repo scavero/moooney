@@ -76,16 +76,9 @@
     </table>
   </div>
   <div class="card">
-    <h2 style="margin-bottom:4px">Próximos meses, si nada cambia</h2>
-    <div class="concept" style="margin-bottom:8px">Fijos: recurrentes activos a 30 días. Variables e ingresos: media de los 3 últimos meses completos.</div>
-    <div class="scroll-x">
-    <table>
-      <tr><th>Mes</th><th class="num">Fijos</th><th class="num">Variables</th><th class="num">Ingresos</th><th class="num">Ahorro</th></tr>
-      {% for m in nxt %}
-      <tr><td style="text-transform:capitalize;font-weight:500">{{ m.month|mes }}</td><td class="num">{{ m.fixed|eur }}</td><td class="num">{{ m.variable|eur }}</td><td class="num pos">{{ m.income|eur }}</td><td class="num {{ 'pos' if m.net >= 0 else 'neg' }}"><strong>{{ '%+.0f'|format(m.net) }} €</strong></td></tr>
-      {% endfor %}
-    </table>
-    </div>
+    <h2 style="margin-bottom:4px">Lo que entra y lo que sale</h2>
+    <div class="concept" style="margin-bottom:12px">La línea es el ahorro. Pulsa un mes para abrir su resumen.</div>
+    <div class="chart-box small"><canvas id="chart-flows" role="img" aria-label="Ingresos, gastos y ahorro de los últimos 12 meses"></canvas></div>
     <h2 style="margin-top:24px;margin-bottom:12px">Saldo proyectado a 12 meses</h2>
     <div class="chart-box small"><canvas id="chart-proj"></canvas></div>
   </div>
@@ -102,22 +95,21 @@
       {% endif %}
     </div>
   </div>
-  <div class="concept" style="margin-bottom:12px">Barras: gasto del mes en <strong>{{ category }}</strong>. Línea: media móvil de 3 meses. Pulsa una barra para ver sus movimientos.{% if cat_trend %} Discontinua: previsión de 3 meses con su rango ({{ cat_trend.model }}{% if cat_trend.error is not none %}, error habitual ±{{ '%.0f'|format(cat_trend.error * 100) }} %{% endif %}). <strong>{{ describe(cat_trend)|capitalize }}.</strong>{% endif %}</div>
+  <div class="concept" style="margin-bottom:12px">Barras: gasto del mes en <strong>{{ category }}</strong>. Línea: media móvil de 3 meses. Pulsa una barra para ver sus movimientos.{% if cat_trend %} Discontinua: previsión de 3 meses con su rango. <strong>{{ describe(cat_trend)|capitalize }}.</strong>{% endif %}</div>
   <div class="chart-box"><canvas id="chart-cat"></canvas></div>
 </div>
 
 <div class="card">
   <h2 style="margin-bottom:4px">Todas las categorías, mes a mes</h2>
-  <div class="concept" style="margin-bottom:12px">Tendencia: media de los 3 últimos meses completos frente a los 3 anteriores. Pulsa una categoría para verla arriba.</div>
+  <div class="concept" style="margin-bottom:12px">Pulsa una categoría para verla arriba.</div>
   <div class="scroll-x">
   <table class="heat-table" data-more="12">
-    <tr><th class="sticky">Categoría</th>{% for m in months12 %}<th class="num">{{ m|mes(true) }}</th>{% endfor %}<th class="num">Media 3m</th><th class="num">Tend.</th></tr>
-    {% for c, values, avg3, trend in table %}
+    <tr><th class="sticky">Categoría</th>{% for m in months12 %}<th class="num">{{ m|mes(true) }}</th>{% endfor %}<th class="num">Media 3m</th></tr>
+    {% for c, values, avg3 in table %}
     <tr>
       <td class="sticky" style="white-space:nowrap"><a href="/trends?category={{ c|urlencode }}" style="font-weight:500">{{ c }}</a></td>
       {% for v in values %}<td class="num heat {{ 'zero' if v == 0 else '' }}" style="--v:{{ '%.3f'|format(v / max_cell) }}">{{ v|eur if v else '·' }}</td>{% endfor %}
       <td class="num"><strong>{{ avg3|eur }}</strong></td>
-      <td class="num {{ 'neg' if trend > 0.15 else 'pos' if trend < -0.15 else 'muted' }}" style="font-weight:700">{{ '%+.0f'|format(trend * 100) }} %</td>
     </tr>
     {% endfor %}
   </table>
@@ -150,6 +142,16 @@ window.renderCharts = function () {
         { ...band, label: 'rango probable', data: at(3), fill: '-1' } ] : []) ] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, filter: i => i.text !== 'rango bajo' } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
       onClick: (e, els) => { if (els.length && els[0].index < months.length) go('/transactions?month=' + months[els[0].index] + '&category=' + encodeURIComponent({{ category|tojson }})); } } });
+  const flows = {{ flows|tojson }};
+  mk('chart-flows', { data: { labels: flows.months.map(lbl), datasets: [
+      { type: 'line', label: 'Ahorro', data: flows.ahorro, borderColor: palette[0], backgroundColor: palette[0], tension: .3, borderWidth: 2, pointRadius: 3 },
+      { type: 'bar', label: 'Ingresos', data: flows.ingresos, backgroundColor: palette[2], borderRadius: 3 },
+      { type: 'bar', label: 'Gastos', data: flows.gastos, backgroundColor: palette[5], borderRadius: 3 } ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } } },
+      scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
+      onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+      onClick: (e, els) => { if (els.length) go('/?month=' + flows.months[els[0].index]); } } });
   const proj = {{ projection|tojson }};
   mk('chart-proj', { type: 'line', data: { labels: proj.map(p => lbl(p[0])), datasets: [{ label: 'saldo proyectado', data: proj.map(p => p[1]), borderColor: palette[0], backgroundColor: palette[4] + '66', fill: true, tension: .3, borderWidth: 2, pointRadius: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } } } });

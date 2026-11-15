@@ -171,7 +171,8 @@ def fallback_report(payload: dict, insights: list[Insight] | None = None) -> str
         lines.append(f"- {h['titulo']}. {h['detalle']}")
     lines += ["", "## Vigilar"]
     for a in payload["alertas_pendientes"][:3]:
-        lines.append(f"- [{a['nivel']}] {a['mensaje']}")
+        nivel = {"critical": "Importante", "warning": "Aviso"}.get(a["nivel"], "Dato")
+        lines.append(f"- {nivel}: {a['mensaje']}")
     if not payload["alertas_pendientes"]:
         lines.append("- Sin alertas pendientes.")
     return "\n".join(lines)

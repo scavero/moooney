@@ -33,7 +33,7 @@ from moooney.analytics import period_summary as period_mod
 from moooney.analytics import periods
 from moooney.analytics import shared as shared_mod
 from moooney.analytics import trends as trends_mod
-from moooney.analytics.metrics import full_months_before_safe
+from moooney.analytics.metrics import full_months_before_safe, monthly_series
 from moooney.analytics.periods import Period
 from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
@@ -62,7 +62,7 @@ FLOW_LABEL = {"expense": "gasto", "income": "ingreso", "transfer_internal": "tra
               "card_settlement_covered": "tarjeta (compras ya contadas)"}
 SOURCE_LABEL = {"user": "corregido por ti", "rule": "regla", "clef": "modelo", "clef_web": "modelo + web",
                 "embedding": "parecido", "llm": "segunda opinión"}
-SEVERITY_LABEL = {"critical": "crítica", "warning": "aviso", "info": "dato"}
+SEVERITY_LABEL = {"critical": "importante", "warning": "aviso", "info": "dato"}
 ALERT_TYPE_LABEL = {
     "budget_80": "presupuesto al 80 %", "budget_100": "presupuesto superado", "anomalous_amount": "importe anómalo",
     "duplicate_charge": "cargo duplicado", "new_recurring": "recurrente nuevo", "price_increase": "subida de precio",
@@ -72,10 +72,10 @@ ALERT_TYPE_LABEL = {
 ALERT_EXPLAIN = {
     "budget_80": "Una categoría ha consumido el 80 % de su límite mensual antes de acabar el mes.",
     "budget_100": "Una categoría ha superado su límite mensual.",
-    "anomalous_amount": "Un cargo muy por encima del histórico de ese comercio (mediana + 3 desviaciones robustas y más de 20 €).",
-    "duplicate_charge": "Mismo comercio e importe en menos de 48 h: puede ser un cobro repetido.",
-    "price_increase": "Una cuota fija que ha pasado a cobrarse más cara (al menos un 3 % y 50 céntimos), con lo que supone al año.",
-    "bill_rising": "Un recibo variable (luz, agua…) cuyos tres últimos cargos promedian más de un 15 % y 5 € por encima de los anteriores.",
+    "anomalous_amount": "Un cargo muy por encima de lo que sueles pagar en ese comercio.",
+    "duplicate_charge": "Mismo comercio e importe en menos de dos días: puede ser un cobro repetido.",
+    "price_increase": "Una cuota fija que ha pasado a cobrarse más cara, con lo que supone al año.",
+    "bill_rising": "Un recibo variable (luz, agua…) cuyos últimos cargos salen claramente más caros que los anteriores.",
     "new_recurring": "Un cargo que empezó a repetirse hace menos de 90 días.",
     "missing_income": "Un ingreso recurrente que no llegó cuando tocaba.",
     "negative_balance": "Con los recurrentes previstos, el saldo quedaría en negativo antes del próximo ingreso.",
@@ -260,10 +260,17 @@ def period_explorer(conn: sqlite3.Connection, p: periods.Period, ps) -> dict:
     }
 
 
-def build_verdict(summary, insights, *, day: int | None = None) -> str:
-    """Una frase en castellano que responde a la pregunta del mes. Determinista."""
+def build_verdict(summary, insights, *, day: int | None = None, forecast=None) -> str:
+    """Una frase en castellano que responde a la pregunta del mes. Determinista.
+
+    Con el mes en curso y previsión (`forecast`) dice cómo va a acabar: el día 10, con la nómina
+    cobrada y medio mes por pagar, lo ahorrado hasta hoy siempre parece mejor de lo que es."""
     prefix = f"A día {day}, " if day and not summary.full_month else ""
-    if summary.income > 0 and summary.net >= 0:
+    if forecast is not None:
+        prefix = ""
+        base = (f"vas camino de ahorrar {eur(forecast.net)} este mes" if forecast.net >= 0
+                else f"vas camino de gastar {eur(-forecast.net)} más de lo que entra este mes")
+    elif summary.income > 0 and summary.net >= 0:
         base = f"has ahorrado el {summary.savings_rate * 100:.0f} % de lo que entró"
     elif summary.income > 0:
         base = f"has gastado {eur(-summary.net)} más de lo que entró"
@@ -275,6 +282,29 @@ def build_verdict(summary, insights, *, day: int | None = None) -> str:
         titulo = aviso.title.split(":")[0].rstrip(".")  # sin las cifras del detalle: frase corta
         frase += f"; {titulo[0].lower() + titulo[1:]}"
     return frase + "."
+
+
+def para_mirar(pending, insights, dudosas: int) -> list[dict]:
+    """Lo pendiente del Resumen en una sola lista, lo más serio primero: alertas sin ver, comercios por
+    revisar y los hallazgos serios del diagnóstico que no repiten una alerta ni la cifra de cabecera."""
+    tone = {"critical": "crit", "warning": "warn"}
+    items = [{"tone": tone.get(a["severity"], "info"), "title": a["message"],
+              "detail": f"{ALERT_TYPE_LABEL.get(a['type'], a['type'])} · {fecha(a['date'])}".capitalize(),
+              "link": "/alerts", "go": "Ver en Avisos"} for a in pending]
+    if dudosas:
+        items.append({"tone": "warn", "title": f"{dudosas} comercio{'s' if dudosas != 1 else ''} por revisar",
+                      "detail": "No está claro a qué categoría van; hasta entonces el reparto del gasto no es exacto.",
+                      "link": "/merchants?mode=dudosas", "go": "Revisar"})
+    con_presupuesto = [a["message"].split(":")[0] for a in pending if a["type"].startswith("budget")]
+    for i in insights:
+        if i.severity not in ("bad", "warn") or i.kind == "month_end":  # la previsión ya es la cifra de cabecera
+            continue
+        if i.kind == "category_up" and any(i.title.startswith(c) for c in con_presupuesto):
+            continue  # ya lo dice la alerta de presupuesto
+        if i.kind == "fees" and any(a["type"] == "bank_fee" for a in pending):
+            continue  # ya lo dice la alerta de comisión
+        items.append({"tone": i.tone, "title": i.title, "detail": i.detail, "link": i.link, "go": "Ver"})
+    return sorted(items, key=lambda x: ("crit", "warn", "info").index(x["tone"]))
 
 
 def create_app(config_path: Path | None = None, *, force_demo: bool = False, snapshot: bool = False) -> FastAPI:
@@ -429,44 +459,23 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         m = p.key
         service.refresh_recurring(conn)
         insights, report = insights_mod.build_insights(conn, m)
-        series_months = [s.month for s in report.series]
-        cat_series = queries.category_series(conn, series_months)
-        top_cats = list(cat_series.items())[:8]
-        resto = [sum(v[i] for _, v in list(cat_series.items())[8:]) for i in range(len(series_months))]
-        limits_cfg = budgets_mod.load_budgets_config(active().paths.budgets)
-        budget_rows = []
-        if limits_cfg:
-            limits = budgets_mod.limits_for_month(conn, m, limits_cfg)
-            budget_rows = budgets_mod.budget_status(conn, m, limits, as_of=report.as_of)
         first = periods.first_date(conn)
         fme = forecast_mod.forecast_month_end(conn, report.as_of, first=first) if m == periods.month_of(report.as_of) else None
+        if fme is not None and fme.history_months == 0:
+            fme = None  # sin meses completos no hay ritmo con el que prever: se enseña lo ahorrado hasta hoy
+        start, end = periods.month_bounds(m)
         return render(
             request, conn, "dashboard.html",
             month=m, pnav=period_nav(conn, p),
             report=report, top=queries.top_merchants(conn, m, limit=8),
             explorer={**month_explorer(conn, m, report.as_of, [c.category for c in report.categories if c.amount > 0]),
                       "amounts": {c.category: round(c.amount, 2) for c in report.categories if c.amount > 0}},
-            cat_merchants=queries.merchants_by_category(conn, periods.month_bounds(m)[0],
-                                                        min(periods.month_bounds(m)[1], report.as_of)),
-            cat_subs=queries.subcategories_by_category(conn, periods.month_bounds(m)[0],
-                                                       min(periods.month_bounds(m)[1], report.as_of)),
-            income_sources=queries.income_sources(conn, *periods.month_bounds(m)),
-            chart_months=series_months,
-            chart_series=[{"label": c, "data": v} for c, v in top_cats]
-            + ([{"label": "Resto", "data": resto}] if any(resto) else []),
-            chart_flows={
-                "ingresos": [s.income for s in report.series],
-                "gastos": [s.expenses for s in report.series],
-                "ahorro": [s.net for s in report.series],
-            },
-            budget_rows=budget_rows[:6], today_pct=today_pct(conn, m),
-            pending=alerts_mod.pending_alerts(conn)[:5],
-            insights=insights[:7],
-            potential=sum(i.impact for i in insights if i.impact > 0),
-            fme=fme, balance=forecast_mod.last_balance(conn),
-            runway=forecast_mod.runway_months(conn, report.as_of, first=first),
-            accounts=repo.accounts(conn),
-            verdict=build_verdict(report.summary, insights, day=int(report.as_of[8:10])),
+            cat_merchants=queries.merchants_by_category(conn, start, min(end, report.as_of)),
+            cat_subs=queries.subcategories_by_category(conn, start, min(end, report.as_of)),
+            income_sources=queries.income_sources(conn, start, end),
+            mirar=para_mirar(alerts_mod.pending_alerts(conn), insights, queries.merchants_summary(conn)["dudosas"]),
+            fme=fme, balance=forecast_mod.last_balance(conn), accounts=repo.accounts(conn),
+            verdict=build_verdict(report.summary, insights, day=int(report.as_of[8:10]), forecast=fme),
             day=int(report.as_of[8:10]), days_in_month=periods.days_in_month(m),
         )
 
@@ -497,12 +506,9 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         for c, vals in series.items():
             complete = [v for v, ok in zip(vals, full, strict=True) if ok]
             last3 = complete[-3:]
-            prev3 = complete[-6:-3]
-            avg3 = sum(last3) / len(last3) if last3 else 0.0
-            prev = sum(prev3) / len(prev3) if prev3 else 0.0
-            trend = (avg3 - prev) / prev if prev > 0 else 0.0
-            table.append((c, vals, avg3, trend))
-        max_cell = max((v for _, vals, _, _ in table for v in vals), default=1.0) or 1.0
+            table.append((c, vals, sum(last3) / len(last3) if last3 else 0.0))
+        max_cell = max((v for _, vals, _ in table for v in vals), default=1.0) or 1.0
+        flows = monthly_series(conn, month, 12, as_of=as_of, first=first)
         history = full_months_before_safe(conn, month, 6, as_of=as_of, first=first)
         avg_net = sum(h.net for h in history) / len(history) if history else 0.0
         import markdown as md
@@ -517,7 +523,8 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             months12=months12, cat_values=values, cat_avg=avg, table=table, max_cell=max_cell,
             share=insights_mod.spend_share_12m(conn, as_of),
             fme=forecast_mod.forecast_month_end(conn, as_of, first=first),
-            nxt=forecast_mod.forecast_next_months(conn, as_of, n=3, first=first),
+            flows={"months": [s.month for s in flows], "ingresos": [s.income for s in flows],
+                   "gastos": [s.expenses for s in flows], "ahorro": [s.net for s in flows]},
             runway=forecast_mod.runway_months(conn, as_of, first=first),
             balance=forecast_mod.last_balance(conn),
             projection=forecast_mod.savings_projection(conn, as_of, months=12, first=first),
@@ -1050,12 +1057,6 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         alerts_mod.acknowledge(conn)
         return RedirectResponse("/alerts", status_code=303)
 
-    @app.post("/alerts/ack-type/{alert_type}")
-    def alerts_ack_type(conn: DB, alert_type: str):
-        with conn:
-            conn.execute("UPDATE alerts SET acknowledged = 1 WHERE acknowledged = 0 AND type = ?", (alert_type,))
-        return RedirectResponse("/alerts", status_code=303)
-
     @app.post("/alerts/{alert_id}/ack")
     def alert_ack(conn: DB, alert_id: int):
         alerts_mod.acknowledge(conn, alert_id)
@@ -1112,31 +1113,10 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         status = repo.get_status(conn)
         files = queries.excel_files(conn, state.settings.paths.excel_dir)
         merchants = queries.merchants_summary(conn)
-        alerts_counts = queries.alerts_counts(conn)
-        pending_files = sum(1 for f in files if not f.imported)
-        # Pasos del flujo con su estado: la página dice de un vistazo qué pide acción.
-        steps = [
-            {"n": 1, "label": "Importar", "ok": pending_files == 0,
-             "status": f"{pending_files} pendientes" if pending_files else "al día",
-             "hint": f"{len(files)} ficheros en la carpeta",
-             **({"cta": "Importar nuevos", "action": "ingest"} if pending_files else {"cta": "Subir Excel", "href": "#upload-form"})},
-            {"n": 2, "label": "Categorizar", "ok": not status["uncategorized"],
-             "status": f"{status['uncategorized']} sin categoría" if status["uncategorized"] else "al día",
-             "hint": f"{merchants['total']} claves en memoria", "cta": "Categorizar", "action": "categorize"},
-            {"n": 3, "label": "Revisar dudosas", "ok": not merchants["dudosas"],
-             "status": f"{merchants['dudosas']} pendientes" if merchants["dudosas"] else "al día",
-             "hint": "confianza < 0,7 u Otros", "cta": "Revisar", "href": "/merchants?mode=dudosas"},
-            {"n": 4, "label": "Alertas", "ok": not alerts_counts["critical"],
-             "status": f"{alerts_counts['total']} pendientes" if alerts_counts["total"] else "al día",
-             "hint": "recalculadas con los datos actuales", "cta": "Ver alertas", "href": "/alerts"},
-            {"n": 5, "label": "Informe", "ok": llm is not None and not offline_enabled(),
-             "status": "con modelo" if llm is not None and not offline_enabled() else "sin modelo",
-             "hint": "la versión determinista siempre está", "cta": "Ver informe", "href": "/report"},
-        ]
         return {
             "status": status, "files": files, "imports": queries.imports_history(conn), "merchants": merchants,
-            "egress": queries.egress_stats(conn), "enrichment": enr, "llm": llm, "jobs": state.jobs.recent(),
-            "excel_dir": state.settings.paths.excel_dir, "demo": a.demo, "steps": steps, "reset_word": CONFIRM_WORD,
+            "enrichment": enr, "llm": llm, "jobs": state.jobs.recent(),
+            "excel_dir": state.settings.paths.excel_dir, "demo": a.demo, "reset_word": CONFIRM_WORD,
             "backups": list_backups(state.settings.paths.backups_dir),
         }
 
@@ -1149,11 +1129,11 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         "categorize": "Categorizar pendientes",
         "categorize-refresh": "Reaplicar reglas",
         "categorize-rebuild": "Reconstruir claves",
-        "categorize-retry": "Reintentar dudosas con el decider",
+        "categorize-retry": "Reintentar dudosos con el modelo de decisión",
         "second-opinion": "Segunda opinión del modelo de texto",
         "fill-subcategories": "Rellenar subcategorías",
         "review-duplicates": "Revisar posibles duplicados",
-        "enrich": "Enriquecer dudosas por web",
+        "enrich": "Consultar dudosos en Internet",
         "alerts": "Recalcular recurrentes y alertas",
         "repair": "Revisar extractos solapados",
         "reset": "Empezar de cero",
@@ -1297,7 +1277,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             llm=service.llm_settings_or_none(state.paths), env_path=env_path,
             keys={n: key_info(n) for n in envfile.SECRET_NAMES},
             offline_source_label=source_label("MOOONEY_OFFLINE"),
-            notice=notice, notice_kind=kind,
+            egress=queries.egress_stats(conn), notice=notice, notice_kind=kind,
         )
 
     @app.post("/settings/key")

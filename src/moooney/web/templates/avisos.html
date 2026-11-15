@@ -3,58 +3,49 @@
 {# Alertas pendientes y, debajo, los recurrentes con su calendario de cargos: una sola página. #}
 {% block content %}
 <div class="topbar">
-  <div><h1>Avisos</h1><div class="subtitle">Lo que conviene mirar: alertas calculadas con reglas (no con el modelo) y, debajo, <a href="#recurrentes">los recurrentes y su calendario de cargos</a>.</div></div>
+  <div><h1>Avisos</h1><div class="subtitle">Lo que conviene mirar y, debajo, <a href="#recurrentes">los recurrentes y su calendario de cargos</a>.</div></div>
   <div class="actions">
     {% if alerts_counts.total %}<form method="post" action="/alerts/ack-all"><button class="btn ghost" type="submit">Marcar todas como vistas</button></form>{% endif %}
-    <form method="post" action="/alerts/refresh"><button class="btn primary" type="submit">Recalcular</button></form>
+    <form method="post" action="/alerts/refresh"><button class="btn ghost" type="submit">Recalcular</button></form>
   </div>
 </div>
 
 {% set keep = '&inactive=1' if inactive else '' %}
-{% set base = '/alerts?all=' ~ all ~ keep %}
-<div class="filters" style="margin-bottom:24px">
-  <div class="segmented" aria-label="Nivel">
-    <a class="{{ 'on' if not severity else '' }}" href="{{ base }}">Todas <span>{{ total }}</span></a>
-    <a class="{{ 'on' if severity == 'critical' else '' }}" href="{{ base }}&severity=critical">Críticas <span>{{ counts.critical }}</span></a>
-    <a class="{{ 'on' if severity == 'warning' else '' }}" href="{{ base }}&severity=warning">Avisos <span>{{ counts.warning }}</span></a>
-    <a class="{{ 'on' if severity == 'info' else '' }}" href="{{ base }}&severity=info">Datos <span>{{ counts.info }}</span></a>
-  </div>
-  <div class="segmented" aria-label="Qué alertas ver" style="margin-left:auto">
+<div class="filters" style="margin-bottom:var(--s2)">
+  <div class="segmented" aria-label="Qué alertas ver">
     <a class="{{ '' if all else 'on' }}" href="/alerts?severity={{ severity }}{{ keep }}">Pendientes</a>
     <a class="{{ 'on' if all else '' }}" href="/alerts?all=1&severity={{ severity }}{{ keep }}">Con las vistas</a>
   </div>
 </div>
 
+{# Una sola lista, lo más serio primero; qué significa cada tipo va plegado debajo. #}
 {% if rows %}
-  {% for type, items in groups.items() %}
-  <div class="alert-group">
-    <div class="topbar" style="margin-bottom:4px;align-items:baseline">
-      <h2 style="margin:0">{{ ALERT_TYPE_LABEL.get(type, type) }} <span>{{ items|length }}</span></h2>
-      {% if items|rejectattr('acknowledged')|list %}<form method="post" action="/alerts/ack-type/{{ type }}"><button class="link-btn" type="submit" style="padding:0">Marcar el grupo como visto</button></form>{% endif %}
-    </div>
-    <div class="concept" style="margin-bottom:8px">{{ ALERT_EXPLAIN.get(type, '') }}</div>
-    <table class="alert-table" data-more="5">
-      <tr><th>Nivel</th><th>Fecha</th><th>Qué pasa</th><th></th></tr>
-      {% for a in items %}
-      {% set subject = a.message.split(':')[0] %}
-      {% set rest = a.message[subject|length:] %}
-      <tr class="{{ 'seen' if a.acknowledged else '' }}">
-        <td><span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ SEVERITY_LABEL[a.severity] }}</span></td>
-        <td class="when" title="{{ a.date }}">{{ a.date|fecha }}</td>
-        <td><span style="font-weight:500">{{ subject }}</span>{{ rest }}
-          {% if a.type.startswith('budget') %} <a href="/transactions?month={{ a.date[:7] }}&category={{ subject|urlencode }}" style="font-weight:700;white-space:nowrap">Ver movimientos →</a>
-          {% elif a.type in ('anomalous_amount', 'duplicate_charge', 'price_increase', 'new_recurring', 'missing_income') %} <a href="/transactions?key={{ subject|urlencode }}" style="font-weight:700;white-space:nowrap">Ver comercio →</a>
-          {% elif a.type == 'bank_fee' %} <a href="/transactions?month={{ a.date[:7] }}&category=Comisiones%20bancarias" style="font-weight:700;white-space:nowrap">Ver comisiones →</a>{% endif %}</td>
-        <td class="num">{% if not a.acknowledged %}<button class="btn small" hx-post="/alerts/{{ a.id }}/ack" hx-target="closest tr" hx-swap="outerHTML">Entendido</button>{% else %}<span class="concept">vista</span>{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
+<table class="alert-table" data-more="8">
+  <tr><th>Nivel</th><th>Fecha</th><th>Qué pasa</th><th></th></tr>
+  {% for a in rows %}
+  {% set subject = a.message.split(':')[0] %}
+  {% set rest = a.message[subject|length:] %}
+  <tr class="{{ 'seen' if a.acknowledged else '' }}">
+    <td><span class="tag {{ 'crit' if a.severity == 'critical' else 'warn' if a.severity == 'warning' else 'info' }}">{{ SEVERITY_LABEL[a.severity] }}</span></td>
+    <td class="when" title="{{ a.date }}">{{ a.date|fecha }}</td>
+    <td><div class="concept">{{ ALERT_TYPE_LABEL.get(a.type, a.type)|capitalize }}</div><span style="font-weight:500">{{ subject }}</span>{{ rest }}
+      {% if a.type.startswith('budget') %} <a href="/transactions?month={{ a.date[:7] }}&category={{ subject|urlencode }}" style="font-weight:700;white-space:nowrap">Ver movimientos →</a>
+      {% elif a.type in ('anomalous_amount', 'duplicate_charge', 'price_increase', 'new_recurring', 'missing_income') %} <a href="/transactions?key={{ subject|urlencode }}" style="font-weight:700;white-space:nowrap">Ver comercio →</a>
+      {% elif a.type == 'bank_fee' %} <a href="/transactions?month={{ a.date[:7] }}&category=Comisiones%20bancarias" style="font-weight:700;white-space:nowrap">Ver comisiones →</a>{% endif %}</td>
+    <td class="num">{% if not a.acknowledged %}<button class="btn small" hx-post="/alerts/{{ a.id }}/ack" hx-target="closest tr" hx-swap="outerHTML">Entendido</button>{% else %}<span class="concept">vista</span>{% endif %}</td>
+  </tr>
   {% endfor %}
-{% elif severity or all %}
-<div class="notice ok">Nada que mostrar con este filtro. <a href="/alerts">Ver todas las pendientes</a>.</div>
+</table>
+<details style="margin-top:var(--s2)">
+  <summary>Qué significa cada aviso ↓</summary>
+  <dl class="kv" style="margin-top:var(--s1);font-size:14px">
+    {% for type in groups %}<dt>{{ ALERT_TYPE_LABEL.get(type, type)|capitalize }}</dt><dd>{{ ALERT_EXPLAIN.get(type, '') }}</dd>{% endfor %}
+  </dl>
+</details>
+{% elif all %}
+<div class="notice ok">Todavía no ha habido ningún aviso.</div>
 {% else %}
-<div class="notice ok"><strong>Nada pendiente.</strong> Pulsa <strong>Recalcular</strong> tras importar movimientos nuevos.</div>
+<div class="notice ok"><strong>Nada pendiente.</strong> Los avisos nuevos aparecen al importar movimientos.</div>
 {% endif %}
 
 <div class="plan-part" id="recurrentes">
@@ -69,7 +60,7 @@
 </div>
 
 <div class="grid kpis section">
-  <div class="card kpi"><div class="label">Gasto fijo mensual</div><div class="value neg">{{ monthly_fixed|eur }}</div><div class="hint">{{ n_active }} recurrentes activos, llevados a 30 días</div></div>
+  <div class="card kpi"><div class="label">Gasto fijo mensual</div><div class="value neg">{{ monthly_fixed|eur }}</div><div class="hint">{{ n_active }} recurrentes activos</div></div>
   <div class="card kpi"><div class="label">Próximos 30 días</div><div class="value neg">{{ charges_total|eur }}</div><div class="hint">{{ charges_n }} cargos previstos antes del <span title="{{ horizon }}">{{ horizon|fecha }}</span></div></div>
   <div class="card kpi"><div class="label">Saldo tras los cargos</div><div class="value {{ 'pos' if after >= 0 else 'neg' }}">{{ after|eur }}</div><div class="hint">saldo actual {{ balance|eur }}{% if next_income %} · sin contar el ingreso del <span title="{{ next_income }}">{{ next_income|fecha }}</span>{% endif %}</div></div>
 </div>
@@ -101,10 +92,10 @@
 <div class="grid three section">
   <div class="card">
     <h2 style="margin-bottom:4px">{{ 'Todos los recurrentes' if inactive else 'Recurrentes activos' }}</h2>
-    <div class="concept" style="margin-bottom:8px">{{ rows_rec|length }} en total. Pulsa una clave para ver sus movimientos.{% if price_up %} Los marcados en ámbar han subido de precio.{% endif %}</div>
+    <div class="concept" style="margin-bottom:8px">{{ rows_rec|length }} en total. Pulsa un nombre para ver sus movimientos.{% if price_up %} Los marcados en ámbar han subido de precio.{% endif %}</div>
     <div class="scroll-x">
     <table class="rec-table" data-more="8">
-      <tr><th>Clave</th><th>Periodo</th><th class="num">Importe</th><th class="num">Último</th><th class="num">Próximo</th></tr>
+      <tr><th>Concepto</th><th>Periodo</th><th class="num">Importe</th><th class="num">Último</th><th class="num">Próximo</th></tr>
       {% for r in rows_rec %}
       <tr class="{{ '' if r.active else 'inactive' }}">
         <td style="min-width:0">
