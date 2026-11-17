@@ -125,16 +125,12 @@ def remove_transaction(conn: sqlite3.Connection, tx_id: int, reason: str, *, now
         )
         if cur.rowcount == 0:
             return False
-        # devoluciones emparejadas con este gasto: al borrarlo pierden el vínculo y vuelven a su comercio
-        incomes = [r[0] for r in conn.execute("SELECT income_id FROM reimbursements WHERE expense_id = ?", (tx_id,))]
         conn.execute(
             "DELETE FROM alerts WHERE transaction_id = ?"
             " OR dedup_key LIKE ? OR dedup_key LIKE ?",
             (tx_id, f"duplicate_charge|{tx_id}|%", f"duplicate_charge|%|{tx_id}"),
         )
         conn.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
-        for income_id in incomes:
-            category_from_merchant(conn, income_id)
     return True
 
 
@@ -227,72 +223,7 @@ def propagate_to_transactions(
         )
     if flow_type == "card_settlement":
         mark_card_settlements(conn)
-    apply_reimbursements(conn)  # una devolución emparejada no vuelve a ser ingreso
-    apply_overrides(conn)  # ni un movimiento con categoría propia vuelve a la del comercio
     return cur.rowcount
-
-
-def apply_reimbursements(conn: sqlite3.Connection) -> int:
-    """Los ingresos emparejados con un gasto (gastos compartidos, analytics/shared.py) cuentan
-    como gasto en positivo de la categoría de ese gasto. Idempotente."""
-    with conn:
-        cur = conn.execute(
-            """UPDATE transactions SET flow_type = 'expense', category = e.category,
-                   subcategory = e.subcategory, confidence = 1.0
-               FROM reimbursements r JOIN transactions e ON e.id = r.expense_id
-               WHERE transactions.id = r.income_id
-                 AND (transactions.flow_type IS NOT 'expense' OR transactions.category IS NOT e.category
-                      OR transactions.subcategory IS NOT e.subcategory)"""
-        )
-    return cur.rowcount
-
-
-# ---------- categoría de un solo movimiento ----------
-
-
-def apply_overrides(conn: sqlite3.Connection) -> int:
-    """Los movimientos con categoría propia (transaction_overrides) la recuperan. Idempotente."""
-    with conn:
-        cur = conn.execute(
-            """UPDATE transactions SET category = o.category, subcategory = o.subcategory,
-                   flow_type = o.flow_type, confidence = 1.0
-               FROM transaction_overrides o
-               WHERE transactions.id = o.transaction_id
-                 AND (transactions.category IS NOT o.category OR transactions.flow_type IS NOT o.flow_type
-                      OR transactions.subcategory IS NOT o.subcategory)"""
-        )
-    return cur.rowcount
-
-
-def set_override(conn: sqlite3.Connection, tx_id: int, *, category: str, subcategory: str | None,
-                 flow_type: str, now: str) -> bool:
-    """Fija la categoría de ese movimiento, sin tocar su comercio. False si no existe."""
-    if conn.execute("SELECT 1 FROM transactions WHERE id = ?", (tx_id,)).fetchone() is None:
-        return False
-    with conn:
-        conn.execute(
-            "INSERT OR REPLACE INTO transaction_overrides (transaction_id, category, subcategory, flow_type,"
-            " created_at) VALUES (?, ?, ?, ?, ?)",
-            (tx_id, category, subcategory, flow_type, now),
-        )
-    apply_overrides(conn)
-    return True
-
-
-def clear_override(conn: sqlite3.Connection, tx_id: int) -> None:
-    """El movimiento vuelve a la categoría de su comercio."""
-    with conn:
-        conn.execute("DELETE FROM transaction_overrides WHERE transaction_id = ?", (tx_id,))
-        category_from_merchant(conn, tx_id)
-    apply_reimbursements(conn)
-
-
-def overrides_for(conn: sqlite3.Connection, transaction_ids: list[int]) -> set[int]:
-    if not transaction_ids:
-        return set()
-    ph = ",".join("?" for _ in transaction_ids)
-    return {int(r[0]) for r in conn.execute(
-        f"SELECT transaction_id FROM transaction_overrides WHERE transaction_id IN ({ph})", list(transaction_ids))}
 
 
 # ---------- tarjeta de crédito: compras sueltas frente a la liquidación ----------
@@ -415,66 +346,6 @@ def insert_llm_call(
 
 
 # ---------- status ----------
-
-
-MAX_TAG_CHARS = 40
-
-
-def normalize_tag(tag: str) -> str:
-    """'  Viaje  China ' → 'viaje china'. Vacía si no queda nada útil."""
-    s = " ".join(str(tag or "").strip().lower().split())
-    return s[:MAX_TAG_CHARS].strip(" ,;|")
-
-
-def add_tag(conn: sqlite3.Connection, transaction_id: int, tag: str, *, now: str) -> str | None:
-    """Añade una etiqueta a un movimiento. Devuelve la etiqueta normalizada o None si no vale."""
-    t = normalize_tag(tag)
-    if not t:
-        return None
-    exists = conn.execute("SELECT 1 FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
-    if exists is None:
-        return None
-    with conn:
-        conn.execute(
-            "INSERT OR IGNORE INTO transaction_tags (transaction_id, tag, created_at) VALUES (?, ?, ?)",
-            (transaction_id, t, now),
-        )
-    return t
-
-
-def remove_tag(conn: sqlite3.Connection, transaction_id: int, tag: str) -> bool:
-    with conn:
-        cur = conn.execute(
-            "DELETE FROM transaction_tags WHERE transaction_id = ? AND tag = ?",
-            (transaction_id, normalize_tag(tag)),
-        )
-    return cur.rowcount > 0
-
-
-def tags_for(conn: sqlite3.Connection, transaction_ids: list[int]) -> dict[int, list[str]]:
-    """{id: [etiquetas]} para un conjunto de movimientos (una consulta)."""
-    out: dict[int, list[str]] = {}
-    if not transaction_ids:
-        return out
-    ph = ",".join("?" for _ in transaction_ids)
-    rows = conn.execute(
-        f"SELECT transaction_id, tag FROM transaction_tags WHERE transaction_id IN ({ph}) ORDER BY tag",
-        list(transaction_ids),
-    ).fetchall()
-    for r in rows:
-        out.setdefault(int(r["transaction_id"]), []).append(r["tag"])
-    return out
-
-
-def tags_summary(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    """Cada etiqueta con cuántos movimientos agrupa y su suma neta."""
-    return conn.execute(
-        """
-        SELECT g.tag, COUNT(*) AS n, COALESCE(SUM(t.amount), 0) AS total, MAX(t.date) AS last_date
-        FROM transaction_tags g JOIN transactions t ON t.id = g.transaction_id
-        GROUP BY g.tag ORDER BY MAX(t.date) DESC, g.tag
-        """
-    ).fetchall()
 
 
 def accounts(conn: sqlite3.Connection) -> list[sqlite3.Row]:

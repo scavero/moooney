@@ -32,7 +32,6 @@ from moooney.analytics import goals as goals_mod
 from moooney.analytics import insights as insights_mod
 from moooney.analytics import period_summary as period_mod
 from moooney.analytics import periods
-from moooney.analytics import shared as shared_mod
 from moooney.analytics import trends as trends_mod
 from moooney.analytics.metrics import full_months_before_safe, monthly_series
 from moooney.analytics.periods import Period
@@ -576,40 +575,15 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     def tx_dates(p: Period | None) -> tuple[str, str] | None:
         return (p.start, p.end) if p and p.kind != "month" else None
 
-    def shared_context(conn: sqlite3.Connection) -> dict:
-        """Gastos compartidos para pintarlos en Movimientos: de qué gasto es cada devolución emparejada,
-        qué devoluciones tiene cada gasto y qué ingresos podrían ser la parte de alguien."""
-        links = shared_mod.linked(conn)
-        refunds: dict[int, dict] = {}
-        for r in links:
-            g = refunds.setdefault(r["expense_id"], {"rows": [], "total": 0.0, "net": -float(r["expense_amount"])})
-            g["rows"].append(r)
-            g["total"] += float(r["income_amount"])
-            g["net"] -= float(r["income_amount"])
-        return {"link_of": {r["income_id"]: r for r in links}, "refunds_of": refunds,
-                "suggest_of": {s.income["id"]: s for s in shared_mod.suggestions(conn)}}
-
-    def shared_ids(sh: dict, shared: str | None) -> list[int] | None:
-        """Filtro «Compartidos» de Movimientos: `1` los ya emparejados, `review` los que faltan por mirar."""
-        if shared == "review":
-            return list(sh["suggest_of"])
-        if shared == "1":
-            return [*sh["link_of"], *sh["refunds_of"]]
-        return None
-
     @app.get("/transactions", response_class=HTMLResponse)
     def transactions(request: Request, conn: DB, month: str | None = None, category: str | None = None,
                      flow: str | None = None, key: str | None = None, q: str | None = None,
-                     account: str | None = None, tag: str | None = None, page: int = 1,
-                     period: str | None = None, start: str | None = None, end: str | None = None,
-                     shared: str | None = None):
+                     account: str | None = None, page: int = 1,
+                     period: str | None = None, start: str | None = None, end: str | None = None):
         p = tx_period(period, month, start, end)
-        sh = shared_context(conn)
-        shared = shared if shared in ("1", "review") else ""
         filters = {"month": p.key if p and p.kind == "month" else None, "dates": tx_dates(p),
-                   "only_ids": shared_ids(sh, shared),
                    "category": category or None, "flow": flow or None,
-                   "key": key or None, "q": q or None, "account": account or None, "tag": tag or None}
+                   "key": key or None, "q": q or None, "account": account or None}
         pg = queries.transactions_page(conn, page=page, **filters)
         months = queries.months_available(conn)
         return render(
@@ -619,13 +593,11 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             end=(end or "") if not p or p.kind == "range" else "",
             quarters=list(dict.fromkeys(periods.period_containing("quarter", f"{m}-01").key for m in months)),
             years=list(dict.fromkeys(m[:4] for m in months)),
-            sh=sh, shared=shared, next_url=str(request.url.path) + ("?" + request.url.query if request.url.query else ""),
-            flow=flow or "", key=key or "", q=q or "", account=account or "", tag=tag or "",
+            next_url=str(request.url.path) + ("?" + request.url.query if request.url.query else ""),
+            flow=flow or "", key=key or "", q=q or "", account=account or "",
             totals=queries.transactions_totals(conn, **filters), taxonomy=taxonomy(),
-            accounts=repo.accounts(conn), tags=repo.tags_summary(conn),
-            tags_by_id=repo.tags_for(conn, [int(t["id"]) for t in pg.rows]),
+            accounts=repo.accounts(conn),
             day_groups=group_by_day(pg.rows), removed=repo.removed_transactions(conn),
-            own_category=repo.overrides_for(conn, [int(t["id"]) for t in pg.rows]),
             dup_groups=sum(g.verdict != "normal" for g in duplicates_mod.candidates(conn)),
         )
 
@@ -649,18 +621,6 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             raise HTTPException(status_code=404, detail="grupo no encontrado")
         return RedirectResponse("/transactions/duplicates", status_code=303)
 
-    @app.post("/transactions/{tx_id}/category")
-    def tx_category(conn: DB, tx_id: int, category: Annotated[str, Form()] = "",
-                    next: Annotated[str, Form()] = ""):  # noqa: A002
-        """Categoría de ese movimiento nada más; vacía, vuelve a la de su comercio."""
-        try:
-            found = service.set_transaction_category(conn, taxonomy(), tx_id, category)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from None
-        if not found:
-            raise HTTPException(status_code=404, detail="movimiento no encontrado")
-        return tx_back(next)
-
     @app.post("/transactions/{tx_id}/remove")
     def tx_remove(conn: DB, tx_id: int, reason: Annotated[str, Form()] = "",
                   next: Annotated[str, Form()] = ""):  # noqa: A002
@@ -677,36 +637,17 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             raise HTTPException(status_code=404, detail="movimiento no encontrado")
         return tx_back(next)
 
-    def _tags_cell(request: Request, conn: sqlite3.Connection, tx_id: int):
-        return templates.TemplateResponse(
-            request, "partials/tags_cell.html",
-            {"request": request, "tx_id": tx_id, "tags": repo.tags_for(conn, [tx_id]).get(tx_id, [])},
-        )
-
-    @app.post("/transactions/{tx_id}/tags", response_class=HTMLResponse)
-    def tag_add(request: Request, conn: DB, tx_id: int, tag: Annotated[str, Form()] = ""):
-        """Añade una etiqueta al movimiento y devuelve la celda de etiquetas."""
-        if repo.add_tag(conn, tx_id, tag, now=datetime.now().isoformat(timespec="seconds")) is None and tag.strip():
-            raise HTTPException(status_code=404, detail="movimiento no encontrado")
-        return _tags_cell(request, conn, tx_id)
-
-    @app.post("/transactions/{tx_id}/tags/remove", response_class=HTMLResponse)
-    def tag_remove(request: Request, conn: DB, tx_id: int, tag: Annotated[str, Form()] = ""):
-        repo.remove_tag(conn, tx_id, tag)
-        return _tags_cell(request, conn, tx_id)
-
     @app.get("/transactions/export.csv")
     def transactions_export(conn: DB, month: str | None = None, category: str | None = None,
                             flow: str | None = None, key: str | None = None, q: str | None = None,
-                            account: str | None = None, tag: str | None = None, period: str | None = None,
-                            start: str | None = None, end: str | None = None, shared: str | None = None):
+                            account: str | None = None, period: str | None = None,
+                            start: str | None = None, end: str | None = None):
         """CSV de los movimientos del filtro actual (separador ;, UTF-8 con BOM para Excel)."""
         p = tx_period(period, month, start, end)
         texto, _n = transactions_csv(
             conn, month=p.key if p and p.kind == "month" else None, dates=tx_dates(p),
-            only_ids=shared_ids(shared_context(conn), shared),
             category=category or None, flow=flow or None,
-            key=key or None, q=q or None, account=account or None, tag=tag or None,
+            key=key or None, q=q or None, account=account or None,
         )
         nombre = export_filename(month=p.key.replace("..", "-a-") if p else None, category=category or None)
         return Response(
@@ -927,41 +868,6 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     def goal_delete(conn: DB, goal_id: int):
         goals_mod.delete_goal(conn, goal_id)
         return RedirectResponse("/budgets#metas", status_code=303)
-
-    # ---------- gastos compartidos ----------
-
-    # Los gastos compartidos viven en Movimientos (decisión 2026-11-12): cada movimiento enseña en su
-    # desplegable de qué gasto es devolución, o qué le han devuelto, y desde ahí se empareja o se deshace.
-
-    def shared_back(conn: sqlite3.Connection, nxt: str = "") -> RedirectResponse:
-        """Vuelve a la lista desde la que se pulsó (solo direcciones de Movimientos)."""
-        if not nxt.startswith("/transactions"):
-            nxt = "/transactions?shared=" + ("review" if shared_mod.suggestions(conn, limit=1) else "1")
-        return RedirectResponse(nxt, status_code=303)
-
-    @app.get("/shared")
-    def shared_page(conn: DB):
-        """Dirección de la antigua página «Compartidos»."""
-        return shared_back(conn)
-
-    @app.post("/shared/link")
-    def shared_link(conn: DB, income_id: Annotated[int, Form()], expense_id: Annotated[int, Form()],
-                    next: Annotated[str, Form()] = ""):  # noqa: A002  (nombre del campo del formulario)
-        try:
-            shared_mod.link(conn, income_id, expense_id)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from None
-        return shared_back(conn, next)
-
-    @app.post("/shared/unlink")
-    def shared_unlink(conn: DB, income_id: Annotated[int, Form()], next: Annotated[str, Form()] = ""):  # noqa: A002
-        shared_mod.unlink(conn, income_id)
-        return shared_back(conn, next)
-
-    @app.post("/shared/dismiss")
-    def shared_dismiss(conn: DB, income_id: Annotated[int, Form()], next: Annotated[str, Form()] = ""):  # noqa: A002
-        shared_mod.dismiss(conn, income_id)
-        return shared_back(conn, next)
 
     # ---------- recurrentes ----------
 

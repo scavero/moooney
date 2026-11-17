@@ -5,8 +5,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from moooney.analytics import shared
-from moooney.analytics.metrics import monthly_summary
 from moooney.db import repo
 from moooney.demo import build_demo
 from moooney.ingest.load import ingest_directory
@@ -14,7 +12,6 @@ from moooney.ingest.reset import reset_data
 from moooney.web.app import create_app
 from tests.conftest import make_santander_xlsx
 from tests.test_overlap import CARD_ROWS, make_card_xlsx
-from tests.test_shared import _id, db  # noqa: F401  (fixture)
 
 
 def _n(conn, table="transactions"):
@@ -58,23 +55,6 @@ def test_duplicado_de_tarjeta_apartado_no_vuelve(tmp_path, settings):
     outs = ingest_directory(d, conn, settings)
     assert [o.rows_new for o in outs if not o.skipped] == [1]
     assert conn.execute("SELECT COUNT(*) FROM transactions WHERE amount = -4.99").fetchone()[0] == 1
-
-
-def test_apartar_un_gasto_compartido_suelta_la_devolucion_y_deja_de_contar(db):  # noqa: F811
-    gasto, ana = _id(db, "RESTAURANTE FALSO"), _id(db, "BIZUM RECIBIDO ANA")
-    shared.link(db, ana, gasto)
-    db.execute("INSERT INTO alerts (type, date, transaction_id, message, dedup_key) VALUES ('anomalous_amount', '2025-03-10', ?, 'x', ?)",
-               (gasto, f"anomalous_amount|{gasto}"))
-    db.execute("INSERT INTO alerts (type, date, transaction_id, message, dedup_key) VALUES ('duplicate_charge', '2025-03-12', ?, 'x', ?)",
-               (_id(db, "SUPER FALSO"), f"duplicate_charge|{gasto}|{_id(db, 'SUPER FALSO')}"))
-    db.commit()
-    antes = monthly_summary(db, "2025-03")
-    assert repo.remove_transaction(db, gasto, "borrado", now="t")
-    assert db.execute("SELECT COUNT(*) FROM alerts").fetchone()[0] == 0
-    assert db.execute("SELECT COUNT(*) FROM reimbursements").fetchone()[0] == 0
-    row = db.execute("SELECT category, flow_type FROM transactions WHERE id = ?", (ana,)).fetchone()
-    assert (row["category"], row["flow_type"]) == ("Transferencias", "income")  # vuelve a su comercio
-    assert monthly_summary(db, "2025-03").expenses < antes.expenses
 
 
 def test_web_borrar_y_restaurar(tmp_path, monkeypatch):

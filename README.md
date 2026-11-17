@@ -123,8 +123,6 @@ sin tilde y se enseñan con ella.
   creas una regla sin tocar YAML («empieza por» / «contiene» → categoría), con vista previa de a qué afecta.
 - **Recurrentes**: abre con **lo que te ha subido** (cuotas que cambian de precio y recibos al alza, con su
   coste al año) y sigue con el calendario de cargos de los próximos 30 días.
-- **Gastos compartidos** (sin entrada en los menús desde el repaso de claridad; se llega por `/shared`): empareja el Bizum que te devuelve un amigo con el gasto que pagaste tú; el gasto cuenta
-  neto y la devolución deja de ser ingreso. Propone los repartos a partes iguales.
 - **Plan · presupuestos** (propuesta con la mediana de 6 meses, ajuste en línea, seguimiento con proyección).
 - **Plan · metas** (en la misma página, plegado hasta que se usa): cuánto quieres juntar y para cuándo, cuándo llegas a tu ritmo y un simulador «qué pasaría si»
   que recorta categorías o da de baja recurrentes.
@@ -232,7 +230,6 @@ Todo lo de la web, desde la terminal. `uv run moooney --help` lista los comandos
 | `watch` | Vigila `data/excel/` y corre la pipeline; `--once` para tareas programadas. Guarda una copia de la base al día |
 | `backup` | Copia de la base ahora; `--list` las enseña y `--restore <fichero>` vuelve a una |
 | `export` | Movimientos categorizados a CSV; `--month`, `--category`, `--out` |
-| `tag` | Etiqueta un movimiento (`tag ID "viaje china"`, `--remove`); sin argumentos lista las etiquetas |
 | `web` | Interfaz web local |
 | `demo` | Base sintética para probar sin datos reales |
 | `snapshot` | Web estática de la demo en solo lectura, la que se publica en GitHub Pages |

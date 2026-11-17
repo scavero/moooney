@@ -1,4 +1,4 @@
-"""Varias cuentas en la misma base: saldo total, filtro por cuenta y etiquetas (sintético)."""
+"""Varias cuentas en la misma base: saldo total, filtro por cuenta (sintético)."""
 
 from moooney.analytics.forecast import last_balance
 from moooney.db import repo
@@ -31,15 +31,7 @@ def test_saldo_total_es_la_suma_del_ultimo_saldo_de_cada_cuenta(tmp_path):
     assert cuentas["****1111"]["n"] == 2 and cuentas["bbva"]["first_date"] == "2026-10-02"
 
 
-def test_filtro_por_cuenta_y_etiqueta(tmp_path):
+def test_filtro_por_cuenta(tmp_path):
     conn = _db(tmp_path)
     assert transactions_page(conn, account="bbva").total == 2
     assert transactions_totals(conn, account="****1111")["expenses"] == 0.0  # sin flow_type no cuenta como gasto
-    ids = [r["id"] for r in transactions_page(conn).rows]
-    assert repo.add_tag(conn, ids[0], "Reforma", now="2026-10-11T00:00:00") == "reforma"
-    assert repo.add_tag(conn, ids[1], "reforma", now="2026-10-11T00:00:00") == "reforma"
-    assert repo.add_tag(conn, ids[1], "   ", now="x") is None
-    assert transactions_page(conn, tag="REFORMA").total == 2
-    assert repo.tags_summary(conn)[0]["n"] == 2
-    assert repo.remove_tag(conn, ids[1], "reforma") and transactions_page(conn, tag="reforma").total == 1
-    assert repo.tags_for(conn, ids) == {ids[0]: ["reforma"]}

@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.22.0 · 2026-11-17
+
+- **Fuera las funciones que ya estaban ocultas**: se borra el código de las etiquetas, los gastos
+  compartidos y «la categoría solo de este movimiento» (rutas `/shared` y `/transactions/…/tags|category`,
+  `moooney tag`, `analytics/shared.py`, los filtros `tag` y `shared`). El CSV exportado pierde la columna
+  `etiquetas`. Las tablas ya no se crean; en una base antigua se quedan como estén y nadie las lee: si
+  tenías algo etiquetado, emparejado o con categoría propia, deja de aplicarse.
+
 ## 1.21.1 · 2026-11-17
 
 - **Una sola previsión también en el asistente y el informe**: para los meses siguientes ya no reciben

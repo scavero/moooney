@@ -94,9 +94,6 @@ def rebuild_clean_keys(conn: sqlite3.Connection) -> tuple[int, int]:
         conn.execute(
             "DELETE FROM merchant_embeddings WHERE key NOT IN (SELECT key FROM merchants)"
         )
-    from moooney.db import repo
-
-    repo.apply_overrides(conn)  # lo que el usuario fijó en un movimiento suelto no se toca
     return len(cambios), migradas
 
 

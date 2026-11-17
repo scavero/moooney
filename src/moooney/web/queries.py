@@ -50,13 +50,11 @@ def transactions_page(
     key: str | None = None,
     q: str | None = None,
     account: str | None = None,
-    tag: str | None = None,
     dates: tuple[str, str] | None = None,
-    only_ids: list[int] | None = None,
     page: int = 1,
     per_page: int = PER_PAGE,
 ) -> Page:
-    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag, dates, only_ids)
+    sql_where, params = _transactions_where(month, category, flow, key, q, account, dates)
     total = conn.execute(
         f"SELECT COUNT(*) AS n FROM transactions t {sql_where}", params
     ).fetchone()["n"]
@@ -299,19 +297,13 @@ def alerts_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return out
 
 
-def _transactions_where(month, category, flow, key, q, account=None, tag=None, dates=None, only_ids=None):
+def _transactions_where(month, category, flow, key, q, account=None, dates=None):
     """`dates` es un tramo (desde, hasta) de un trimestre, año o rango; `month`, un mes suelto."""
     where: list[str] = []
     params: list = []
-    if only_ids is not None:  # p. ej. los movimientos de gastos compartidos; lista vacía = ninguno
-        where.append(f"t.id IN ({','.join('?' for _ in only_ids)})" if only_ids else "0")
-        params += list(only_ids)
     if account:
         where.append("t.account = ?")
         params.append(account)
-    if tag:
-        where.append("t.id IN (SELECT transaction_id FROM transaction_tags WHERE tag = ?)")
-        params.append(repo.normalize_tag(tag))
     if dates:
         where.append("t.date BETWEEN ? AND ?")
         params += list(dates)
@@ -338,9 +330,9 @@ def _transactions_where(month, category, flow, key, q, account=None, tag=None, d
 
 
 def transactions_all(conn: sqlite3.Connection, *, month=None, category=None, flow=None, key=None,
-                     q=None, account=None, tag=None, dates=None, only_ids=None) -> list[sqlite3.Row]:
+                     q=None, account=None, dates=None) -> list[sqlite3.Row]:
     """Todas las filas del filtro, en orden cronológico (para exportar)."""
-    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag, dates, only_ids)
+    sql_where, params = _transactions_where(month, category, flow, key, q, account, dates)
     return conn.execute(
         f"""
         SELECT t.id, t.date, t.concept, t.concept_clean, t.amount, t.balance, t.category, t.subcategory,
@@ -354,9 +346,9 @@ def transactions_all(conn: sqlite3.Connection, *, month=None, category=None, flo
 
 
 def transactions_totals(conn: sqlite3.Connection, *, month=None, category=None, flow=None, key=None, q=None,
-                        account=None, tag=None, dates=None, only_ids=None) -> dict:
+                        account=None, dates=None) -> dict:
     """Ingresos, gastos y neto de TODO el filtro (no solo de la página visible)."""
-    sql_where, params = _transactions_where(month, category, flow, key, q, account, tag, dates, only_ids)
+    sql_where, params = _transactions_where(month, category, flow, key, q, account, dates)
     ph = ",".join("?" for _ in EXPENSE_FLOWS)
     row = conn.execute(
         f"""

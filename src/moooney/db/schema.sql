@@ -134,33 +134,6 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 CREATE INDEX IF NOT EXISTS idx_reports_month ON reports(month);
 
--- Etiquetas libres en movimientos sueltos (viaje, reforma, boda…): agrupan gastos de
--- distintas categorías sin tocar la memoria de comercios. Minúsculas, hasta 40 caracteres.
-CREATE TABLE IF NOT EXISTS transaction_tags (
-    transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
-    tag            TEXT NOT NULL,
-    created_at     TEXT NOT NULL,
-    PRIMARY KEY (transaction_id, tag)
-);
-CREATE INDEX IF NOT EXISTS idx_transaction_tags_tag ON transaction_tags(tag);
-
--- Gastos compartidos: un ingreso (bizum o transferencia recibida) que es tu parte de vuelta
--- de un gasto que pagaste tú. El ingreso pasa a contar como gasto en positivo de la categoría
--- del gasto, así el gasto queda neto y el ingreso no infla los ingresos. Se guarda lo que
--- tenía antes para deshacerlo.
-CREATE TABLE IF NOT EXISTS reimbursements (
-    income_id   INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
-    expense_id  INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
-    created_at  TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_reimbursements_expense ON reimbursements(expense_id);
-
--- Ingresos que el usuario ha dicho que no son una devolución: no se vuelven a proponer.
-CREATE TABLE IF NOT EXISTS reimbursement_dismissed (
-    income_id   INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
-    created_at  TEXT NOT NULL
-);
-
 -- Metas de ahorro: cuánto quieres juntar, cuánto llevas apartado y para cuándo. Son del
 -- usuario y no salen de ningún extracto: Empezar de cero las conserva.
 CREATE TABLE IF NOT EXISTS goals (
@@ -204,16 +177,6 @@ CREATE TABLE IF NOT EXISTS transactions_removed (
     created_at    TEXT NOT NULL,
     reason        TEXT NOT NULL,          -- borrado | duplicado
     removed_at    TEXT NOT NULL
-);
-
--- Categoría fijada por el usuario en UN movimiento, distinta de la de su comercio (p. ej. una
--- transferencia suelta). Se reaplica cada vez que la memoria de comercios reescribe movimientos.
-CREATE TABLE IF NOT EXISTS transaction_overrides (
-    transaction_id INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
-    category       TEXT NOT NULL,
-    subcategory    TEXT,
-    flow_type      TEXT NOT NULL,
-    created_at     TEXT NOT NULL
 );
 
 -- Veredicto sobre un grupo de posibles duplicados (analytics/duplicates.py): del modelo de

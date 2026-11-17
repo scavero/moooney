@@ -127,19 +127,6 @@ def set_merchant_category(
     )
 
 
-def set_transaction_category(conn: sqlite3.Connection, taxonomy: Taxonomy, tx_id: int, category: str) -> bool:
-    """Categoría de un solo movimiento (su comercio no cambia). Vacía: vuelve a la del comercio.
-    `category` puede venir como "Categoría|subcategoría". False si el movimiento no existe."""
-    if not category:
-        repo.clear_override(conn, tx_id)
-        return True
-    category, _, sub = category.partition("|")
-    if category not in taxonomy.categories:
-        raise ValueError(f"categoría desconocida: {category}")
-    return repo.set_override(conn, tx_id, category=category,
-                             subcategory=sub if sub in taxonomy.categories[category].subcategories else None,
-                             flow_type=taxonomy.default_flow_type(category), now=_now())
-
 
 def reapply_all_rules(conn: sqlite3.Connection, paths: Paths) -> int:
     """Reaplica todas las reglas (generales, locales y web) a lo que no corrigió el usuario.

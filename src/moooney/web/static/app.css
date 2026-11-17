@@ -306,7 +306,6 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 .doubt::before, .flag::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 6px; vertical-align: middle; }
 .doubt.low::before { background: var(--accent); }
 .tx-table .raw .doubt { font-size: inherit; }
-.tx-table .inline-tags { color: var(--dominant); font-weight: 700; }
 .tx-table .more { font: inherit; width: 40px; height: 40px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .tx-table .more:hover { background: var(--dominant-soft); color: var(--dominant); }
 .tx-table tr.tx-more { display: none; }
@@ -421,15 +420,6 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 td.heat { background: rgba(var(--heat-rgb), calc(0.02 + 0.16 * var(--v, 0))); }
 td.heat.zero { color: var(--zero-ink); background: transparent; }
 th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
-
-/* ---------- etiquetas en movimientos ---------- */
-.tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 120px; }
-.tags form { display: inline-flex; align-items: center; }
-.chip.small { font-size: 13px; min-height: 30px; padding: 0 10px; }
-.chip-x { font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; padding: 0 6px; min-height: 30px; }
-.chip-x:hover { color: var(--accent-ink); }
-.tag-input { font: inherit; font-size: 13px; font-weight: 400; width: 110px; min-height: 30px; padding: 0 10px; border: 1px dashed var(--line); border-radius: 999px; background: transparent; }
-.tag-input:focus { outline: 0; border-style: solid; border-color: var(--dominant); width: 160px; background: var(--surface); }
 
 /* ---------- toast ---------- */
 .toast { position: fixed; right: var(--s3); bottom: var(--s3); background: var(--dominant); color: var(--on-dominant); padding: 12px 16px;

@@ -58,7 +58,7 @@ moooney/
     categorize/  normalize.py  keys.py  rules.py  embed.py  pipeline.py  evaluate.py  taxonomy.py  reask.py  second_opinion.py  web_rules.py
     enrich/      settings.py  query.py  providers.py  runner.py
     analytics/   periods.py  metrics.py  recurring.py  budgets.py  alerts.py  insights.py  forecast.py
-                 price_changes.py  shared.py  yearly.py  period_summary.py  goals.py  duplicates.py  trends.py
+                 price_changes.py  yearly.py  period_summary.py  goals.py  duplicates.py  trends.py
     llm/         client.py  anonymize.py  prompts/
     chat/        tools.py  agent.py  followups.py   (asistente Pregunta: consultas deterministas, bucle con el modelo
                  y sugerencias para seguir, sin modelo)
