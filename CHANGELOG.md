@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.21.0 · 2026-11-17
+
+- **Categorías con tilde**: «Alimentación», «Tarjeta de crédito», «nómina»… se escriben bien en todas las
+  pantallas y gráficos. Es solo cómo se enseñan: en la base, en las reglas y en lo que recibe el modelo
+  siguen sin tilde, así que no hay nada que migrar.
+- **Menú de siete a cinco**: Resumen, Movimientos, Tendencias, Plan y Pregunta, con «Datos» aparte debajo.
+  Avisos pasa a ser una pestaña del Resumen y su contador va en «Resumen».
+
 ## 1.20.0 · 2026-11-15
 
 Repaso de claridad («menos es más»): cada cifra se calcula de una sola manera y cada cosa se dice en un sitio.

@@ -91,9 +91,10 @@ servidor no es vLLM, quita el bloque `chat_extra` de `config/llm.yaml`.
 
 ## Qué verás
 
-La web tiene siete secciones; las páginas que comparten sección son pestañas dentro de ella:
-**Resumen**, **Tendencias**, **Movimientos**, **Pregunta** (e Informe mensual), **Plan**
-(Presupuestos y Metas, en una misma página), **Avisos** (Alertas y Recurrentes, también juntas) y **Datos** (Importar, Comercios y Ajustes).
+La web tiene cinco secciones y «Datos» aparte; las páginas que comparten sección son pestañas dentro de ella:
+**Resumen** (y Avisos: alertas y recurrentes), **Movimientos**, **Tendencias**, **Plan** (presupuestos y metas, en una
+misma página), **Pregunta** (e Informe mensual) y **Datos** (Importar, Comercios y Ajustes). Las categorías se guardan
+sin tilde y se enseñan con ella.
 
 - **Resumen**: abre con una cifra y un **veredicto en una frase**, calculados sin modelo. Con el mes en
   curso la cifra es la previsión a fin de mes («Vas camino de ahorrar 396 € este mes»); con el mes

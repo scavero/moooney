@@ -129,20 +129,20 @@ def test_movimientos_por_periodo(client):
     assert q.key in csv.headers["content-disposition"]
 
 
-def test_siete_secciones_con_pestanas(client):
-    assert [s[0] for s in SECTIONS] == ["Resumen", "Tendencias", "Movimientos", "Pregunta", "Plan", "Avisos", "Datos"]
+def test_cinco_secciones_y_datos_con_pestanas(client):
+    assert [s[0] for s in SECTIONS] == ["Resumen", "Movimientos", "Tendencias", "Plan", "Pregunta", "Datos"]
     assert section_of("/")[0] == "Resumen" and section_of("/merchants/rules/preview")[0] == "Datos"
     home = client.get("/").text
     nav = home[home.index('<nav id="side-nav">'):home.index("</nav>")]
-    assert nav.count("<a href=") == 7 and 'class="section-tabs"' not in home
+    assert nav.count("<a href=") == 6 and 'class="section-tabs"' in home  # Resumen y Avisos son pestañas
     assert 'class="section-tabs"' not in client.get("/transactions").text
     assert 'class="section-tabs"' not in client.get("/budgets").text and section_of("/goals")[0] == "Plan"
     avisos = client.get("/alerts").text
-    assert 'class="section-tabs"' not in avisos and 'id="recurrentes"' in avisos and "Calendario de cargos" in avisos
+    assert 'id="recurrentes"' in avisos and "Calendario de cargos" in avisos
     viejo = client.get("/recurring?all=1", follow_redirects=False)
     assert viejo.status_code == 303 and viejo.headers["location"] == "/alerts?inactive=1#recurrentes"
-    assert section_of("/recurring")[0] == "Avisos" and "Todos los recurrentes" in client.get("/alerts?inactive=1").text
-    for path, seccion, pestana in [("/report", "Pregunta", "Informe mensual"),
+    assert section_of("/recurring")[0] == "Resumen" and "Todos los recurrentes" in client.get("/alerts?inactive=1").text
+    for path, seccion, pestana in [("/", "Resumen", "Resumen"), ("/alerts", "Resumen", "Avisos"), ("/report", "Pregunta", "Informe mensual"),
                                    ("/merchants", "Datos", "Comercios"), ("/settings", "Datos", "Ajustes")]:
         t = client.get(path).text
         tabs = t[t.index('<nav class="section-tabs"'):]
@@ -196,3 +196,14 @@ def test_resumen_ensena_de_donde_vienen_los_ingresos(client):
     for url in ("/", f"/?period={mes[:4]}"):
         t = client.get(url).text
         assert "De dónde viene" in t and "% de los ingresos" in t and "flow=income&category=Ingresos" in t
+
+
+def test_las_categorias_se_ven_con_tilde_y_se_guardan_sin_ella(client):
+    from moooney.web.app import html_con_tildes
+
+    html = '<a href="/x?category=Alimentacion" title="Alimentacion" onclick="a => b">Alimentacion → nomina</a><script>var c = "Alimentacion";</script>'
+    assert html_con_tildes(html) == ('<a href="/x?category=Alimentacion" title="Alimentacion" onclick="a => b">Alimentación → nómina</a>'
+                                     '<script>var c = "Alimentacion";</script>')
+    r = client.get("/transactions")
+    assert ">Alimentación<" in r.text and 'value="Alimentacion"' in r.text and "Alimentacion →" not in r.text
+    assert client.get("/transactions?category=Alimentacion").status_code == 200

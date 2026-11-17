@@ -634,6 +634,7 @@ th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
   .range-form { flex-wrap: wrap; }
   .range-form .date-field { flex: 1 1 40%; }
   .range-form .btn { flex: 1 1 100%; }
+  .sidebar nav a.apart { margin-top: 0; }
   .sidebar nav a.in-tabbar { display: none; } /* ya están en la barra inferior: «Más» solo enseña el resto */
   .date-field { flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; }
   .date-field input { width: 100%; min-width: 0; }
@@ -680,3 +681,4 @@ main code { font-size: max(.9em, 12px); }
   h1 { font-size: 26px; }
   .topbar { margin-bottom: var(--s2); }
 }
+.sidebar nav a.apart { margin-top: var(--s3); }  /* «Datos», separado de las cinco secciones */

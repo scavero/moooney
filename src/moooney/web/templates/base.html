@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=55">
+  <link rel="stylesheet" href="/static/app.css?v=56">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script src="/static/summary.js?v=2"></script>
@@ -41,11 +41,11 @@
   <aside class="sidebar">
     <a class="brand" href="/">moooney</a>
     <nav id="side-nav">
-      {# Siete secciones (SECTIONS en app.py); las páginas que comparten sección son pestañas dentro. #}
+      {# Cinco secciones y «Datos» aparte (SECTIONS en app.py); las páginas que comparten sección son pestañas dentro. #}
       {% for name, href, tabs in SECTIONS %}
-      <a href="{{ href }}" class="{{ 'active' if section == name else '' }}{{ ' in-tabbar' if loop.index <= 4 else '' }}"{% if section == name %} aria-current="page"{% endif %}>
+      <a href="{{ href }}" class="{{ 'active' if section == name else '' }}{{ ' in-tabbar' if name in ('Resumen', 'Tendencias', 'Movimientos', 'Pregunta') else '' }}{{ ' apart' if name == 'Datos' else '' }}"{% if section == name %} aria-current="page"{% endif %}>
         {{ name }}
-        {% if name == 'Avisos' and alerts_counts.total %}<span class="pill {{ 'crit' if alerts_counts.critical else 'soft' }}" title="alertas pendientes">{{ alerts_counts.total }}</span>{% endif %}
+        {% if name == 'Resumen' and alerts_counts.total %}<span class="pill {{ 'crit' if alerts_counts.critical else 'soft' }}" title="alertas pendientes">{{ alerts_counts.total }}</span>{% endif %}
         {% if name == 'Datos' %}{% if merchants_counts.dudosas %}<span class="pill soft" title="comercios dudosos por revisar">{{ merchants_counts.dudosas }}</span>{% endif %}
         {% if not snapshot %}{% with job=job_latest %}{% include "partials/job_indicator.html" %}{% endwith %}{% endif %}{% endif %}
       </a>
@@ -84,7 +84,8 @@
     {% if section_tabs %}
     <nav class="section-tabs" aria-label="{{ section }}">
       {% for label, href in section_tabs %}
-      <a href="{{ href }}" class="{{ 'on' if path.startswith(href) else '' }}"{% if path.startswith(href) %} aria-current="page"{% endif %}>{{ label }}
+      {% set here = path == href if href == '/' else path.startswith(href) %}
+      <a href="{{ href }}" class="{{ 'on' if here else '' }}"{% if here %} aria-current="page"{% endif %}>{{ label }}
         {%- if href == '/alerts' and alerts_counts.total %} <span class="pill {{ 'crit' if alerts_counts.critical else 'soft' }}">{{ alerts_counts.total }}</span>{% endif %}
         {%- if href == '/merchants' and merchants_counts.dudosas %} <span class="pill soft" title="comercios dudosos por revisar">{{ merchants_counts.dudosas }}</span>{% endif %}</a>
       {% endfor %}
@@ -120,6 +121,9 @@
     const up = document.getElementById('upload-form'); if (up) up.classList.toggle('busy', running);
   };
   window.addEventListener('DOMContentLoaded', () => window.syncJobButtons());
+  // Tildes de las categorías para lo que pinta el JavaScript (el HTML ya sale con ellas del servidor).
+  window.TILDES = {{ TILDES|tojson }};
+  window.tildes = s => String(s).replace(/[A-Za-zñ]+/g, w => window.TILDES[w] || w);
   // «Mostrar más»: data-more="N" deja a la vista N filas (o hijos) de una tabla o lista y pliega el resto tras un botón.
   window.clampLists = function () {
     document.querySelectorAll('[data-more]:not([data-more-done])').forEach(el => {

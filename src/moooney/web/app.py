@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
 
+import jinja2
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -39,6 +40,7 @@ from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
 from moooney.categorize import web_rules
 from moooney.categorize.rules import Rule
+from moooney.categorize.taxonomy import TILDES, con_tildes
 from moooney.chat import agent as chat_agent
 from moooney.chat import followups as chat_followups
 from moooney.config import Settings, load_settings
@@ -191,20 +193,19 @@ def period_url(p: Period, path: str = "/") -> str:
     return f"{path}?period={p.key}"
 
 
-# Siete secciones (decisión 2026-11-12). Las páginas de siempre siguen en su dirección; las que
+# Cinco secciones y «Datos» aparte (decisión 2026-11-17; eran siete desde el 2026-11-12). Las páginas de siempre siguen en su dirección; las que
 # comparten sección se enseñan como pestañas dentro de ella. (nombre, destino, pestañas)
 SECTIONS: list[tuple[str, str, list[tuple[str, str]]]] = [
-    ("Resumen", "/", []),
-    ("Tendencias", "/trends", []),
+    ("Resumen", "/", [("Resumen", "/"), ("Avisos", "/alerts")]),  # alertas y recurrentes; /recurring redirige ahí
     ("Movimientos", "/transactions", []),
-    ("Pregunta", "/chat", [("Asistente", "/chat"), ("Informe mensual", "/report")]),
+    ("Tendencias", "/trends", []),
     ("Plan", "/budgets", []),  # presupuestos y metas, en una página; /goals redirige aquí
-    ("Avisos", "/alerts", []),  # alertas y recurrentes, en una página; /recurring redirige aquí
+    ("Pregunta", "/chat", [("Asistente", "/chat"), ("Informe mensual", "/report")]),
     ("Datos", "/pipeline", [("Importar", "/pipeline"), ("Comercios", "/merchants"), ("Ajustes", "/settings")]),
 ]
 
 # Direcciones que pertenecen a una sección sin ser una pestaña suya.
-EXTRA_PATHS = {"Plan": ["/goals"], "Avisos": ["/recurring"]}
+EXTRA_PATHS = {"Plan": ["/goals"], "Resumen": ["/recurring"]}
 
 
 def section_of(path: str) -> tuple[str, list[tuple[str, str]]]:
@@ -284,6 +285,25 @@ def build_verdict(summary, insights, *, day: int | None = None, forecast=None) -
     return frase + "."
 
 
+# Etiquetas enteras (con sus atributos entre comillas, que pueden llevar «>»), y <script>/<style> completos.
+_HTML_TAG = re.compile(r"""<script\b.*?</script>|<style\b.*?</style>|<[a-zA-Z/!](?:"[^"]*"|'[^']*'|[^>"'])*>""", re.S)
+
+
+def html_con_tildes(html_text: str) -> str:
+    """Pone las tildes de las categorías en el texto visible de una página y deja intactos los atributos
+    (value, href, data-…) y los scripts, que siguen llevando la clave sin tilde."""
+    out, pos = [], 0
+    for m in _HTML_TAG.finditer(html_text):
+        out += [con_tildes(html_text[pos:m.start()]), m.group(0)]
+        pos = m.end()
+    return "".join(out) + con_tildes(html_text[pos:])
+
+
+class _ConTildes(jinja2.Template):
+    def render(self, *args, **kwargs) -> str:
+        return html_con_tildes(super().render(*args, **kwargs))
+
+
 def para_mirar(pending, insights, dudosas: int) -> list[dict]:
     """Lo pendiente del Resumen en una sola lista, lo más serio primero: alertas sin ver, comercios por
     revisar y los hallazgos serios del diagnóstico que no repiten una alerta ni la cifra de cabecera."""
@@ -321,6 +341,9 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
     app.state.moooney = state
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
+    templates.env.template_class = _ConTildes  # toda página y parcial sale con las tildes de las categorías
+    templates.env.filters["tildes"] = con_tildes  # para lo que pinta el JavaScript (rótulos de los gráficos)
+    templates.env.globals["TILDES"] = TILDES
     templates.env.filters["eur"] = eur
     templates.env.filters["pct"] = pct
     templates.env.filters["fecha"] = fecha

@@ -39,6 +39,7 @@
     var node = $('explorer-data');
     if (!node || !window.Chart) return;
     var d = JSON.parse(node.textContent);
+    var tl = window.tildes || function (s) { return s; };
     var t = theme();
     var slices = d.cats.slice(0, 8);
     var rest = d.cats.slice(8);
@@ -56,14 +57,14 @@
           backgroundColor: labels.map(function (_, i) { return t.palette[i] + (active >= 0 && i !== active ? '59' : ''); }),
           offset: labels.map(function (_, i) { return i === active ? 10 : 0; }) }] },
         options: { responsive: true, maintainAspectRatio: false, cutout: '68%', layout: { padding: 10 },
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + eur(c.raw) + ' · ' + Math.round(c.raw / all * 100) + ' %'; } } } },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return tl(c.label) + ': ' + eur(c.raw) + ' · ' + Math.round(c.raw / all * 100) + ' %'; } } } },
           onHover: function (e, els) { e.native.target.style.cursor = els.length && labels[els[0].index] !== 'Resto' ? 'pointer' : 'default'; },
           onClick: function (e, els) {
             if (!els.length) return pick(null);
             var name = labels[els[0].index];
             if (name !== 'Resto') pick(name === cat ? null : name);
           } } });
-      $('donut-label').textContent = cat || 'Gasto';
+      $('donut-label').textContent = cat ? tl(cat) : 'Gasto';
       $('donut-value').textContent = eur(cat ? d.amounts[cat] : all);
       $('donut-hint').textContent = cat ? Math.round(d.amounts[cat] / all * 100) + ' % del gasto' : d.cats.length + ' categorías';
 
@@ -76,9 +77,9 @@
       var bar = $('sel-bar');
       if (bar) {
         bar.hidden = !cat;
-        if (cat) { $('sel-name').textContent = cat; $('sel-link').dataset.url = '/transactions?' + d.tx + '&category=' + encodeURIComponent(cat); }
+        if (cat) { $('sel-name').textContent = tl(cat); $('sel-link').dataset.url = '/transactions?' + d.tx + '&category=' + encodeURIComponent(cat); }
       }
-      var mt = $('merch-title'); if (mt) mt.textContent = cat ? 'Dónde se va en ' + cat : mt.dataset.all;
+      var mt = $('merch-title'); if (mt) mt.textContent = cat ? 'Dónde se va en ' + tl(cat) : mt.dataset.all;
       if (d.kind === 'month') pace(cat); else monthly(cat);
       if (window.highlightCategory) window.highlightCategory(cat);
     }
@@ -110,7 +111,7 @@
     // Trimestre, año o rango: gasto de cada mes (y lo que entró, si no hay categoría elegida).
     function monthly(cat) {
       var labels = d.months.map(function (m) { return MESES[+m.slice(5, 7) - 1] + ' ' + m.slice(2, 4); });
-      var sets = [{ label: cat || 'Gastos', data: total(d.by_month, cat, d.months.length), backgroundColor: cat ? colorOf(cat) : t.palette[5], borderRadius: 3 }];
+      var sets = [{ label: cat ? tl(cat) : 'Gastos', data: total(d.by_month, cat, d.months.length), backgroundColor: cat ? colorOf(cat) : t.palette[5], borderRadius: 3 }];
       if (!cat) sets.unshift({ label: 'Ingresos', data: d.income, backgroundColor: t.palette[2], borderRadius: 3 });
       mk('chart-months', { type: 'bar', data: { labels: labels, datasets: sets },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },

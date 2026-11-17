@@ -134,7 +134,7 @@ window.renderCharts = function () {
   const at = i => axis.map(m => { const f = fc.find(f => f[0] === m); return f ? f[i] : null; });
   const band = { type: 'line', borderWidth: 0, pointRadius: 0, backgroundColor: palette[5] + '33', spanGaps: false };
   mk('chart-cat', { type: 'bar', data: { labels: axis.map(lbl), datasets: [
-      { type: 'bar', label: {{ category|tojson }}, data: cat, backgroundColor: palette[3] },
+      { type: 'bar', label: {{ category|tildes|tojson }}, data: cat, backgroundColor: palette[3] },
       { type: 'line', label: 'media móvil 3 meses', data: avg, borderColor: palette[5], tension: .3, pointRadius: 0, borderWidth: 2 },
       ...(fc.length ? [
         { type: 'line', label: 'previsión', data: at(1), borderColor: palette[5], borderDash: [6, 4], borderWidth: 2, pointRadius: 3 },
