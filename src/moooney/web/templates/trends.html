@@ -23,13 +23,14 @@
     {% if tr.total %}
     <div class="concept" style="margin-bottom:12px">Sobre {{ tr.n }} meses completos. {% if tr.total.yearly %}Cada categoría compara sus 12 últimos meses con los 12 anteriores, así la época del año no engaña.{% else %}Con menos de 24 meses se comparan 3 meses con los 3 anteriores: tómalo como provisional.{% endif %} La previsión dice el rango en el que caería 8 de cada 10 veces.</div>
     <p style="margin:0 0 var(--s2)"><strong>Gasto total:</strong> {{ describe(tr.total) }}. Previsión de <span style="text-transform:capitalize">{{ tr.ahead[0]|mes }}</span>: {{ rango(tr.total.forecast[0]) }}.</p>
+    {% if tr.total.core is not none %}<p style="margin:0 0 var(--s2)"><strong>De cada 100 € que gastas, {{ '%.0f'|format(tr.total.core * 100) }} son de fondo:</strong> van a comercios a los que vuelves casi todos los meses. El resto son compras puntuales, las más fáciles de recortar.</p>{% endif %}
     <div class="scroll-x">
     <table data-more="6">
       <tr><th>Categoría</th><th>Tendencia</th><th class="num" style="text-transform:capitalize">{{ tr.ahead[0]|mes(true) }}, previsto</th><th class="num" title="cuánto se equivocó el método al predecir los últimos meses ya conocidos">Error</th></tr>
       {% for t in tr.trends %}
       <tr>
-        <td><a href="/trends?category={{ t.name|urlencode }}" style="font-weight:500">{{ t.name }}</a><div class="concept">{{ t.level|eur }} al mes</div></td>
-        <td class="{{ 'neg' if t.change and t.change >= 0.1 and t.change_eur >= 5 else 'pos' if t.change and t.change <= -0.1 and t.change_eur <= -5 else '' }}">{{ describe(t) }}</td>
+        <td><a href="/trends?category={{ t.name|urlencode }}" style="font-weight:500">{{ t.name }}</a><div class="concept">{{ t.level|eur }} al mes{% if t.core is not none %} · {{ '%.0f'|format(t.core * 100) }} % de fondo{% endif %}</div></td>
+        <td class="{{ 'neg' if t.change and t.change >= 0.1 and t.change_eur >= 5 else 'pos' if t.change and t.change <= -0.1 and t.change_eur <= -5 else '' }}">{{ describe(t)|capitalize }}</td>
         <td class="num">{{ t.forecast[0][1]|eur }}<div class="concept">{{ t.forecast[0][2]|eur }} – {{ t.forecast[0][3]|eur }}</div></td>
         <td class="num" style="color:var(--ink-2)">{{ '±%.0f %%'|format(t.error * 100) if t.error is not none else '—' }}</td>
       </tr>

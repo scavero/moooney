@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.23.0 · 2026-11-17
+
+- **Tendencias, segunda vuelta**: cada categoría dice ahora, además de si sube o baja, si **cambió de
+  escalón** («cambió de escalón en julio de 2026: de 103 € a 156 € al mes»: los últimos 3-6 meses quedan
+  todos por encima o por debajo de los 6 anteriores) o si tuvo un **mes raro** (uno de los 6 últimos muy
+  por encima de lo normal; un pico de temporada conocido no cuenta).
+- **Gasto de fondo frente a puntual**: qué parte del gasto, en total y por categoría, va a comercios a
+  los que vuelves al menos la mitad de los meses. El resto son compras puntuales. La lectura del modelo
+  recibe también estos tres datos.
+
 ## 1.22.0 · 2026-11-17
 
 - **Fuera las funciones que ya estaban ocultas**: se borra el código de las etiquetas, los gastos

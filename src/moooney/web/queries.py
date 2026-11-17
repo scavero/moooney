@@ -104,6 +104,32 @@ def category_series(conn: sqlite3.Connection, months: list[str]) -> dict[str, li
     return dict(sorted(out.items(), key=lambda kv: -totals[kv[0]]))
 
 
+def core_share(conn: sqlite3.Connection, months: list[str]) -> dict[str, float]:
+    """{categoría: parte de su gasto que es «de fondo»} en esos meses (completos y seguidos), y la del total
+    en la clave "". De fondo: comercios con gasto en al menos la mitad de los meses (mínimo 3); el resto son
+    compras puntuales."""
+    if not months:
+        return {}
+    ph = ",".join("?" for _ in EXPENSE_FLOWS)
+    rows = conn.execute(
+        f"""
+        SELECT COALESCE(category, '(sin categoría)') AS c, COUNT(DISTINCT substr(date, 1, 7)) AS nm, -SUM(amount) AS g
+        FROM transactions WHERE date BETWEEN ? AND ? AND flow_type IN ({ph})
+        GROUP BY concept_clean, c
+        """,
+        (periods.month_bounds(months[0])[0], periods.month_bounds(months[-1])[1], *EXPENSE_FLOWS),
+    ).fetchall()
+    need = max(3, (len(months) + 1) // 2)
+    core: dict[str, float] = {}
+    total: dict[str, float] = {}
+    for r in rows:
+        g = max(float(r["g"]), 0.0)
+        for c in (r["c"], ""):
+            total[c] = total.get(c, 0.0) + g
+            core[c] = core.get(c, 0.0) + (g if r["nm"] >= need else 0.0)
+    return {c: core[c] / t for c, t in total.items() if t > 0}
+
+
 def trends_analysis(conn: sqlite3.Connection, as_of: str, first: str | None) -> dict:
     """Tendencia y previsión (analytics/trends.py) del gasto total y de cada categoría, sobre todos los
     meses completos. Prevé los tres meses siguientes al mes en curso. Las categorías van por euros de cambio."""
@@ -118,6 +144,11 @@ def trends_analysis(conn: sqlite3.Connection, as_of: str, first: str | None) -> 
     series = category_series(conn, months)
     rows = [t for c, xs in series.items() if (t := trends_mod.analyze(c, xs, months, ahead)) is not None]
     total = trends_mod.analyze("Gasto total", [sum(v) for v in zip(*series.values(), strict=True)], months, ahead)
+    share = core_share(conn, months[-12:])
+    for t in rows:
+        t.core = share.get(t.name)
+    if total:
+        total.core = share.get("")
     return {"total": total, "trends": sorted(rows, key=lambda t: -abs(t.change_eur)), "ahead": ahead, "n": len(months)}
 
 

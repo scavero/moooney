@@ -8,17 +8,23 @@ Todo determinista y reproducible, sobre meses completos:
   (solo con dos años, que es cuando un pico se ha repetido).
 - Previsión: tres métodos sencillos compiten prediciendo los últimos meses ya
   conocidos (backtest); gana el que menos se equivoca y su error da la banda.
+- Escalón: los últimos 3-6 meses quedan todos por encima (o todos por debajo) de
+  los 6 anteriores. Mes raro: uno de los 6 últimos muy por encima de lo normal.
+- De fondo: qué parte del gasto va a comercios a los que se vuelve casi todos los
+  meses (lo calcula `web/queries.core_share`; aquí solo se guarda y se cuenta).
 
 Con dos años de datos mensuales un modelo más complejo aprendería ruido; estos
 se pueden explicar en una frase y dicen cuánto fallan.
 """
 
 from dataclasses import dataclass
-from statistics import mean
+from statistics import mean, median
 
 MIN_MONTHS = 6     # con menos meses completos no se dice nada
 BACKTEST = 6       # meses que se predicen para medir el error
 Z80 = 1.28         # banda del 80 % si el error fuera normal
+STEP_MIN_PCT, STEP_MIN_EUR = 0.20, 15.0   # un escalón más pequeño no se cuenta
+ODD_MIN_PCT, ODD_MIN_EUR = 0.30, 30.0     # ni un mes raro
 MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
          "noviembre", "diciembre")
 
@@ -35,6 +41,9 @@ class Trend:
     model: str                               # método que ganó el backtest
     error: float | None                      # error relativo del backtest (0.15 = se va un 15 %)
     forecast: list[tuple[str, float, float, float]]   # (mes, previsto, bajo, alto)
+    step: tuple[str, float, float] | None = None      # (desde qué mes, media de antes, media de ahora)
+    odd: tuple[str, float] | None = None              # (mes raro más reciente, euros sobre lo normal)
+    core: float | None = None                         # parte del gasto que es de fondo (0-1)
 
 
 def _media3(xs: list[float], months: list[str], target: str) -> float:
@@ -75,6 +84,32 @@ def _backtest(fn, xs: list[float], months: list[str]) -> tuple[float, float] | N
     return sum(abs(e) for e in errs) / real, mean(e * e for e in errs) ** 0.5
 
 
+def level_shift(xs: list[float], months: list[str]) -> tuple[str, float, float] | None:
+    """Cambio de escalón sostenido: los últimos k meses (el tramo más largo de 6 a 3) quedan todos por
+    encima, o todos por debajo, de cada uno de los 6 anteriores. Que no se pisen es lo que lo distingue
+    de un par de meses caros."""
+    for k in range(6, 2, -1):
+        before, after = xs[-k - 6:-k], xs[-k:]
+        if len(before) < 3:
+            continue
+        a, b = mean(after), mean(before)
+        if (min(after) > max(before) or max(after) < min(before)) and abs(a - b) >= max(STEP_MIN_PCT * b, STEP_MIN_EUR):
+            return months[-k], b, a
+    return None
+
+
+def odd_month(xs: list[float], months: list[str], skip: set[int]) -> tuple[str, float] | None:
+    """El mes más reciente de los 6 últimos muy por encima de lo normal: mediana + 3 σ robusta (1,4826·MAD),
+    y al menos un 30 % y 30 €. `skip` son los meses naturales con pico de temporada: esos ya se esperan."""
+    med = median(xs)
+    sigma = 1.4826 * median(abs(x - med) for x in xs)
+    umbral = med + max(3 * sigma, ODD_MIN_PCT * med, ODD_MIN_EUR)
+    for x, m in list(zip(xs, months, strict=True))[:-7:-1]:
+        if x > umbral and int(m[5:7]) not in skip:
+            return m, x - med
+    return None
+
+
 def analyze(name: str, xs: list[float], months: list[str], ahead: list[str]) -> Trend | None:
     """`xs` es el gasto de los meses completos `months` (en orden); `ahead`, los meses a prever."""
     n = len(xs)
@@ -98,8 +133,15 @@ def analyze(name: str, xs: list[float], months: list[str], ahead: list[str]) -> 
         p = max(MODELS[model](xs, months, m) or 0.0, 0.0)
         # shortcut: la misma banda para los tres meses; ensancharla con el horizonte si se prevé más lejos
         forecast.append((m, p, max(p - Z80 * rmse, 0.0), p + Z80 * rmse))
+    step = level_shift(xs, months)
     return Trend(name=name, n=n, level=mean(xs[-3:]), change=(a - b) / b if b > 0 else None, change_eur=a - b,
-                 yearly=yearly, peaks=peaks, model=model, error=error, forecast=forecast)
+                 yearly=yearly, peaks=peaks, model=model, error=error, forecast=forecast, step=step,
+                 # tras un escalón los meses nuevos son lo normal de ahora, no meses raros
+                 odd=None if step else odd_month(xs, months, {c for c, _ in peaks}))
+
+
+def _mes(m: str) -> str:
+    return f"{MESES[int(m[5:7]) - 1]} de {m[:4]}"
 
 
 def describe(t: Trend) -> str:
@@ -115,6 +157,10 @@ def describe(t: Trend) -> str:
                      f"{t.change_eur:+.0f} € al mes")
     if t.peaks:
         parts.append("pico en " + " y ".join(f"{MESES[c - 1]} (+{p * 100:.0f} %)" for c, p in t.peaks))
+    if t.step:
+        parts.append(f"cambió de escalón en {_mes(t.step[0])}: de {t.step[1]:.0f} € a {t.step[2]:.0f} € al mes")
+    if t.odd:
+        parts.append(f"{_mes(t.odd[0])} fue un mes raro: {t.odd[1]:.0f} € por encima de lo normal")
     return "; ".join(parts)
 
 
@@ -128,6 +174,9 @@ def payload(total: Trend | None, trends: list[Trend], as_of: str) -> dict:
             "picos": [{"mes": MESES[c - 1], "sobre_la_media_pct": round(p * 100)} for c, p in t.peaks],
             "prevision": [{"mes": m, "previsto": round(v), "entre": [round(lo), round(hi)]} for m, v, lo, hi in t.forecast],
             "error_habitual_pct": round(t.error * 100) if t.error is not None else None, "metodo": t.model,
+            "escalon": {"desde": t.step[0], "antes": round(t.step[1]), "ahora": round(t.step[2])} if t.step else None,
+            "mes_raro": {"mes": t.odd[0], "sobre_lo_normal": round(t.odd[1])} if t.odd else None,
+            "pct_de_fondo": round(t.core * 100) if t.core is not None else None,
             "resumen": describe(t),
         }
     return {"datos_hasta": as_of, "gasto_total": one(total) if total else None, "categorias": [one(t) for t in trends[:10]]}
@@ -148,4 +197,6 @@ Tu trabajo es interpretar, no calcular. Escribe en español, en Markdown, sin sa
 
 Reglas: usa solo cifras que estén en el JSON y cítalas tal cual. Si una base es «provisional» o el error
 habitual pasa del 30 %, dilo y no saques conclusiones firmes. Si el resumen de una serie dice «estable»,
-no la presentes como un cambio. No des consejos de inversión. Máximo 250 palabras."""
+no la presentes como un cambio. Un «escalón» es un cambio sostenido de nivel y pesa más que un «mes raro»,
+que es un mes suelto. «pct_de_fondo» es la parte del gasto en comercios a los que vuelve casi todos los meses:
+lo que no es de fondo son compras puntuales, más fáciles de recortar. No des consejos de inversión. Máximo 250 palabras."""

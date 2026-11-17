@@ -52,4 +52,42 @@ def test_el_payload_solo_lleva_agregados():
     assert p["categorias"][0]["nombre"] == "Ocio" and p["gasto_total"]["prevision"][0]["mes"] == "2026-01"
     assert set(p["categorias"][0]) == {"nombre", "meses_de_datos", "media_mensual_reciente", "cambio_pct",
                                        "cambio_eur_mes", "base", "picos", "prevision", "error_habitual_pct",
-                                       "metodo", "resumen"}
+                                       "metodo", "resumen", "escalon", "mes_raro", "pct_de_fondo"}
+
+
+def test_escalon_sostenido_y_no_dos_meses_caros():
+    t = trends.analyze("Suministros", [100.0, 110.0, 95.0, 105.0, 100.0, 108.0, 150.0, 160.0, 155.0, 158.0], _months(10), AHEAD)
+    assert t.step == ("2024-07", 103.0, 155.75) and t.odd is None
+    assert "cambió de escalón en julio de 2024: de 103 € a 156 € al mes" in trends.describe(t)
+    assert trends.payload(t, [t], "x")["categorias"][0]["escalon"] == {"desde": "2024-07", "antes": 103, "ahora": 156}
+    # dos meses altos y vuelta a lo de siempre no es un escalón
+    assert trends.analyze("X", [100.0] * 6 + [160.0, 160.0, 100.0, 100.0], _months(10), AHEAD).step is None
+    # ni una subida pequeña
+    assert trends.analyze("X", [100.0] * 6 + [110.0] * 4, _months(10), AHEAD).step is None
+
+
+def test_mes_raro_y_el_pico_de_temporada_no_lo_es():
+    xs = [200.0, 210.0, 190.0, 205.0, 195.0, 200.0, 208.0, 600.0, 198.0, 202.0]
+    t = trends.analyze("Hogar", xs, _months(10), AHEAD)
+    assert t.step is None and t.odd == ("2024-08", 399.0)
+    assert "agosto de 2024 fue un mes raro: 399 € por encima de lo normal" in trends.describe(t)
+    assert trends.odd_month(xs, _months(10), {8}) is None            # si agosto es su pico de cada año, se espera
+    assert trends.odd_month([200.0] * 3 + [600.0] + [200.0] * 8, _months(12), set()) is None   # hace más de 6 meses
+
+
+def test_de_fondo_frente_a_puntual(tmp_path):
+    from moooney.db import repo
+    from moooney.web.queries import core_share, trends_analysis
+    from tests.test_analytics import _tx
+
+    conn = repo.connect(tmp_path / "t.db")
+    filas = [(f"2025-{m:02d}-05", "SUPER INVENTADO", -100.0, "Alimentacion", "expense") for m in range(1, 9)]
+    filas += [("2025-03-10", "MUEBLES FICTICIOS", -400.0, "Hogar", "expense"),
+              ("2025-04-10", "BAR DE PASO", -200.0, "Alimentacion", "expense"),
+              ("2025-08-31", "NOMINA", 2000.0, "Ingresos", "income")]
+    _tx(conn, filas)
+    meses = [f"2025-{m:02d}" for m in range(1, 9)]
+    share = core_share(conn, meses)
+    assert share["Alimentacion"] == 0.8 and share["Hogar"] == 0.0 and share[""] == 800 / 1400
+    tr = trends_analysis(conn, "2025-09-10", "2025-01-01")
+    assert tr["total"].core == share[""] and {t.name: t.core for t in tr["trends"]}["Alimentacion"] == 0.8
