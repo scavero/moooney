@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.23.2 · 2026-11-17
+
+- **Tema claro**: el contador de comercios dudosos junto a la pestaña «Comercios» era blanco sobre
+  papel y no se veía; ahora va en gris con fondo. El punto «·» de los meses sin gasto en «Todas las
+  categorías, mes a mes» sube de contraste (antes 2,4:1).
+
 ## 1.23.1 · 2026-11-17
 
 - **Repaso en móvil**: en Tendencias, «Qué está cambiando» se apila (categoría y previsión arriba, la

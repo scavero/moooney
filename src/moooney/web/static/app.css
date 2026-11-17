@@ -41,7 +41,6 @@
   --heat-rgb: 14, 59, 46;
   --neutral-soft: #e9ebe9;
   --warn-bg: #fff6e5;
-  --zero-ink: #9aa29e;
   --shadow: rgba(6, 36, 27, .25);
   --log-bg: var(--dominant-ink);
   --side-bg: var(--dominant);
@@ -84,7 +83,6 @@
   --heat-rgb: 127, 207, 174;
   --neutral-soft: #29322e;
   --warn-bg: #2e2410;
-  --zero-ink: #7f8b85;
   --shadow: rgba(0, 0, 0, .5);
   --log-bg: #0a0f0d;
   --side-bg: #0c1311;
@@ -237,6 +235,7 @@ details summary { cursor: pointer; color: var(--dominant); }
 /* ---------- barra lateral: grupos y contadores ---------- */
 .sidebar nav .group { color: var(--side-muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin: 20px 0 6px; }
 .pill.soft { background: rgba(255, 255, 255, .16); color: var(--side-strong); }
+.section-tabs .pill.soft { background: var(--neutral-soft); color: var(--ink-2); }  /* sobre el papel, no sobre la barra oscura */
 
 /* ---------- resumen: primero la respuesta ---------- */
 .verdict-main { display: flex; align-items: center; gap: var(--s5); flex-wrap: wrap; margin-bottom: var(--s3); }
@@ -418,7 +417,7 @@ td.num.exp { color: var(--ink); } td.num.inc { color: var(--dominant); font-weig
 
 /* ---------- tabla mes a mes: intensidad ---------- */
 td.heat { background: rgba(var(--heat-rgb), calc(0.02 + 0.16 * var(--v, 0))); }
-td.heat.zero { color: var(--zero-ink); background: transparent; }
+td.heat.zero { color: var(--ink-3); background: transparent; }
 th.sticky, td.sticky { position: sticky; left: 0; background: var(--paper); }
 
 /* ---------- toast ---------- */
