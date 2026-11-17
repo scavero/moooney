@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.21.1 · 2026-11-17
+
+- **Una sola previsión también en el asistente y el informe**: para los meses siguientes ya no reciben
+  la cuenta antigua (tres meses iguales), sino el gasto total previsto con su rango, la misma cifra que
+  enseña Tendencias. Con menos de 6 meses completos no se da previsión de meses futuros.
+
 ## 1.21.0 · 2026-11-17
 
 - **Categorías con tilde**: «Alimentación», «Tarjeta de crédito», «nómina»… se escriben bien en todas las

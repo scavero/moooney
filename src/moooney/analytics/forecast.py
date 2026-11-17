@@ -44,22 +44,6 @@ class MonthEndForecast:
         return self.income - self.expenses
 
 
-@dataclass
-class MonthForecast:
-    month: str
-    fixed: float
-    variable: float
-    income: float
-
-    @property
-    def expenses(self) -> float:
-        return self.fixed + self.variable
-
-    @property
-    def net(self) -> float:
-        return self.income - self.expenses
-
-
 def full_months_before(conn: sqlite3.Connection, month: str, n: int, *, as_of: str,
                        first: str | None) -> list[MonthSummary]:
     """Los últimos n meses completos anteriores a `month` (puede devolver menos)."""
@@ -110,26 +94,6 @@ def forecast_month_end(conn: sqlite3.Connection, as_of: str, *, first: str | Non
         income_pending=_pending_recurring(conn, as_of, last_day, ("income",)),
         history_months=len(history),
     )
-
-
-def forecast_next_months(conn: sqlite3.Connection, as_of: str, n: int = 3, *,
-                         first: str | None = None) -> list[MonthForecast]:
-    month = periods.month_of(as_of)
-    history = full_months_before(conn, month, HISTORY_MONTHS, as_of=as_of, first=first)
-    variable = _avg([h.variable_expenses for h in history])
-    income = _avg([h.income for h in history])
-    ph = ",".join("?" for _ in EXPENSE_FLOWS)
-    fixed = float(conn.execute(
-        f"SELECT COALESCE(SUM(ABS(amount_avg) * 30.0 / period_days), 0) AS s FROM recurring"
-        f" WHERE active = 1 AND flow_type IN ({ph})",
-        EXPENSE_FLOWS,
-    ).fetchone()["s"])
-    out: list[MonthForecast] = []
-    cur = month
-    for _ in range(n):
-        cur = periods.next_month(cur)
-        out.append(MonthForecast(month=cur, fixed=fixed, variable=variable, income=income))
-    return out
 
 
 def last_balance(conn: sqlite3.Connection) -> float | None:

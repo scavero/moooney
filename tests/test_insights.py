@@ -4,7 +4,6 @@ import pytest
 
 from moooney.analytics.forecast import (
     forecast_month_end,
-    forecast_next_months,
     runway_months,
     savings_projection,
 )
@@ -37,13 +36,9 @@ def test_forecast_fin_de_mes_coherente(demo_db):
     assert f.income == f.income_so_far + f.income_pending
 
 
-def test_forecast_proximos_meses_y_runway(demo_db):
+def test_runway_y_saldo_proyectado(demo_db):
     as_of = "2026-10-10"
     store_recurring(demo_db, detect_recurring(demo_db, as_of), "t")
-    nxt = forecast_next_months(demo_db, as_of, n=3)
-    assert [m.month for m in nxt] == ["2026-11", "2026-12", "2027-01"]
-    assert all(m.fixed > 0 and m.variable > 0 and m.income > 0 for m in nxt)
-    assert nxt[0].expenses == pytest.approx(nxt[0].fixed + nxt[0].variable)
     rw = runway_months(demo_db, as_of)
     assert rw is not None and rw > 0
     proj = savings_projection(demo_db, as_of, months=6)

@@ -20,6 +20,7 @@ from moooney.analytics.insights import Insight, build_insights
 from moooney.analytics.recurring import load_recurring
 from moooney.llm.anonymize import assert_safe_text
 from moooney.llm.client import LLMClient, LLMSettings
+from moooney.web.queries import gasto_proximos_meses
 
 MAX_PAYLOAD_CHARS = 12000
 
@@ -101,10 +102,7 @@ def build_payload(conn: sqlite3.Connection, month: str | None = None, *,
             "dia": f.day, "dias_mes": f.days_in_month, "gastos": round(f.expenses),
             "ingresos": round(f.income), "ahorro": round(f.net),
         }
-    nxt = forecast_mod.forecast_next_months(conn, as_of, n=3, first=first)
-    payload["proximos_meses"] = [
-        {"mes": x.month, "gastos": round(x.expenses), "ingresos": round(x.income), "ahorro": round(x.net)} for x in nxt
-    ]
+    payload["gasto_proximos_meses"] = gasto_proximos_meses(conn, as_of, first)
     runway = forecast_mod.runway_months(conn, as_of, first=first)
     payload["colchon_meses"] = round(runway, 1) if runway is not None else None
     return payload

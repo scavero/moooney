@@ -123,6 +123,14 @@ def trends_analysis(conn: sqlite3.Connection, as_of: str, first: str | None) -> 
     return {"total": total, "trends": sorted(rows, key=lambda t: -abs(t.change_eur)), "ahead": ahead, "n": len(months)}
 
 
+def gasto_proximos_meses(conn: sqlite3.Connection, as_of: str, first: str | None) -> list[dict]:
+    """Gasto total previsto de los tres meses siguientes, con su rango: la misma cifra que enseña Tendencias,
+    para el asistente y el informe. Vacío si aún no hay meses suficientes."""
+    total = trends_analysis(conn, as_of, first)["total"]
+    return [{"mes": m, "gasto_previsto": round(v), "entre": [round(lo), round(hi)]}
+            for m, v, lo, hi in (total.forecast if total else [])]
+
+
 def merchants_page(
     conn: sqlite3.Connection,
     *,

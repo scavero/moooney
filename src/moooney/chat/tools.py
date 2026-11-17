@@ -23,6 +23,7 @@ from moooney.analytics.insights import build_insights
 from moooney.analytics.metrics import EXPENSE_FLOWS, build_report
 from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
+from moooney.web.queries import gasto_proximos_meses
 
 _MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
@@ -218,7 +219,6 @@ def prevision(ctx: Context, args: dict) -> dict:
     as_of = _as_of(ctx)
     first = periods.first_date(ctx.conn)
     f = forecast_mod.forecast_month_end(ctx.conn, as_of, first=first)
-    nxt = forecast_mod.forecast_next_months(ctx.conn, as_of, n=3, first=first)
     runway = forecast_mod.runway_months(ctx.conn, as_of, first=first)
     return {
         "datos_hasta": as_of,
@@ -227,8 +227,7 @@ def prevision(ctx: Context, args: dict) -> dict:
                             "variable_esperado_resto": _r(f.variable_expected_rest),
                             "gastos_previstos": _r(f.expenses), "ingresos_previstos": _r(f.income),
                             "ahorro_previsto": _r(f.net)},
-        "proximos_meses": [{"mes": x.month, "gastos": _r(x.expenses), "fijos": _r(x.fixed),
-                            "ingresos": _r(x.income), "ahorro": _r(x.net)} for x in nxt],
+        "gasto_proximos_meses": gasto_proximos_meses(ctx.conn, as_of, first),
         "meses_que_aguanta_sin_ingresos": _r(runway, 1),
     }
 
@@ -366,7 +365,7 @@ TOOLS: list[Tool] = [
          {"type": "object", "properties": {}}, alertas),
     Tool("hallazgos", "Diagnóstico automático de un mes: qué se ha disparado, qué se puede recortar y "
          "cuánto supone al mes.", {"type": "object", "properties": {"mes": _MES}}, hallazgos),
-    Tool("prevision", "Previsión de cómo acaba este mes, los tres siguientes y cuántos meses se aguanta "
+    Tool("prevision", "Previsión de cómo acaba este mes, el gasto de los tres siguientes con su rango y cuántos meses se aguanta "
          "sin ingresos.", {"type": "object", "properties": {}}, prevision),
     Tool("resumen_anio", "Un año frente al anterior en el mismo periodo, por categoría y mes a mes.",
          {"type": "object", "properties": {"anio": {"type": "integer"}}}, resumen_anio),

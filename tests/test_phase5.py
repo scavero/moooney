@@ -36,7 +36,9 @@ def test_payload_solo_agregados_y_pasa_anonymize(demo):
     payload = advice.build_payload(conn, budgets_limits={"Alimentacion": 400.0})
     assert payload["mes"] == "2026-10" and payload["resumen"]["ingresos"] > 0
     assert "presupuesto" in payload and "prevision_fin_de_mes" in payload
-    assert len(payload["proximos_meses"]) == 3
+    nxt = payload["gasto_proximos_meses"]  # la misma previsión con rango que Tendencias
+    assert [x["mes"] for x in nxt] == ["2026-11", "2026-12", "2027-01"]
+    assert all(x["entre"][0] <= x["gasto_previsto"] <= x["entre"][1] for x in nxt)
     text = advice.payload_text(payload)
     assert "fingerprint" not in text and "balance" not in text  # nada de filas crudas
     assert json.loads(text)["mes"] == "2026-10"
