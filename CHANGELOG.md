@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.23.1 · 2026-11-17
+
+- **Repaso en móvil**: en Tendencias, «Qué está cambiando» se apila (categoría y previsión arriba, la
+  frase debajo a todo el ancho) en vez de estrujar la frase en una columna; el selector de Comercios
+  (Dudosos / En Otros / Corregidas / Todas) ya cabe entero; el Historial de Importar no parte las
+  palabras letra a letra; los desplegables «↓» tienen 40 px de alto para el dedo.
+- **Arreglo**: en «Evolución por categoría» todas las categorías parecían elegidas (también en
+  escritorio); ahora solo se rellena la que estás viendo.
+
 ## 1.23.0 · 2026-11-17
 
 - **Tendencias, segunda vuelta**: cada categoría dice ahora, además de si sube o baja, si **cambió de

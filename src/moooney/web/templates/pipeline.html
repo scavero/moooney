@@ -82,8 +82,8 @@
     <div class="scroll-x">
     <table class="keys-table" data-more="8">
       <tr><th>Cuándo</th><th>Qué</th><th>Resultado</th></tr>
-      {% for i in imports %}<tr><td style="color:var(--ink-2);white-space:nowrap" title="{{ i.imported_at }}">{{ i.imported_at[:10]|fecha }} {{ i.imported_at[11:16] }}</td><td style="min-width:0;word-break:break-word">Importación · {{ i.filename }}</td><td style="white-space:nowrap">{{ i.rows_total }} filas, {{ i.rows_new }} nuevas</td></tr>{% endfor %}
-      {% for j in jobs %}<tr><td style="color:var(--ink-2);white-space:nowrap">{{ j.started_at[11:16] }}</td><td><a href="/pipeline/jobs/{{ j.id }}" hx-target="#job-panel" hx-swap="innerHTML" style="font-weight:500">{{ j.name }}</a></td><td><span class="tag {{ 'ok' if j.status == 'done' else 'crit' if j.status == 'error' else 'info' }}">{{ {'done': 'terminado', 'error': 'error', 'running': 'en marcha'}.get(j.status, j.status) }}</span></td></tr>{% endfor %}
+      {% for i in imports %}<tr><td style="color:var(--ink-2);white-space:nowrap" title="{{ i.imported_at }}">{{ i.imported_at[:10]|fecha }} {{ i.imported_at[11:16] }}</td><td style="min-width:14ch;word-break:break-word">Importación · {{ i.filename }}</td><td style="white-space:nowrap">{{ i.rows_total }} filas, {{ i.rows_new }} nuevas</td></tr>{% endfor %}
+      {% for j in jobs %}<tr><td style="color:var(--ink-2);white-space:nowrap">{{ j.started_at[11:16] }}</td><td style="min-width:14ch"><a href="/pipeline/jobs/{{ j.id }}" hx-target="#job-panel" hx-swap="innerHTML" style="font-weight:500">{{ j.name }}</a></td><td><span class="tag {{ 'ok' if j.status == 'done' else 'crit' if j.status == 'error' else 'info' }}">{{ {'done': 'terminado', 'error': 'error', 'running': 'en marcha'}.get(j.status, j.status) }}</span></td></tr>{% endfor %}
       {% if not imports and not jobs %}<tr><td colspan="3" class="muted">Ninguna importación ni trabajo todavía.</td></tr>{% endif %}
     </table>
     </div>
