@@ -9,6 +9,7 @@
 import sqlite3
 from dataclasses import dataclass
 from datetime import date
+from itertools import accumulate
 
 from moooney.analytics import periods
 from moooney.analytics.metrics import EXPENSE_FLOWS, MonthSummary, monthly_summary
@@ -125,21 +126,26 @@ def runway_months(conn: sqlite3.Connection, as_of: str, *, first: str | None = N
     return max(balance, 0.0) / avg_exp
 
 
-def savings_projection(conn: sqlite3.Connection, as_of: str, months: int = 12, *,
-                       first: str | None = None) -> list[tuple[str, float]]:
-    """Saldo proyectado mes a mes si se mantiene el ahorro neto medio reciente."""
-    balance = last_balance(conn) or 0.0
-    history = full_months_before(conn, periods.month_of(as_of), 6, as_of=as_of, first=first)
-    net = _avg([h.net for h in history])
-    out = []
-    cur = periods.month_of(as_of)
-    acc = balance
-    for _ in range(months):
-        cur = periods.next_month(cur)
-        acc += net
-        out.append((cur, acc))
-    return out
-
+def savings_track(conn: sqlite3.Connection, as_of: str, *, first: str | None = None) -> dict:
+    """Lo ahorrado mes a mes desde el primer dato, acumulado y separado en lo que se queda en la cuenta
+    (ahorro neto menos lo que va a inversión) y lo aportado a inversión, más la media mensual de ambos en
+    los 12 últimos meses completos. Solo flujos de la cuenta: lo que valen las inversiones no se ve."""
+    cur, m = periods.month_of(as_of), periods.month_of(first or as_of)
+    months = []
+    while m <= cur:
+        months.append(m)
+        m = periods.next_month(m)
+    keys = active_keys(conn)
+    rows = [monthly_summary(conn, m, as_of=as_of, first=first, recurring=keys) for m in months]
+    full = [r for r in rows if r.full_month][-12:]
+    return {
+        "months": months,
+        "cuenta": [round(x, 2) for x in accumulate(r.net - r.investment for r in rows)],
+        "invertido": [round(x, 2) for x in accumulate(r.investment for r in rows)],
+        "media_cuenta": round(_avg([r.net - r.investment for r in full]), 2),
+        "media_inversion": round(_avg([r.investment for r in full]), 2),
+        "meses_media": len(full),
+    }
 
 def today_or_as_of(as_of: str) -> date:
     return date.fromisoformat(as_of)

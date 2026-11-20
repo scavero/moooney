@@ -12,8 +12,29 @@
     <div class="hint">con {{ fme.income|eur }} de ingresos previstos</div></div>
   <div class="card kpi"><div class="label">Colchón</div><div class="value">{% if runway is not none %}{{ ('%.1f'|format(runway))|replace('.', ',') }} meses{% else %}—{% endif %}</div>
     <div class="hint">saldo {{ balance|eur }} entre el gasto medio mensual</div></div>
-  <div class="card kpi"><div class="label">Ahorro medio · 6 meses</div><div class="value {{ 'pos' if avg_net >= 0 else 'neg' }}">{{ avg_net|eur }}</div>
-    <div class="hint">al mes · {{ projection[-1][1]|eur }} de saldo dentro de un año si sigue igual</div></div>
+  {% set ahorro_mes = track.media_cuenta + track.media_inversion %}
+  <div class="card kpi"><div class="label">Ahorro medio al mes</div><div class="value {{ 'pos' if ahorro_mes >= 0 else 'neg' }}">{{ ahorro_mes|eur }}</div>
+    <div class="hint">{{ track.media_inversion|eur }} a inversión · <a href="#ahorro">cómo crece ↓</a></div></div>
+</div>
+
+{# Ahorro e inversión: lo hecho (acumulado desde el primer dato) y hacia dónde va, con interés compuesto
+   sobre lo invertido. La rentabilidad la pone el usuario: moooney no ve lo que valen sus inversiones. #}
+{% set cuenta = track.cuenta[-1] if track.cuenta else 0 %}{% set invertido = track.invertido[-1] if track.invertido else 0 %}
+<div class="card section" id="ahorro">
+  <h2 style="margin-bottom:4px">Ahorro e inversión</h2>
+  <p style="margin:0 0 var(--s2)">Desde {{ track.months[0]|mes }} has ahorrado <strong>{{ (cuenta + invertido)|eur }}</strong>:
+    <strong>{{ cuenta|eur }}</strong> se han quedado en la cuenta y <strong>{{ invertido|eur }}</strong> han ido a inversión.
+    {% if track.meses_media %}En los {{ track.meses_media }} últimos meses completos, de media, <strong>{{ track.media_cuenta|eur }} al mes</strong> a la cuenta y <strong>{{ track.media_inversion|eur }} al mes</strong> a inversión.{% endif %}</p>
+  <div class="filters" style="margin-bottom:var(--s2)">
+    <label class="date-field">Rentabilidad anual supuesta (%) <input id="save-rate" type="number" min="-20" max="30" step="0.5" value="4" style="width:80px"></label>
+    <label class="date-field">Mirar a <select id="save-years"><option value="5">5 años</option><option value="10" selected>10 años</option><option value="20">20 años</option><option value="30">30 años</option></select></label>
+    <label class="date-field">Lo que valen hoy tus inversiones (€) <input id="save-now" type="number" min="0" step="100" placeholder="{{ '%.0f'|format(invertido) }}" style="width:140px"></label>
+  </div>
+  <p id="save-out" style="margin:0 0 var(--s2)"></p>
+  <div class="chart-box"><canvas id="chart-save" role="img" aria-label="Ahorro acumulado en la cuenta y en inversión, y su proyección"></canvas></div>
+  {# leyenda en HTML: la de Chart.js mide el texto corto y en móvil dejaba fuera «En la cuenta» #}
+  <div class="save-legend concept"><span><i style="background:var(--chart-1)"></i>Inversión, con intereses</span><span><i style="background:var(--chart-3)"></i>Solo lo aportado</span><span><i style="background:var(--chart-6)"></i>En la cuenta</span></div>
+  <div class="concept" style="margin-top:var(--s2)">Línea continua: lo que ya has hecho. Discontinua: si sigues ahorrando al ritmo medio. moooney solo ve el dinero que sale de tu cuenta hacia inversión: no sabe cuánto valen hoy ni cuánto han rentado, por eso puedes poner su valor actual. La rentabilidad es una suposición tuya, no una previsión; lo de la cuenta se proyecta sin intereses.</div>
 </div>
 
 {% macro rango(f) %}<strong>{{ f[1]|eur }}</strong> <span class="concept">entre {{ f[2]|eur }} y {{ f[3]|eur }}</span>{% endmacro %}
@@ -80,8 +101,6 @@
     <h2 style="margin-bottom:4px">Lo que entra y lo que sale</h2>
     <div class="concept" style="margin-bottom:12px">La línea es el ahorro. Pulsa un mes para abrir su resumen.</div>
     <div class="chart-box small"><canvas id="chart-flows" role="img" aria-label="Ingresos, gastos y ahorro de los últimos 12 meses"></canvas></div>
-    <h2 style="margin-top:24px;margin-bottom:12px">Saldo proyectado a 12 meses</h2>
-    <div class="chart-box small"><canvas id="chart-proj"></canvas></div>
   </div>
 </div>
 
@@ -118,6 +137,44 @@
 </div>
 
 <script>
+// Ahorro e inversión: se repinta al cambiar la rentabilidad, los años o el valor actual (recordados en este navegador).
+window.drawSave = function () {
+  const tr = {{ track|tojson }}, H = tr.months.length;
+  const el = id => document.getElementById(id), store = (k, v) => { try { localStorage.setItem('moooney-save-' + k, v); } catch (e) {} };
+  if (!el('save-rate')._init) {
+    el('save-rate')._init = 1;
+    ['rate', 'years', 'now'].forEach(k => { try { const v = localStorage.getItem('moooney-save-' + k); if (v !== null) el('save-' + k).value = v; } catch (e) {} });
+    ['rate', 'years', 'now'].forEach(k => el('save-' + k).addEventListener('input', () => { store(k, el('save-' + k).value); window.drawSave(); }));
+  }
+  const css = getComputedStyle(document.documentElement); const palette = [1,2,3,4,5,6,7,8,9].map(i => css.getPropertyValue('--chart-' + i).trim());
+  const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0, useGrouping:'always'}).format(v);
+  const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const rate = (parseFloat(String(el('save-rate').value).replace(',', '.')) || 0) / 100, years = +el('save-years').value;
+  const last = a => a.length ? a[a.length - 1] : 0, now = parseFloat(el('save-now').value);
+  const rm = Math.pow(1 + rate, 1 / 12) - 1;
+  let cuenta = last(tr.cuenta), pot = isNaN(now) ? last(tr.invertido) : now, aportado = pot;
+  const months = [...tr.months], c = [...tr.cuenta], inv = [...tr.invertido], solo = tr.months.map((m, i) => i === H - 1 ? pot : null);
+  if (H) { inv[H - 1] = pot; }
+  let [y, mo] = (last(tr.months) || '2026-01').split('-').map(Number);
+  for (let k = 0; k < years * 12; k++) {
+    mo += 1; if (mo > 12) { mo = 1; y += 1; }
+    cuenta += tr.media_cuenta; pot = pot * (1 + rm) + tr.media_inversion; aportado += tr.media_inversion;
+    months.push(y + '-' + String(mo).padStart(2, '0')); c.push(cuenta); inv.push(pot); solo.push(aportado);
+  }
+  const intereses = pot - aportado;
+  el('save-out').innerHTML = 'En ' + years + ' años, si sigues así: la cuenta llegaría a <strong>' + eur(cuenta) + '</strong> y tu inversión a <strong>' + eur(pot) + '</strong>'
+    + (tr.media_inversion > 0 || pot > 0 ? ' (has aportado ' + eur(aportado) + '; ' + eur(intereses) + ' serían intereses, con un ' + (rate * 100).toLocaleString('es-ES') + ' % anual)' : '') + '.';
+  const dash = { borderDash: ctx => ctx.p1DataIndex >= H ? [6, 4] : undefined };
+  const box = el('chart-save'); if (box._chart) box._chart.destroy();
+  box._chart = new Chart(box, { type: 'line', data: { labels: months.map(m => MES[+m.slice(5, 7) - 1] + ' ' + m.slice(2, 4)), datasets: [
+      { label: 'Inversión', data: inv, borderColor: palette[0], backgroundColor: palette[0], borderWidth: 2, pointRadius: 0, tension: .2, segment: dash },
+      { label: 'Solo lo aportado', data: solo, borderColor: palette[2], borderWidth: 1.5, borderDash: [2, 3], pointRadius: 0, spanGaps: false },
+      { label: 'En la cuenta', data: c, borderColor: palette[5], backgroundColor: palette[5], borderWidth: 2, pointRadius: 0, tension: .2, segment: dash } ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw === null ? null : c.dataset.label + ': ' + eur(c.raw) } } },
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }, y: { ticks: { callback: v => eur(v) }, grid: { color: css.getPropertyValue('--chart-grid').trim() },
+        afterFit: s => { s.width = Math.max(s.width, 76); } } } } });  // Chart.js mide los rótulos algo estrechos y cortaba «45.000 €»
+};
 window.renderCharts = function () {
   const eur = v => new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
   const mk = (id, cfg) => { const el = document.getElementById(id); if (!el) return; if (el._chart) el._chart.destroy(); el._chart = new Chart(el, cfg); };
@@ -153,9 +210,7 @@ window.renderCharts = function () {
       scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } },
       onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
       onClick: (e, els) => { if (els.length) go('/?month=' + flows.months[els[0].index]); } } });
-  const proj = {{ projection|tojson }};
-  mk('chart-proj', { type: 'line', data: { labels: proj.map(p => lbl(p[0])), datasets: [{ label: 'saldo proyectado', data: proj.map(p => p[1]), borderColor: palette[0], backgroundColor: palette[4] + '66', fill: true, tension: .3, borderWidth: 2, pointRadius: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => eur(c.raw) } } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => eur(v) }, grid } } } });
+  window.drawSave();
 };
 </script>
 {% endblock %}

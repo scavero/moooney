@@ -5,7 +5,7 @@ import pytest
 from moooney.analytics.forecast import (
     forecast_month_end,
     runway_months,
-    savings_projection,
+    savings_track,
 )
 from moooney.analytics.insights import build_insights, spend_share_12m
 from moooney.analytics.recurring import detect_recurring, store_recurring
@@ -41,8 +41,6 @@ def test_runway_y_saldo_proyectado(demo_db):
     store_recurring(demo_db, detect_recurring(demo_db, as_of), "t")
     rw = runway_months(demo_db, as_of)
     assert rw is not None and rw > 0
-    proj = savings_projection(demo_db, as_of, months=6)
-    assert len(proj) == 6 and proj[0][0] == "2026-11"
 
 
 def test_insights_ordenados_y_con_enlaces(demo_db):
@@ -83,3 +81,22 @@ def test_mes_a_medias_no_extrapola(demo_db):
         c = cats[i.title.split(" ya supera")[0]]
         assert i.impact == pytest.approx(c.amount - c.avg_prev)
         assert c.amount > c.avg_prev
+
+
+
+def test_ahorro_acumulado_separa_cuenta_e_inversion(tmp_path):
+    from moooney.db import repo
+    from tests.test_analytics import _tx
+
+    conn = repo.connect(tmp_path / "t.db")
+    filas = []
+    for m in range(1, 5):
+        filas += [(f"2026-{m:02d}-01", "NOMINA", 2000.0, "Ingresos", "income"),
+                  (f"2026-{m:02d}-05", "ALQUILER", -1200.0, "Vivienda", "expense"),
+                  (f"2026-{m:02d}-06", "BROKER INVENTADO", -300.0, "Inversion", "investment")]
+    _tx(conn, filas)
+    t = savings_track(conn, "2026-04-30", first="2026-01-01")
+    assert t["months"] == ["2026-01", "2026-02", "2026-03", "2026-04"]
+    # ahorra 800 al mes: 300 van a inversión y 500 se quedan en la cuenta
+    assert t["invertido"] == [300, 600, 900, 1200] and t["cuenta"] == [500, 1000, 1500, 2000]
+    assert (t["media_cuenta"], t["media_inversion"], t["meses_media"]) == (500, 300, 4)

@@ -23,7 +23,7 @@
   <div class="kpi-row">
     <div><div class="label">Ingresos</div><div class="value pos">{{ s.income|eur }}</div><div class="hint">{% if fme and fme.income_pending > 0 %}de {{ fme.income|eur }} previstos{% else %}nómina y otros ingresos{% endif %}</div></div>
     <div><div class="label">Gastos</div><div class="value neg">{{ s.expenses|eur }}</div><div class="hint">{% if fme %}de {{ fme.expenses|eur }} previstos a fin de mes{% else %}fijos {{ s.fixed_expenses|eur }} · variables {{ s.variable_expenses|eur }}{% endif %}</div></div>
-    <div><div class="label">{{ 'Ahorro neto' if s.full_month else 'Ahorro hasta hoy' }}</div><div class="value">{{ s.net|eur }}</div><div class="hint">tasa {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte</div></div>
+    <div><div class="label">{{ 'Ahorro neto' if s.full_month else 'Ahorro hasta hoy' }}</div><div class="value">{{ s.net|eur }}</div><div class="hint">tasa {{ s.savings_rate|pct }} · inversión {{ s.investment|eur }} aparte · <a href="/trends#ahorro">cómo crece →</a></div></div>
     <div><div class="label">Saldo</div><div class="value">{{ balance|eur }}</div>{% if accounts|length > 1 %}<div class="hint">{% for a in accounts %}{{ a.account }} {{ a.last_balance|eur }}{{ ' · ' if not loop.last else '' }}{% endfor %}</div>{% endif %}</div>
   </div>
 </div>

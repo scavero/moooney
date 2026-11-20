@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.25.0 · 2026-11-20
+
+- **Ahorro e inversión en Tendencias**: nueva sección con lo ahorrado desde el primer dato, separado
+  en lo que se ha quedado en la cuenta y lo que ha ido a inversión, y la media mensual de cada parte.
+  El gráfico sigue hacia delante 5, 10, 20 o 30 años al ritmo medio, con **interés compuesto** sobre
+  lo invertido y una línea con «solo lo aportado» para ver cuánto ponen los intereses. La
+  rentabilidad la pones tú (4 % por defecto) y puedes indicar lo que valen hoy tus inversiones,
+  porque moooney solo ve lo que sale de la cuenta hacia ellas. Se recuerda en el navegador.
+- Sustituye al «Saldo proyectado a 12 meses», que además sumaba al saldo lo que iba a inversión. La
+  tarjeta «Ahorro medio al mes» de Tendencias pasa a 12 meses y dice cuánto va a inversión, y en el
+  Resumen el ahorro enlaza a la nueva sección.
+
 ## 1.24.0 · 2026-11-20
 
 Probado contra el modelo real sobre una demo sintética con un escalón, un mes raro y compras puntuales.

@@ -33,7 +33,7 @@ from moooney.analytics import insights as insights_mod
 from moooney.analytics import period_summary as period_mod
 from moooney.analytics import periods
 from moooney.analytics import trends as trends_mod
-from moooney.analytics.metrics import full_months_before_safe, monthly_series
+from moooney.analytics.metrics import monthly_series
 from moooney.analytics.periods import Period
 from moooney.analytics.price_changes import detect_price_changes
 from moooney.analytics.recurring import load_recurring
@@ -531,8 +531,6 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
             table.append((c, vals, sum(last3) / len(last3) if last3 else 0.0))
         max_cell = max((v for _, vals, _ in table for v in vals), default=1.0) or 1.0
         flows = monthly_series(conn, month, 12, as_of=as_of, first=first)
-        history = full_months_before_safe(conn, month, 6, as_of=as_of, first=first)
-        avg_net = sum(h.net for h in history) / len(history) if history else 0.0
         import markdown as md
 
         tr = queries.trends_analysis(conn, as_of, first)
@@ -549,8 +547,7 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
                    "gastos": [s.expenses for s in flows], "ahorro": [s.net for s in flows]},
             runway=forecast_mod.runway_months(conn, as_of, first=first),
             balance=forecast_mod.last_balance(conn),
-            projection=forecast_mod.savings_projection(conn, as_of, months=12, first=first),
-            avg_net=avg_net,
+            track=forecast_mod.savings_track(conn, as_of, first=first),
         )
 
     @app.post("/trends/interpret", response_class=HTMLResponse)

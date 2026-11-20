@@ -103,7 +103,8 @@ sin tilde y se enseñan con ella.
   (colchón corto, meses en rojo, una categoría que ya supera un mes normal); después, el reparto del
   mes, los comercios donde más se gasta y de dónde vienen los ingresos.
 - **Tendencias**: previsión a fin de mes, colchón en meses, qué está cambiando en cada categoría (tendencia,
-  cambios de escalón, meses raros y cuánto es gasto de fondo) con su previsión y rango, lo que entra y lo que sale en 12 meses, saldo proyectado a un año, dónde se ha ido
+  cambios de escalón, meses raros y cuánto es gasto de fondo) con su previsión y rango, ahorro e inversión
+  acumulados con su proyección a interés compuesto (rentabilidad supuesta por ti), lo que entra y lo que sale en 12 meses, dónde se ha ido
   el dinero, evolución de cada categoría con media móvil y tabla mes a mes.
 - **Explorador del Resumen**: anillo de gasto por categoría, ritmo del mes día a día frente al mes anterior y
   comercios; al pulsar una categoría, todas las gráficas de la página se quedan con ella.
