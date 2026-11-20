@@ -8,7 +8,7 @@ Todo determinista y reproducible, sobre meses completos:
   (solo con dos años, que es cuando un pico se ha repetido).
 - Previsión: tres métodos sencillos compiten prediciendo los últimos meses ya
   conocidos (backtest); gana el que menos se equivoca y su error da la banda.
-- Escalón: los últimos 3-6 meses quedan todos por encima (o todos por debajo) de
+- Escalón: los últimos 3-12 meses quedan todos por encima (o todos por debajo) de
   los 6 anteriores. Mes raro: uno de los 6 últimos muy por encima de lo normal.
 - De fondo: qué parte del gasto va a comercios a los que se vuelve casi todos los
   meses (lo calcula `web/queries.core_share`; aquí solo se guarda y se cuenta).
@@ -85,10 +85,10 @@ def _backtest(fn, xs: list[float], months: list[str]) -> tuple[float, float] | N
 
 
 def level_shift(xs: list[float], months: list[str]) -> tuple[str, float, float] | None:
-    """Cambio de escalón sostenido: los últimos k meses (el tramo más largo de 6 a 3) quedan todos por
+    """Cambio de escalón sostenido: los últimos k meses (el tramo más largo de 12 a 3) quedan todos por
     encima, o todos por debajo, de cada uno de los 6 anteriores. Que no se pisen es lo que lo distingue
     de un par de meses caros."""
-    for k in range(6, 2, -1):
+    for k in range(12, 2, -1):  # hasta un año: más atrás ya lo recoge la comparación de 12 meses frente a 12
         before, after = xs[-k - 6:-k], xs[-k:]
         if len(before) < 3:
             continue
@@ -117,12 +117,16 @@ def analyze(name: str, xs: list[float], months: list[str], ahead: list[str]) -> 
         return None
     yearly = n >= 24
     a, b = (mean(xs[-12:]), mean(xs[-24:-12])) if yearly else (mean(xs[-3:]), mean(xs[-6:-3]))
+    step = level_shift(xs, months)
     peaks: list[tuple[int, float]] = []
     if yearly:
-        base = mean(xs)
+        # los picos se buscan con el escalón descontado: si no, los meses tras el salto parecen temporada
+        flat = [x - (step[2] - step[1]) if step and m >= step[0] else x for x, m in zip(xs, months, strict=True)]
+        base = mean(flat)
         for cal in range(1, 13):
-            same = [x for x, m in zip(xs, months, strict=True) if int(m[5:7]) == cal]
-            if len(same) >= 2 and mean(same) >= 1.25 * base and mean(same) - base >= 20:
+            same = [x for x, m in zip(flat, months, strict=True) if int(m[5:7]) == cal]
+            # un pico de temporada se repite: todos los años por encima de lo normal, no uno solo muy alto
+            if len(same) >= 2 and mean(same) >= 1.25 * base and mean(same) - base >= 20 and min(same) >= 1.1 * base:
                 peaks.append((cal, mean(same) / base - 1))
         peaks = sorted(peaks, key=lambda p: -p[1])[:2]
     scores = {k: s for k, fn in MODELS.items() if (s := _backtest(fn, xs, months)) is not None}
@@ -133,7 +137,6 @@ def analyze(name: str, xs: list[float], months: list[str], ahead: list[str]) -> 
         p = max(MODELS[model](xs, months, m) or 0.0, 0.0)
         # shortcut: la misma banda para los tres meses; ensancharla con el horizonte si se prevé más lejos
         forecast.append((m, p, max(p - Z80 * rmse, 0.0), p + Z80 * rmse))
-    step = level_shift(xs, months)
     return Trend(name=name, n=n, level=mean(xs[-3:]), change=(a - b) / b if b > 0 else None, change_eur=a - b,
                  yearly=yearly, peaks=peaks, model=model, error=error, forecast=forecast, step=step,
                  # tras un escalón los meses nuevos son lo normal de ahora, no meses raros
@@ -198,5 +201,8 @@ Tu trabajo es interpretar, no calcular. Escribe en español, en Markdown, sin sa
 Reglas: usa solo cifras que estén en el JSON y cítalas tal cual. Si una base es «provisional» o el error
 habitual pasa del 30 %, dilo y no saques conclusiones firmes. Si el resumen de una serie dice «estable»,
 no la presentes como un cambio. Un «escalón» es un cambio sostenido de nivel y pesa más que un «mes raro»,
-que es un mes suelto. «pct_de_fondo» es la parte del gasto en comercios a los que vuelve casi todos los meses:
-lo que no es de fondo son compras puntuales, más fáciles de recortar. No des consejos de inversión. Máximo 250 palabras."""
+que es un mes suelto: si una serie tiene escalón, cuenta el cambio con sus cifras (antes y ahora), porque la
+media del año lo diluye; si tiene un mes raro, di que buena parte de la subida del año puede venir de ese mes.
+«pct_de_fondo» es la parte del gasto en comercios a los que vuelve casi todos los meses: lo que no es de fondo
+son compras puntuales, más fáciles de recortar; llámalas «puntuales», nunca «variables». Habla de temporada
+solo si la serie tiene «picos». No des consejos de inversión. Máximo 250 palabras."""

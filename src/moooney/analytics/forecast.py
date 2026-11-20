@@ -96,6 +96,12 @@ def forecast_month_end(conn: sqlite3.Connection, as_of: str, *, first: str | Non
     )
 
 
+def usual_income(conn: sqlite3.Connection, as_of: str, *, first: str | None = None) -> float:
+    """Ingresos medios de los últimos meses completos: con qué cuenta «si cobras como siempre»."""
+    history = full_months_before(conn, periods.month_of(as_of), HISTORY_MONTHS, as_of=as_of, first=first)
+    return _avg([h.income for h in history])
+
+
 def last_balance(conn: sqlite3.Connection) -> float | None:
     """Saldo actual: suma del último saldo conocido de cada cuenta (varios bancos)."""
     rows = conn.execute(

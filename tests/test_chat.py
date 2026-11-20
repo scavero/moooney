@@ -37,6 +37,9 @@ def test_todas_las_consultas_responden_y_pasan_la_barrera(demo):
         assert "error" not in data, (t.name, data)
         assert "balance" not in out and "fingerprint" not in out and "iban" not in out.lower()
     assert set(tools.overview(ctx)) == {"hoy", "datos_desde", "datos_hasta", "categorias"}
+    # para «¿cuánto ahorraré en enero?» el modelo necesita con qué ingresos contar
+    prev = json.loads(agent.run_tool(ctx, "prevision", "{}"))
+    assert prev["ingresos_habituales"] > 0 and "gasto_proximos_meses" in prev
 
 
 def test_errores_que_el_modelo_puede_corregir(demo):

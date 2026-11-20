@@ -41,7 +41,10 @@ y en qué dato se basa. Nada genérico: usa los nombres de categoría y comercio
 ## Vigilar
 2-3 riesgos o cosas a revisar (alertas, recurrentes nuevos, previsión).
 
-Reglas: no inventes datos que no estén en el JSON; si una cifra no aparece, no la cites.
+Reglas: no inventes datos que no estén en el JSON; si una cifra no aparece, no la cites. Tampoco
+inventes referencias externas («el 10 % recomendado») ni efectos que no estén en los datos.
+«Tarjeta de crédito» es el pago de compras ya hechas con la tarjeta, no un coste: no propongas
+cancelarla; si pesa, habla de lo que se compra con ella.
 No des consejos de inversión ni de productos financieros. Máximo 350 palabras."""
 
 

@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.24.0 · 2026-11-20
+
+Probado contra el modelo real sobre una demo sintética con un escalón, un mes raro y compras puntuales.
+
+- **Tendencias**: un escalón ya no se cuenta además como «pico de temporada» en los meses tras el
+  salto, y un mes suelto muy alto (un sofá en agosto) tampoco: un pico tiene que repetirse todos los
+  años. El escalón se busca en los últimos 12 meses, no solo en los 6 últimos; antes, un salto de
+  hace 7 meses hacía que cada mes nuevo saliera como «mes raro».
+- **Lectura del modelo en Tendencias**: cuenta el escalón con sus cifras (antes y ahora), avisa de
+  que una subida anual puede venir de un mes raro y llama «puntuales» a las compras que no son de fondo.
+- **Asistente**: a «¿cuánto ahorraré en enero?» responde con la previsión (ingresos habituales menos
+  gasto previsto, con su rango) en vez de con los datos del mes en curso, y no añade efectos que los
+  datos no muestran, como un «extra de Navidad».
+- **Informe mensual**: deja de proponer «cancelar la tarjeta de crédito» (es el pago de compras ya
+  hechas, no un coste) y de citar referencias inventadas como «el 10 % recomendado».
+
 ## 1.23.2 · 2026-11-17
 
 - **Tema claro**: el contador de comercios dudosos junto a la pestaña «Comercios» era blanco sobre

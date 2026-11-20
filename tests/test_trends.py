@@ -91,3 +91,15 @@ def test_de_fondo_frente_a_puntual(tmp_path):
     assert share["Alimentacion"] == 0.8 and share["Hogar"] == 0.0 and share[""] == 800 / 1400
     tr = trends_analysis(conn, "2025-09-10", "2025-01-01")
     assert tr["total"].core == share[""] and {t.name: t.core for t in tr["trends"]}["Alimentacion"] == 0.8
+
+
+def test_ni_un_escalon_ni_un_mes_suelto_cuentan_como_pico_de_temporada():
+    # dos años planos a 40 € y, desde junio del segundo, 110 €: es un escalón, no un pico en junio-julio
+    xs = [40.0] * 17 + [110.0] * 7
+    t = trends.analyze("Ocio", xs, _months(24), AHEAD)
+    assert t.step is not None and t.peaks == []
+    # un agosto con un sofá no es «pico en agosto»: es un mes raro
+    xs = [100.0] * 24
+    xs[19] = 750.0
+    t = trends.analyze("Compras", xs, _months(24), AHEAD)
+    assert t.peaks == [] and t.odd == ("2025-08", 650.0)

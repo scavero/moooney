@@ -228,6 +228,7 @@ def prevision(ctx: Context, args: dict) -> dict:
                             "gastos_previstos": _r(f.expenses), "ingresos_previstos": _r(f.income),
                             "ahorro_previsto": _r(f.net)},
         "gasto_proximos_meses": gasto_proximos_meses(ctx.conn, as_of, first),
+        "ingresos_habituales": _r(forecast_mod.usual_income(ctx.conn, as_of, first=first)),
         "meses_que_aguanta_sin_ingresos": _r(runway, 1),
     }
 
