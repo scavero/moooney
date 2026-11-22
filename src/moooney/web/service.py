@@ -419,6 +419,7 @@ def job_report(settings: Settings, paths: Paths, log: Logger, *, month: str | No
 
 def job_trends(settings: Settings, paths: Paths, log: Logger) -> None:
     """El modelo de redacción interpreta las tendencias ya calculadas (solo agregados por categoría)."""
+    from moooney.analytics import forecast as forecast_mod
     from moooney.analytics import trends as trends_mod
     from moooney.report import advice
 
@@ -433,7 +434,9 @@ def job_trends(settings: Settings, paths: Paths, log: Logger) -> None:
             raise RuntimeError("no hay movimientos")
         report(log, "Calculando tendencias y previsión")
         t = queries.trends_analysis(conn, as_of, periods.first_date(conn))
-        text = advice.payload_text(trends_mod.payload(t["total"], t["trends"], as_of))
+        ahorro = forecast_mod.savings_summary(conn, as_of, first=periods.first_date(conn))
+        del ahorro["proyeccion_si_sigue_igual"]  # la proyección depende de la rentabilidad que suponga el usuario
+        text = advice.payload_text(trends_mod.payload(t["total"], t["trends"], as_of, ahorro))
         log(f"{len(t['trends'])} categorías sobre {t['n']} meses completos ({len(text)} caracteres)")
         report(log, "El modelo está interpretando las tendencias")
         model = llm.models.get("redaccion") or next(iter(llm.models.values()))

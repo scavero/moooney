@@ -149,3 +149,26 @@ def savings_track(conn: sqlite3.Connection, as_of: str, *, first: str | None = N
 
 def today_or_as_of(as_of: str) -> date:
     return date.fromisoformat(as_of)
+
+
+def savings_summary(conn: sqlite3.Connection, as_of: str, *, first: str | None = None, years: int = 10,
+                    rate: float | None = None) -> dict:
+    """Las cifras de «Ahorro e inversión» para el asistente y la lectura de Tendencias, con la proyección
+    ya hecha (los modelos no calculan). `rate` es la rentabilidad anual que supone el usuario (0.04 = 4 %);
+    sin ella la inversión se proyecta solo con lo aportado."""
+    t = savings_track(conn, as_of, first=first)
+    cuenta, inv, mc, mi = t["cuenta"][-1], t["invertido"][-1], t["media_cuenta"], t["media_inversion"]
+    out = {"desde": t["months"][0], "ahorrado_total": round(cuenta + inv), "en_la_cuenta": round(cuenta),
+           "aportado_a_inversion": round(inv), "media_al_mes_a_la_cuenta": round(mc),
+           "media_al_mes_a_inversion": round(mi), "meses_de_la_media": t["meses_media"]}
+    if len(t["months"]) > 12:
+        out["hace_un_anio"] = {"en_la_cuenta": round(t["cuenta"][-13]), "aportado_a_inversion": round(t["invertido"][-13])}
+    n = years * 12
+    proy = {"anios": years, "en_la_cuenta": round(cuenta + mc * n), "inversion_solo_aportado": round(inv + mi * n)}
+    if rate is not None:
+        rm, pot = (1 + rate) ** (1 / 12) - 1, inv
+        for _ in range(n):
+            pot = pot * (1 + rm) + mi
+        proy |= {"rentabilidad_anual_supuesta_pct": round(rate * 100, 2), "inversion_con_intereses": round(pot)}
+    out["proyeccion_si_sigue_igual"] = proy
+    return out

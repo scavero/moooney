@@ -233,6 +233,17 @@ def prevision(ctx: Context, args: dict) -> dict:
     }
 
 
+def ahorro(ctx: Context, args: dict) -> dict:
+    try:
+        years = min(max(int(args.get("anios") or 10), 1), 40)
+        rate = args.get("rentabilidad_anual_pct")
+        rate = None if rate is None else min(max(float(rate), -20.0), 30.0) / 100
+    except (TypeError, ValueError):
+        return {"error": "«anios» y «rentabilidad_anual_pct» deben ser números."}
+    out = forecast_mod.savings_summary(ctx.conn, _as_of(ctx), first=periods.first_date(ctx.conn), years=years, rate=rate)
+    return {**out, "nota": "Solo se ven las aportaciones que salen de la cuenta: no lo que valen hoy las inversiones."}
+
+
 def resumen_anio(ctx: Context, args: dict) -> dict:
     year = int(args.get("anio") or _as_of(ctx)[:4])
     ys = yearly.year_summary(ctx.conn, year)
@@ -368,6 +379,13 @@ TOOLS: list[Tool] = [
          "cuánto supone al mes.", {"type": "object", "properties": {"mes": _MES}}, hallazgos),
     Tool("prevision", "Previsión de cómo acaba este mes, el gasto de los tres siguientes con su rango y cuántos meses se aguanta "
          "sin ingresos.", {"type": "object", "properties": {}}, prevision),
+    Tool("ahorro", "Lo ahorrado desde el primer dato, separado en lo que se ha quedado en la cuenta y lo aportado a "
+         "inversión, la media al mes y su proyección a «anios» años si sigue igual (con interés compuesto si se "
+         "da la rentabilidad).",
+         {"type": "object", "properties": {
+             "anios": {"type": "integer", "description": "Años de la proyección (10)."},
+             "rentabilidad_anual_pct": {"type": "number", "description": "Rentabilidad anual que supone el usuario, "
+                                        "en %. Solo si la dice él: no la pongas tú."}}}, ahorro),
     Tool("resumen_anio", "Un año frente al anterior en el mismo periodo, por categoría y mes a mes.",
          {"type": "object", "properties": {"anio": {"type": "integer"}}}, resumen_anio),
     Tool("resumen_periodo", "Totales de un trimestre, un año o un rango de fechas frente al periodo anterior "

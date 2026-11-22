@@ -167,7 +167,7 @@ def describe(t: Trend) -> str:
     return "; ".join(parts)
 
 
-def payload(total: Trend | None, trends: list[Trend], as_of: str) -> dict:
+def payload(total: Trend | None, trends: list[Trend], as_of: str, ahorro: dict | None = None) -> dict:
     """Lo que recibe el modelo de redacción: solo agregados mensuales por categoría."""
     def one(t: Trend) -> dict:
         return {
@@ -182,7 +182,8 @@ def payload(total: Trend | None, trends: list[Trend], as_of: str) -> dict:
             "pct_de_fondo": round(t.core * 100) if t.core is not None else None,
             "resumen": describe(t),
         }
-    return {"datos_hasta": as_of, "gasto_total": one(total) if total else None, "categorias": [one(t) for t in trends[:10]]}
+    return {"datos_hasta": as_of, "gasto_total": one(total) if total else None, "categorias": [one(t) for t in trends[:10]],
+            "ahorro": ahorro}
 
 
 SYSTEM_PROMPT = """Eres un analista de finanzas personales prudente y directo. Recibes, de una sola persona,
@@ -205,4 +206,7 @@ que es un mes suelto: si una serie tiene escalón, cuenta el cambio con sus cifr
 media del año lo diluye; si tiene un mes raro, di que buena parte de la subida del año puede venir de ese mes.
 «pct_de_fondo» es la parte del gasto en comercios a los que vuelve casi todos los meses: lo que no es de fondo
 son compras puntuales, más fáciles de recortar; llámalas «puntuales», nunca «variables». Habla de temporada
-solo si la serie tiene «picos». No des consejos de inversión. Máximo 250 palabras."""
+solo si la serie tiene «picos». Si viene «ahorro», añade a «Lo que está cambiando» una viñeta con lo ahorrado
+desde el primer dato (en la cuenta y aportado a inversión), la media al mes y, si viene «hace_un_anio», cuánto ha
+crecido desde entonces, en euros y sin porcentajes tuyos; solo se ven aportaciones, no lo que valen las inversiones, y no lo proyectes tú.
+No des consejos de inversión. Máximo 280 palabras."""

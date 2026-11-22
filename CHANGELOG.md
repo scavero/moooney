@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.26.0 · 2026-11-22
+
+- **El asistente y la lectura de Tendencias hablan del ahorro.** El asistente tiene una consulta nueva,
+  `ahorro`: lo ahorrado desde el primer dato (en la cuenta y aportado a inversión), la media al mes y la
+  proyección a los años que se pidan, con interés compuesto solo si el usuario da la rentabilidad. La lectura
+  del modelo en Tendencias recibe los mismos agregados (sin proyección) y les dedica una viñeta. Los modelos
+  no calculan: la proyección la hace `forecast.savings_summary`.
+
 ## 1.25.0 · 2026-11-20
 
 - **Ahorro e inversión en Tendencias**: nueva sección con lo ahorrado desde el primer dato, separado

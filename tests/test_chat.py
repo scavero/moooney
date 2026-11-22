@@ -40,6 +40,10 @@ def test_todas_las_consultas_responden_y_pasan_la_barrera(demo):
     # para «¿cuánto ahorraré en enero?» el modelo necesita con qué ingresos contar
     prev = json.loads(agent.run_tool(ctx, "prevision", "{}"))
     assert prev["ingresos_habituales"] > 0 and "gasto_proximos_meses" in prev
+    # el ahorro llega ya proyectado: con rentabilidad, la inversión crece más que lo aportado
+    sin = json.loads(agent.run_tool(ctx, "ahorro", "{}"))["proyeccion_si_sigue_igual"]
+    con = json.loads(agent.run_tool(ctx, "ahorro", '{"anios": 10, "rentabilidad_anual_pct": 4}'))["proyeccion_si_sigue_igual"]
+    assert "inversion_con_intereses" not in sin and con["inversion_con_intereses"] > con["inversion_solo_aportado"] > 0
 
 
 def test_errores_que_el_modelo_puede_corregir(demo):

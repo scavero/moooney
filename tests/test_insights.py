@@ -5,6 +5,7 @@ import pytest
 from moooney.analytics.forecast import (
     forecast_month_end,
     runway_months,
+    savings_summary,
     savings_track,
 )
 from moooney.analytics.insights import build_insights, spend_share_12m
@@ -100,3 +101,7 @@ def test_ahorro_acumulado_separa_cuenta_e_inversion(tmp_path):
     # ahorra 800 al mes: 300 van a inversión y 500 se quedan en la cuenta
     assert t["invertido"] == [300, 600, 900, 1200] and t["cuenta"] == [500, 1000, 1500, 2000]
     assert (t["media_cuenta"], t["media_inversion"], t["meses_media"]) == (500, 300, 4)
+    # la proyección para los modelos: sin intereses es lo aportado; con ellos, más
+    p = savings_summary(conn, "2026-04-30", first="2026-01-01", years=1, rate=0.0)["proyeccion_si_sigue_igual"]
+    assert (p["en_la_cuenta"], p["inversion_solo_aportado"], p["inversion_con_intereses"]) == (8000, 4800, 4800)
+    assert savings_summary(conn, "2026-04-30", first="2026-01-01", years=1, rate=0.05)["proyeccion_si_sigue_igual"]["inversion_con_intereses"] > 4800
