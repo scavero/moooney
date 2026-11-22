@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.27.1 · 2026-11-22
+
+- **Arreglo: el usuario y la contraseña puestos en `data/.env` no se leían.** El cargador solo acepta una lista
+  de nombres y faltaban `MOOONEY_USER` y `MOOONEY_PASSWORD`; solo funcionaban como variables de entorno.
+
 ## 1.27.0 · 2026-11-22
 
 - **Acceso con usuario y contraseña (opcional).** Con `MOOONEY_USER` y `MOOONEY_PASSWORD` en el entorno o en

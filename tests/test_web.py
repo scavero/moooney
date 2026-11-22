@@ -449,3 +449,13 @@ def test_la_sesion_caduca_y_depende_de_la_clave():
     assert auth.valid_token(creds, t, now=1000 + 86400)
     assert not auth.valid_token(creds, t, now=1000 + (auth.DAYS + 1) * 86400)
     assert not auth.valid_token(("ana", "otra"), t, now=2000) and not auth.valid_token(creds, "x.y") and not auth.valid_token(creds, None)
+
+
+def test_las_credenciales_tambien_valen_en_data_env(tmp_path, monkeypatch):
+    from moooney import envfile
+
+    monkeypatch.setenv("MOOONEY_USER", "")  # vacías: se leen del fichero y monkeypatch las retira al acabar
+    monkeypatch.setenv("MOOONEY_PASSWORD", "")
+    (tmp_path / ".env").write_text("MOOONEY_USER=ana\nMOOONEY_PASSWORD=clave con # y espacios\n", encoding="utf-8")
+    envfile.load_env_files(tmp_path)
+    assert auth.credentials() == ("ana", "clave con # y espacios")
