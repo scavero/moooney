@@ -691,3 +691,14 @@ main code { font-size: max(.9em, 12px); }
 /* ---------- Tendencias: leyenda del ahorro e inversión ---------- */
 .save-legend { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); margin-top: var(--s1); }
 .save-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+
+/* Entrada con usuario y contraseña (solo si está configurada) */
+.login { max-width: 320px; margin: 0 auto; padding: 96px var(--s2) var(--s4); }
+.login h1 { margin-bottom: var(--s3); }
+.login form { display: flex; flex-direction: column; gap: var(--s1); }
+.login label { font-weight: 700; font-size: 14px; margin-top: var(--s1); }
+.login input { width: 100%; }
+.login .btn { margin-top: var(--s2); justify-content: center; }
+.login-error { margin: 0; color: var(--accent-ink); font-weight: 700; }
+.logout-form { margin: 0; }
+.logout-form .theme-toggle { width: auto; padding: 0 10px; font-size: 13px; }

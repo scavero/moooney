@@ -62,7 +62,7 @@ moooney/
     llm/         client.py  anonymize.py  prompts/
     chat/        tools.py  agent.py  followups.py   (asistente Pregunta: consultas deterministas, bucle con el modelo
                  y sugerencias para seguir, sin modelo)
-    web/         app.py  queries.py  service.py  jobs.py  snapshot.py  templates/  static/
+    web/         app.py  auth.py  queries.py  service.py  jobs.py  snapshot.py  templates/  static/
     demo.py
     export.py  envfile.py
     report/      advice.py

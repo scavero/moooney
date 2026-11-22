@@ -175,7 +175,10 @@ Diagramas en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md); diseño y decisiones 
 - A los modelos van claves de comercio limpias (sin IBAN, saldos, nombres de personas ni referencias) o
   agregados mensuales. Una barrera (`llm/anonymize.py`) rechaza cualquier texto con forma de IBAN, tarjeta o
   referencia larga antes de enviarlo. Todo queda en `llm_calls` y `web_calls`, visibles en *Importar*.
-- La web solo escucha en `127.0.0.1` y no tiene cuentas: es para tu máquina.
+- La web solo escucha en `127.0.0.1` por defecto. Si la expones en tu red (`--host 0.0.0.0`, Docker, un proxy),
+  pon `MOOONEY_USER` y `MOOONEY_PASSWORD` en el entorno o en `data/.env` y reinicia: toda la web pedirá usuario
+  y contraseña (sesión de 30 días; cambiar la contraseña las cierra todas). Sin esas dos variables no pide nada.
+  `/health` responde sin sesión, para vigilar que está viva. Es un único usuario, no un sistema de cuentas.
 - `MOOONEY_OFFLINE=1` bloquea toda llamada a modelos y a Internet; todo lo demás sigue funcionando.
 - Las librerías y las fuentes de la web (htmx, Chart.js, Fraunces, Work Sans) se sirven desde el propio repo:
   la web no hace ninguna petición externa.

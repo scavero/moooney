@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.27.0 · 2026-11-22
+
+- **Acceso con usuario y contraseña (opcional).** Con `MOOONEY_USER` y `MOOONEY_PASSWORD` en el entorno o en
+  `data/.env`, toda la web pide entrar: página de entrada, sesión de 30 días en una cookie firmada y botón
+  «Salir». Solo quedan abiertos la entrada, los estáticos y `/health` (para vigilar que responde). Sin esas
+  variables todo sigue como antes.
+
 ## 1.26.1 · 2026-11-22
 
 - **El asistente no responde con euros de memoria.** Si contesta con cifras sin haber hecho ninguna consulta en

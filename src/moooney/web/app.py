@@ -10,6 +10,7 @@ import html
 import os
 import re
 import sqlite3
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -50,7 +51,7 @@ from moooney.ingest.reset import CONFIRM_WORD
 from moooney.ingest.upload import MAX_BYTES, save_upload
 from moooney.llm.client import offline_enabled
 from moooney.report import advice
-from moooney.web import queries, service
+from moooney.web import auth, queries, service
 from moooney.web.jobs import JobRegistry, stage
 from moooney.web.service import Paths
 
@@ -354,6 +355,56 @@ def create_app(config_path: Path | None = None, *, force_demo: bool = False, sna
         ALERT_TYPE_LABEL=ALERT_TYPE_LABEL, ALERT_EXPLAIN=ALERT_EXPLAIN, snapshot=snapshot,
         SECTIONS=SECTIONS, period_url=period_url,
     )
+
+    # Acceso con usuario y contraseña, solo si están configurados (ver web/auth.py). La copia estática no lo lleva.
+    creds = None if snapshot else auth.credentials()
+    templates.env.globals["auth_on"] = creds is not None
+
+    @app.get("/health", include_in_schema=False)
+    def health() -> Response:
+        """Para vigilar que la web responde sin sesión; no toca los datos."""
+        return Response("ok", media_type="text/plain")
+
+    if creds:
+        @app.middleware("http")
+        async def require_login(request: Request, call_next):
+            path = request.url.path
+            if (path in ("/login", "/health") or path.startswith("/static/")
+                    or auth.valid_token(creds, request.cookies.get(auth.COOKIE))):
+                return await call_next(request)
+            target = "/login"
+            if request.method == "GET" and not request.headers.get("hx-request") and path != "/":
+                target += "?next=" + quote(path + ("?" + request.url.query if request.url.query else ""), safe="")
+            if request.headers.get("hx-request"):  # htmx no sigue un 303 fuera del trozo que pidió: se le manda ir
+                return Response(status_code=401, headers={"HX-Redirect": target})
+            return RedirectResponse(target, status_code=303)
+
+        @app.get("/login", response_class=HTMLResponse)
+        def login_page(request: Request, next: str = "/") -> Response:
+            if auth.valid_token(creds, request.cookies.get(auth.COOKIE)):
+                return RedirectResponse(auth.safe_next(next), status_code=303)
+            return templates.TemplateResponse(request, "login.html", {"next": auth.safe_next(next), "error": False})
+
+        @app.post("/login")
+        def login(request: Request, user: Annotated[str, Form()], password: Annotated[str, Form()],
+                  next: Annotated[str, Form()] = "/") -> Response:
+            if not auth.check(creds, user, password):
+                # shortcut: un segundo de espera por intento fallido, sin bloqueo por IP; si la web sale de la
+                # red local hace falta un límite de intentos de verdad
+                time.sleep(1)
+                return templates.TemplateResponse(request, "login.html", {"next": auth.safe_next(next), "error": True},
+                                                  status_code=401)
+            resp = RedirectResponse(auth.safe_next(next), status_code=303)
+            resp.set_cookie(auth.COOKIE, auth.make_token(creds), max_age=auth.DAYS * 86400, httponly=True,
+                            samesite="lax",
+                            secure=request.headers.get("x-forwarded-proto", request.url.scheme) == "https")
+            return resp
+
+        @app.post("/logout")
+        def logout() -> Response:
+            resp = RedirectResponse("/login", status_code=303)
+            resp.delete_cookie(auth.COOKIE)
+            return resp
 
     _demo_cache: dict[str, Active] = {}
 

@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
-  <link rel="stylesheet" href="/static/app.css?v=59">
+  <link rel="stylesheet" href="/static/app.css?v=60">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js"></script>
   <script src="/static/summary.js?v=2"></script>
@@ -59,6 +59,7 @@
         <span class="muted">{{ 'demo estática' if snapshot else 'local · 127.0.0.1' }}</span>
       </div>
       <button type="button" id="theme-toggle" class="theme-toggle" onclick="cycleTheme()"><span aria-hidden="true">◐</span> <span class="tt-label">Tema automático</span></button>
+      {% if auth_on %}<form class="logout-form" method="post" action="/logout" hx-boost="false"><button type="submit" class="theme-toggle">Salir</button></form>{% endif %}
     </div>
   </aside>
   {# Móvil: cuatro accesos fijos abajo y «Más», que abre el menú completo (el mismo #side-nav). #}

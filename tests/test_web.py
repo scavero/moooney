@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from moooney.demo import build_demo, generate_transactions
+from moooney.web import auth
 from moooney.web.app import create_app, eur
 
 REPO_CONFIG = Path(__file__).resolve().parent.parent / "config"
@@ -417,3 +418,34 @@ def test_subcategorias(tmp_path):
                         (key,)).fetchone()[0] == 0
     assert fill_subcategories(conn, Viajes(), tx)[0] == ko  # idempotente: lo rellenado no se vuelve a preguntar
     conn.close()
+
+
+def test_con_usuario_y_clave_nada_se_ve_sin_entrar(tmp_path, monkeypatch):
+    monkeypatch.setenv("MOOONEY_OFFLINE", "1")
+    monkeypatch.setenv("MOOONEY_USER", "ana")
+    monkeypatch.setenv("MOOONEY_PASSWORD", "clave-de-prueba")
+    settings_path = build_demo(tmp_path / "demo", source_config=REPO_CONFIG, months=8)
+    with TestClient(create_app(settings_path), follow_redirects=False) as c:
+        r = c.get("/transactions?q=x")
+        assert r.status_code == 303 and r.headers["location"] == "/login?next=%2Ftransactions%3Fq%3Dx"
+        assert c.post("/pipeline/run").status_code == 303 and c.get("/export.csv").status_code == 303
+        r = c.get("/trends", headers={"HX-Request": "true"})
+        assert r.status_code == 401 and r.headers["HX-Redirect"] == "/login" and not r.content
+        # lo único abierto: la entrada, los estáticos y la ruta de salud
+        assert c.get("/health").text == "ok" and c.get("/static/app.css").status_code == 200
+        assert "Contraseña" in c.get("/login").text
+        assert c.post("/login", data={"user": "ana", "password": "otra"}).status_code == 401
+        assert auth.COOKIE not in c.cookies
+        r = c.post("/login", data={"user": "ana", "password": "clave-de-prueba", "next": "//fuera.example"})
+        assert r.status_code == 303 and r.headers["location"] == "/" and "HttpOnly" in r.headers["set-cookie"]
+        assert c.get("/transactions").status_code == 200 and "Salir" in c.get("/").text
+        c.post("/logout")
+        assert c.get("/").status_code == 303
+
+
+def test_la_sesion_caduca_y_depende_de_la_clave():
+    creds = ("ana", "clave-de-prueba")
+    t = auth.make_token(creds, now=1000)
+    assert auth.valid_token(creds, t, now=1000 + 86400)
+    assert not auth.valid_token(creds, t, now=1000 + (auth.DAYS + 1) * 86400)
+    assert not auth.valid_token(("ana", "otra"), t, now=2000) and not auth.valid_token(creds, "x.y") and not auth.valid_token(creds, None)
