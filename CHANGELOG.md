@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.26.1 · 2026-11-22
+
+- **El asistente no responde con euros de memoria.** Si contesta con cifras sin haber hecho ninguna consulta en
+  esa pregunta (las saca del historial o se las inventa), se le pide una vez que consulte y responda con lo
+  que devuelva.
+
 ## 1.26.0 · 2026-11-22
 
 - **El asistente y la lectura de Tendencias hablan del ahorro.** El asistente tiene una consulta nueva,

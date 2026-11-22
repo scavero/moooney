@@ -124,6 +124,27 @@ def test_si_anuncia_la_consulta_se_le_pide_que_la_haga(demo, monkeypatch):
     assert seen[1]["messages"][-1] == {"role": "user", "content": agent.NUDGE}
 
 
+def test_cifras_sin_consulta_se_le_pide_que_consulte(demo, monkeypatch):
+    _, conn = demo
+    monkeypatch.delenv("MOOONEY_OFFLINE")
+    monkeypatch.setenv("LITELLM_API_KEY", "clave-falsa")
+    replies = iter([
+        {"content": "Llevas ahorrados 9.999 € en total."},  # de memoria, sin herramienta
+        {"content": None, "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "ahorro", "arguments": "{}"}}]},
+        {"content": "Llevas ahorrados 1.234 €."},
+    ])
+    seen: list = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": next(replies)}]})
+
+    client = LLMClient(SETTINGS, transport=httpx.MockTransport(handler))
+    ans = agent.ask(client, SETTINGS, tools.Context(conn), "¿Cuánto llevo ahorrado?")
+    assert ans.content == "Llevas ahorrados 1.234 €." and ans.tools_used == ["ahorro"]
+    assert seen[1]["messages"][-1] == {"role": "user", "content": agent.NUDGE_CIFRAS}
+
+
 def test_historial_y_borrado(demo):
     _, conn = demo
     agent.save(conn, "user", "¿cómo voy?")

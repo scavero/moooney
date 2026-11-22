@@ -6,6 +6,7 @@ llamada queda en llm_calls con purpose="chat". El historial vive en la tabla cha
 """
 
 import json
+import re
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -52,6 +53,9 @@ cuánto aporta a inversión: no eres un asesor financiero autorizado. Si te preg
 las finanzas del usuario, dilo en una frase."""
 
 NUDGE = "Llama ahora a la herramienta que necesitas, sin escribir texto."
+NUDGE_CIFRAS = ("Has dado cifras sin consultar ninguna herramienta en esta pregunta. Llama ahora a la que "
+                "corresponda y responde solo con lo que devuelva.")
+_EUROS = re.compile(r"\d\s*(€|euros)")
 
 SUGGESTIONS = [
     "¿Cómo voy este mes?",
@@ -139,6 +143,11 @@ def ask(client: LLMClient, settings: LLMSettings, ctx: tools_mod.Context, questi
             # a veces el modelo escribe «tengo que llamar a X» en vez de llamarla: se le pide que lo haga
             nudged = True
             messages += [{"role": "assistant", "content": content}, {"role": "user", "content": NUDGE}]
+            continue
+        if not calls and not last and not nudged and not used and _EUROS.search(content):
+            # cifras de memoria (del historial o inventadas): una vez, se le pide que las consulte
+            nudged = True
+            messages += [{"role": "assistant", "content": content}, {"role": "user", "content": NUDGE_CIFRAS}]
             continue
         if not calls or last:
             if not content:
